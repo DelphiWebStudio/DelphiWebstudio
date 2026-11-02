@@ -13,12 +13,7 @@ interface FaqProps {
   items?: FaqItem[]
 }
 
-const defaultFaqs: FaqItem[] = [
-  { question: 'What is OpenPage?', answer: 'OpenPage is a visual website builder that uses structured JSON config as the source of truth. Both humans and AI agents can edit the same config to build beautiful websites.' },
-  { question: 'How does the JSON config work?', answer: 'Every website is represented as a JSON document with blocks, styles, and content. The visual editor reads and writes this JSON, and agents can make surgical edits via the API.' },
-  { question: 'Can I use my own components?', answer: 'Yes! OpenPage supports custom components. You can build your own blocks following our component schema and register them in the block registry.' },
-  { question: 'Is it free to use?', answer: 'OpenPage offers a free tier for personal projects with up to 5 blocks. Pro and Team plans unlock unlimited blocks, custom domains, and priority support.' },
-]
+const defaultFaqs: FaqItem[] = []
 
 function AccordionItem({ item, isOpen, onToggle }: { item: FaqItem; isOpen: boolean; onToggle: () => void }) {
   return (

@@ -21,7 +21,7 @@ export function useGoogleFonts(fonts: string[]) {
     const links: HTMLLinkElement[] = []
 
     for (const font of unique) {
-      if (document.querySelector(`link[data-openpage-font="${font}"]`)) {
+      if (document.querySelector(`link[data-delphi-web-studio-font="${font}"]`)) {
         loadedFonts.add(font)
         continue
       }
@@ -29,7 +29,7 @@ export function useGoogleFonts(fonts: string[]) {
       const link = document.createElement('link')
       link.rel = 'stylesheet'
       link.href = fontToGoogleUrl(font)
-      link.setAttribute('data-openpage-font', font)
+      link.setAttribute('data-delphi-web-studio-font', font)
       document.head.appendChild(link)
       links.push(link)
       loadedFonts.add(font)

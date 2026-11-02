@@ -16,11 +16,7 @@ interface TestimonialsProps {
   items?: Testimonial[]
 }
 
-const defaultTestimonials: Testimonial[] = [
-  { name: 'Sarah Chen', role: 'CEO at TechCorp', quote: 'OpenPage completely changed how we build landing pages. The JSON config approach is genius.', rating: 5 },
-  { name: 'Marcus Johnson', role: 'Lead Developer', quote: 'Finally, a tool where both designers and AI agents can work together seamlessly.', rating: 5 },
-  { name: 'Emma Wilson', role: 'Product Manager', quote: 'We shipped our marketing site in half the time. The component library is incredible.', rating: 4 },
-]
+const defaultTestimonials: Testimonial[] = []
 
 function StarRating({ rating }: { rating: number }) {
   return (
