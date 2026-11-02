@@ -166,7 +166,9 @@ export const useConfigStore = create<ConfigState>()(
         set((state) => ({
           ...pushUndo(state, 'Add block'),
           config: mutateActivePageBlocks(withPages(state.config), state.activePageId, (blocks) => {
-            if (index !== undefined) {
+            if (block.type === 'navbar') {
+              blocks.unshift(block)
+            } else if (index !== undefined) {
               blocks.splice(index, 0, block)
             } else {
               blocks.push(block)
@@ -250,7 +252,7 @@ export const useConfigStore = create<ConfigState>()(
         const section = state.config.webstudioReusableSections?.find(item => item.id === id)
         if (!section) return state
         const block = { ...structuredClone(section.block), id: `block-${crypto.randomUUID()}` }
-        return { ...pushUndo(state, 'Insert reusable section'), config: mutateActivePageBlocks(withPages(state.config), state.activePageId, blocks => [...blocks, block]) }
+        return { ...pushUndo(state, 'Insert reusable section'), config: mutateActivePageBlocks(withPages(state.config), state.activePageId, blocks => block.type === 'navbar' ? [block, ...blocks] : [...blocks, block]) }
       }),
 
       moveBlock: (fromIndex, toIndex) =>
