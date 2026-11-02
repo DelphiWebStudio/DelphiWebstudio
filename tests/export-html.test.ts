@@ -19,6 +19,32 @@ const baseConfig: SiteConfig = {
 }
 
 describe('exportSiteToHTML', () => {
+  it('exports individual gallery image adjustments and section text styling', () => {
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [{
+      id: 'gallery', type: 'gallery', variant: 'grid',
+      props: { title: 'Photos', images: [{ src: 'assets/a.png', alt: 'A' }, { src: 'assets/b.png', alt: 'B' }],
+        textSize: '28', textColor: '#123456', textAdjustments: { 'h2-0': { size: '42', color: '#aa2200' } },
+        imageAdjustments: { '1': { width: '160', height: '120', left: '-30', top: '15', layer: '2' } } },
+    }] })
+    expect(html).toContain('data-ws-image-index="0"')
+    expect(html).toContain('data-ws-image-index="1"')
+    expect(html).toContain('font-size:28px!important')
+    expect(html).toContain('color:#123456!important')
+    expect(html).toContain('data-ws-text-key="h2-0"')
+    expect(html).toContain('font-size:42px!important')
+    expect(html).toContain('color:#aa2200!important')
+    expect(html).toContain('width:160px!important')
+    expect(html).toContain('left:-30px!important')
+  })
+  it('ignores invalid image and text style content in exported CSS', () => {
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [{
+      id: 'bad', type: 'hero', variant: 'split',
+      props: { headline: 'Hi', heroImage: 'assets/a.png', textColor: 'red;display:none', textSize: '100;display:none',
+        imageAdjustments: { '0': { width: '2px;display:none' } } },
+    }] })
+    expect(html).not.toContain('display:none!important')
+    expect(html).not.toContain('red;display:none')
+  })
   it('exports positioned image sections with their size, overlap and layer order', () => {
     const html = exportSiteToHTML({ ...baseConfig, blocks: [
       { id: 'first-image', type: 'image', variant: 'hero-image', props: { src: 'assets/first.png', alt: 'First image', layoutWidth: 55, layoutHeight: 250, layoutLeft: 10, layoutLayer: 1 } },

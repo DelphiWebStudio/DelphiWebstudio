@@ -6,6 +6,8 @@ export type PendingMediaImport = { projectId: string; files: File[]; allowZip: b
 
 interface EditorState {
   selectedBlockId: string | null
+  selectedImageIndex: number
+  selectedTextKey: string
   viewport: Viewport
   customViewportWidth: number | null
   mode: EditorMode
@@ -22,6 +24,8 @@ interface EditorState {
   generationPrompt: string | null
   generationError: string | null
   selectBlock: (id: string | null) => void
+  selectImage: (index: number) => void
+  selectText: (key: string) => void
   setViewport: (vp: Viewport) => void
   setCustomViewportWidth: (width: number) => void
   setMode: (mode: EditorMode) => void
@@ -40,6 +44,8 @@ interface EditorState {
 
 export const useEditorStore = create<EditorState>()((set) => ({
   selectedBlockId: null,
+  selectedImageIndex: 0,
+  selectedTextKey: '',
   viewport: 'desktop',
   customViewportWidth: null,
   mode: 'beginner',
@@ -54,7 +60,9 @@ export const useEditorStore = create<EditorState>()((set) => ({
   isGenerating: false,
   generationPrompt: null,
   generationError: null,
-  selectBlock: (id) => set({ selectedBlockId: id }),
+  selectBlock: (id) => set(state => ({ selectedBlockId: id, ...(state.selectedBlockId !== id ? { selectedImageIndex: 0, selectedTextKey: '' } : {}) })),
+  selectImage: (index) => set({ selectedImageIndex: Math.max(0, Math.floor(index)) }),
+  selectText: (key) => set({ selectedTextKey: key }),
   setViewport: (vp) => set({ viewport: vp, customViewportWidth: null }),
   setCustomViewportWidth: (width) => set(Number.isFinite(width) ? { customViewportWidth: Math.max(320, Math.min(1920, Math.round(width))) } : {}),
   setMode: (mode) => set({ mode, jsonDrawerOpen: mode === 'professional' }),

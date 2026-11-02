@@ -713,8 +713,32 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export function PropertiesPanel({ block }: { block: BlockConfig }) {
   const [showJson, setShowJson] = useState(false)
+  const [imageNames, setImageNames] = useState<string[]>([])
+  const [textNames, setTextNames] = useState<{ key: string; label: string }[]>([])
   const updateBlock = useConfigStore((state) => state.updateBlock)
+  const updateBlockProps = useConfigStore((state) => state.updateBlockProps)
+  const selectedImageIndex = useEditorStore(state => state.selectedImageIndex)
+  const selectImage = useEditorStore(state => state.selectImage)
+  const selectedTextKey = useEditorStore(state => state.selectedTextKey)
+  const selectText = useEditorStore(state => state.selectText)
   const schema = Object.hasOwn(blockFields, block.type) ? blockFields[block.type] : undefined
+  const adjustments = block.props.imageAdjustments && typeof block.props.imageAdjustments === 'object' && !Array.isArray(block.props.imageAdjustments)
+    ? block.props.imageAdjustments as Record<string, Record<string, unknown>> : {}
+  const selectedAdjustment = adjustments[String(selectedImageIndex)] ?? {}
+  const textAdjustments = block.props.textAdjustments && typeof block.props.textAdjustments === 'object' && !Array.isArray(block.props.textAdjustments)
+    ? block.props.textAdjustments as Record<string, Record<string, unknown>> : {}
+  const textKey = textNames.some(item => item.key === selectedTextKey) ? selectedTextKey : (textNames[0]?.key ?? '')
+  const selectedTextAdjustment = textAdjustments[textKey] ?? {}
+
+  useEffect(() => {
+    let active = true
+    const wrapper = Array.from(document.querySelectorAll('[data-webstudio-block-id]')).find(element => element.getAttribute('data-webstudio-block-id') === block.id)
+    const names = Array.from(wrapper?.querySelectorAll('[data-ws-content] img') ?? []).map((image, index) => image.getAttribute('alt') || `Image ${index + 1}`)
+    const labels = Array.from(wrapper?.querySelectorAll('[data-ws-content] [data-ws-text-key]') ?? [])
+      .map((element, index) => ({ key: element.getAttribute('data-ws-text-key') ?? '', label: element.textContent?.trim().replace(/\s+/g, ' ').slice(0, 70) || `Text ${index + 1}` }))
+    void Promise.resolve().then(() => { if (active) { setImageNames(names); setTextNames(labels) } })
+    return () => { active = false }
+  }, [block])
 
   return (
     <>
@@ -740,6 +764,58 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
           No editable properties defined for this block type.
         </div>
       )}
+
+      {imageNames.length > 0 && <Section title="Image size and position">
+        <label className="block text-xs text-text-2">Image
+          <select aria-label="Choose image to adjust" value={Math.min(selectedImageIndex, imageNames.length - 1)} onChange={event => selectImage(Number(event.target.value))}
+            className="mt-1 mb-2 w-full rounded border border-border-default bg-bg-2 p-1 text-xs">
+            {imageNames.map((name, index) => <option key={index} value={index}>{index + 1}. {name}</option>)}
+          </select>
+        </label>
+        <p className="mb-2 text-[10px] text-text-3">Select an image on the page or in this list. Blank values use the section default. Position is relative to its normal location.</p>
+        {([['width', 'Image width (px)'], ['height', 'Image height (px)'], ['left', 'Move right or left (px)'], ['top', 'Move down or up (px)'], ['layer', 'Image layer order']] as const).map(([key, label]) =>
+          <label key={key} className="mb-2 block text-xs text-text-2">{label}
+            <input type="number" aria-label={label} value={String(selectedAdjustment[key] ?? '')}
+              onChange={event => updateBlockProps(block.id, { imageAdjustments: { ...adjustments, [String(selectedImageIndex)]: { ...selectedAdjustment, [key]: event.target.value } } })}
+              className="mt-1 w-full rounded border border-border-default bg-bg-2 p-1 text-xs" />
+          </label>)}
+        <button type="button" onClick={() => {
+          const next = { ...adjustments }; delete next[String(selectedImageIndex)]
+          updateBlockProps(block.id, { imageAdjustments: next })
+        }} className="rounded border border-border-default px-2 py-1 text-xs">Reset selected image</button>
+      </Section>}
+
+      <Section title="Text size and color">
+        <p className="mb-2 text-[10px] text-text-3">These settings apply to text in this section. Leave blank for the section defaults.</p>
+        <label className="mb-2 block text-xs text-text-2">Text size (px)
+          <input type="number" min="8" max="200" aria-label="Section text size (px)" value={String(block.props.textSize ?? '')}
+            onChange={event => updateBlockProps(block.id, { textSize: event.target.value })}
+            className="mt-1 w-full rounded border border-border-default bg-bg-2 p-1 text-xs" />
+        </label>
+        <label className="mb-2 block text-xs text-text-2">Text color (#RRGGBB)
+          <input type="text" aria-label="Section text color" placeholder="#000000" value={String(block.props.textColor ?? '')}
+            onChange={event => updateBlockProps(block.id, { textColor: event.target.value })}
+            className="mt-1 w-full rounded border border-border-default bg-bg-2 p-1 text-xs" />
+        </label>
+        {textNames.length > 0 && <>
+          <label className="mb-2 block text-xs text-text-2">Individual text
+            <select aria-label="Choose text to adjust" value={textKey} onChange={event => selectText(event.target.value)}
+              className="mt-1 w-full rounded border border-border-default bg-bg-2 p-1 text-xs">
+              {textNames.map((item, index) => <option key={item.key} value={item.key}>{index + 1}. {item.label}</option>)}
+            </select>
+          </label>
+          {([['size', 'Selected text size (px)'], ['color', 'Selected text color (#RRGGBB)']] as const).map(([key, label]) =>
+            <label key={key} className="mb-2 block text-xs text-text-2">{label}
+              <input type={key === 'size' ? 'number' : 'text'} aria-label={label} value={String(selectedTextAdjustment[key] ?? '')}
+                onChange={event => updateBlockProps(block.id, { textAdjustments: { ...textAdjustments, [textKey]: { ...selectedTextAdjustment, [key]: event.target.value } } })}
+                className="mt-1 w-full rounded border border-border-default bg-bg-2 p-1 text-xs" />
+            </label>)}
+          <button type="button" onClick={() => {
+            const next = { ...textAdjustments }; delete next[textKey]
+            updateBlockProps(block.id, { textAdjustments: next })
+          }} className="rounded border border-border-default px-2 py-1 text-xs">Reset selected text</button>
+        </>}
+      </Section>
 
       <Section title="Screen visibility">
         <p className="mb-2 text-[11px] text-text-3">Choose the screen sizes where this section appears.</p>

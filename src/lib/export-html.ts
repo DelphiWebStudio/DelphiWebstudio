@@ -1219,9 +1219,56 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
   const hasFaq = config.blocks.some((b) => b.type === 'faq')
   const hasContact = config.blocks.some((b) => b.type === 'contact')
 
-  const blocksHtml = `<main id="main-content" tabindex="-1" class="@container">${config.blocks.map((block) => {
+  const blocksHtml = `<main id="main-content" tabindex="-1" class="@container">${config.blocks.map((block, index) => {
     const classes = (['mobile', 'tablet', 'desktop'] as const).filter(device => block.webstudioHiddenOn?.[device] === true).map(device => `ws-hidden-${device}`)
-    const html = renderBlock(block)
+    let html = renderBlock(block)
+    const scope = `ws-${index}`
+    const selector = `[data-ws-scope="${scope}"] [data-ws-content]`
+    const textSize = Number(block.props.textSize)
+    const textColor = typeof block.props.textColor === 'string' && /^#[0-9a-f]{6}$/i.test(block.props.textColor) ? block.props.textColor : ''
+    const textRules = [
+      Number.isFinite(textSize) && textSize >= 8 && textSize <= 200 ? `font-size:${textSize}px!important` : '',
+      textColor ? `color:${textColor}!important` : '',
+    ].filter(Boolean).join(';')
+    const adjustments = block.props.imageAdjustments && typeof block.props.imageAdjustments === 'object' && !Array.isArray(block.props.imageAdjustments)
+      ? block.props.imageAdjustments as Record<string, Record<string, unknown>> : {}
+    const imageRules = Object.entries(adjustments).flatMap(([key, value]) => {
+      if (!/^\d{1,4}$/.test(key) || !value || typeof value !== 'object' || Array.isArray(value)) return []
+      const declarations = [
+        value.width !== '' && Number.isFinite(Number(value.width)) && Number(value.width) > 0 ? `width:${Math.min(2000, Math.max(10, Number(value.width)))}px!important;max-width:none!important` : '',
+        value.height !== '' && Number.isFinite(Number(value.height)) && Number(value.height) > 0 ? `height:${Math.min(2000, Math.max(10, Number(value.height)))}px!important` : '',
+        value.left !== '' && Number.isFinite(Number(value.left)) ? `left:${Math.min(2000, Math.max(-2000, Number(value.left)))}px!important` : '',
+        value.top !== '' && Number.isFinite(Number(value.top)) ? `top:${Math.min(2000, Math.max(-2000, Number(value.top)))}px!important` : '',
+        value.layer !== '' && Number.isFinite(Number(value.layer)) ? `z-index:${Math.min(100, Math.max(1, Math.round(Number(value.layer))))}!important` : '',
+      ].filter(Boolean).join(';')
+      return declarations ? [`${selector} img[data-ws-image-index="${key}"]{position:relative!important;${declarations}}`, `${selector} :has(> img[data-ws-image-index="${key}"]){overflow:visible!important}`] : []
+    }).join('')
+    const textAdjustments = block.props.textAdjustments && typeof block.props.textAdjustments === 'object' && !Array.isArray(block.props.textAdjustments)
+      ? block.props.textAdjustments as Record<string, Record<string, unknown>> : {}
+    const individualTextRules = Object.entries(textAdjustments).flatMap(([key, value]) => {
+      if (!/^(h[1-6]|p|span|a|li|label)-\d{1,4}$/.test(key) || !value || typeof value !== 'object' || Array.isArray(value)) return []
+      const size = Number(value.size)
+      const color = typeof value.color === 'string' && /^#[0-9a-f]{6}$/i.test(value.color) ? value.color : ''
+      const declarations = [
+        Number.isFinite(size) && size >= 8 && size <= 200 ? `font-size:${size}px!important` : '',
+        color ? `color:${color}!important` : '',
+      ].filter(Boolean).join(';')
+      return declarations ? [`${selector} [data-ws-text-key="${key}"]{${declarations}}`] : []
+    }).join('')
+    const customStyle = (textRules ? `${selector} :is(h1,h2,h3,h4,h5,h6,p,span,a,li,label){${textRules}}` : '') + individualTextRules + imageRules
+    if (imageRules) {
+      let imageIndex = 0
+      html = html.replace(/<img\b/g, () => `<img data-ws-image-index="${imageIndex++}"`)
+    }
+    if (individualTextRules) {
+      const counts: Record<string, number> = {}
+      html = html.replace(/<(h[1-6]|p|span|a|li|label)\b/g, (_, tag: string) => {
+        const ordinal = counts[tag] ?? 0
+        counts[tag] = ordinal + 1
+        return `<${tag} data-ws-text-key="${tag}-${ordinal}"`
+      })
+    }
+    const content = customStyle ? `<style>${customStyle}</style><div data-ws-content>${html}</div>` : html
     if (block.type === 'image') {
       const widthValue = Number(block.props.layoutWidth)
       const leftValue = Number(block.props.layoutLeft)
@@ -1231,8 +1278,9 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
       const left = Number.isFinite(leftValue) ? Math.max(0, Math.min(100 - width, leftValue)) : 0
       const top = Number.isFinite(topValue) ? Math.max(-2000, Math.min(2000, topValue)) : 0
       const layer = Number.isFinite(layerValue) && layerValue > 0 ? Math.max(1, Math.min(100, Math.round(layerValue))) : 1
-      return `<div${classes.length ? ` class="${classes.join(' ')}"` : ''} style="position:relative;width:${width}%;margin-left:${left}%;margin-top:${top}px;z-index:${layer}">${html}</div>`
+      return `<div data-ws-scope="${scope}"${classes.length ? ` class="${classes.join(' ')}"` : ''} style="position:relative;width:${width}%;margin-left:${left}%;margin-top:${top}px;z-index:${layer}">${content}</div>`
     }
+    if (customStyle) return `<div data-ws-scope="${scope}"${classes.length ? ` class="${classes.join(' ')}"` : ''}>${content}</div>`
     return classes.length ? `<div class="${classes.join(' ')}">${html}</div>` : html
   }).join('\n\n')}</main>`
   const documentLibraryScript = config.blocks.some(block => block.type === 'documentLibrary') ? `<script>document.querySelectorAll('[data-document-library]').forEach(function(library){var search=library.querySelector('[data-library-search]');search.addEventListener('input',function(){var query=search.value.toLocaleLowerCase();library.querySelectorAll('[data-library-item]').forEach(function(item){item.style.display=item.textContent.toLocaleLowerCase().includes(query)?'':'none';});});});</script>` : ''
