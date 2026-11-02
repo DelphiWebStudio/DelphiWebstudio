@@ -51,6 +51,8 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
         title: 'Style',
         fields: [
           { key: 'variant', label: 'Variant', type: 'select', options: ['default', 'centered'] },
+          { key: 'layoutWidth', label: 'Navbar width (% of page)', type: 'text' },
+          { key: 'layoutHeight', label: 'Navbar height (px)', type: 'text' },
         ],
       },
     ],
@@ -376,6 +378,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
   const updateBlock = useConfigStore((s) => s.updateBlock)
   const pages = useConfigStore((s) => s.config.pages)
   const projectId = useEditorStore((s) => s.activeProjectId)
+  const siteSearchEnabled = useProjectsStore((s) => s.projects.find(project => project.id === projectId)?.settings?.siteSearch === 'on')
   const mediaRevision = useProjectsStore((s) => s.projects.find(project => project.id === projectId)?.mediaRevision ?? 0)
   const [media, setMedia] = useState<{ projectId: string; revision: number; images: MediaAsset[] } | null>(null)
   const imageItems = field.type === 'array-items' && ((field.key === 'images' && (block.type === 'gallery' || block.type === 'image')) || (field.key === 'items' && block.type === 'features') || (field.key === 'members' && block.type === 'team'))
@@ -651,7 +654,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
                   />
                   {(block.type === 'navbar' || block.type === 'footer') && field.key === 'navItems' && key === 'url' && portableProjectsEnabled && (pages ?? []).some(page => page.webstudioArticle?.status !== 'draft') && <select
                     aria-label={`Choose a page for ${field.label} item ${i + 1}`}
-                    value={(pages ?? []).some(page => page.path === val && page.webstudioArticle?.status !== 'draft') ? val : ''}
+                    value={(pages ?? []).some(page => page.path === val && page.webstudioArticle?.status !== 'draft') || (val === '/search.html' && siteSearchEnabled) || (val === '/articles/index.html' && (pages ?? []).some(page => page.webstudioArticle?.status === 'ready')) ? val : ''}
                     onChange={event => {
                       if (!event.target.value) return
                       const updated = [...items]
@@ -661,6 +664,8 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
                     className="mt-1 w-full px-1.5 py-1 rounded border border-border-subtle bg-bg-3 text-text-0 text-[11px] outline-none focus:border-green">
                     <option value="">Choose a site page...</option>
                     {(pages ?? []).filter(page => page.webstudioArticle?.status !== 'draft').map(page => <option key={page.id} value={page.path}>{page.name} ({page.path})</option>)}
+                    {siteSearchEnabled && <option value="/search.html">Search</option>}
+                    {(pages ?? []).some(page => page.webstudioArticle?.status === 'ready') && <option value="/articles/index.html">Articles</option>}
                   </select>}
                   {mediaItems && key === imageKey && portableProjectsEnabled && images.length > 0 && <select
                     aria-label={`Choose ${documentItems ? 'document' : 'image'} for ${field.label} item ${i + 1}`}
