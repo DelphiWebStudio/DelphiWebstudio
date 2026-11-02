@@ -12,6 +12,23 @@ const pages = [
 const config: SiteConfig = { name: 'Example', pages, blocks: pages[0].blocks }
 
 describe('multi-page export', () => {
+  it('uses only the configured Navbar, including on generated pages, and retains its dimensions', async () => {
+    const site = structuredClone(config)
+    site.pages![0].blocks.unshift({ id: 'nav', type: 'navbar', variant: 'default', props: { logo: 'My site', layoutWidth: 75, layoutHeight: 56, navItems: [{ label: 'Home', url: '/' }, { label: 'News', url: '/community/news' }, { label: 'Search', url: '/search.html' }, { label: 'Articles', url: '/articles/index.html' }] } })
+    site.pages![2].webstudioArticle = { status: 'ready', author: '', summary: '', createdAt: '', modifiedAt: '' }
+    const zip = await JSZip.loadAsync(await (await exportSiteZip(site, { settings: { siteSearch: 'on' } })).arrayBuffer())
+    const home = await zip.file('index.html')!.async('string')
+    const search = await zip.file('search.html')!.async('string')
+    const articles = await zip.file('articles/index.html')!.async('string')
+    expect(home).toContain('width:75%;height:56px')
+    for (const html of [home, search, articles]) {
+      expect(html).not.toContain('aria-label="Site pages"')
+      expect(html).toContain('My site')
+    }
+    expect(home).toContain('href="search.html"')
+    expect(search).toContain('href="community/news.html"')
+    expect(articles).toContain('href="../index.html"')
+  })
   it('exports identical ZIP bytes for unchanged pages at different times', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     try {
@@ -90,7 +107,11 @@ describe('multi-page export', () => {
     expect(news).toContain('property="og:title" content="News &amp; updates"')
   })
   it('exports each page, preserves content and produces relative navigation from nested paths', async () => {
-    const zip = await JSZip.loadAsync(await (await exportSiteZip(config)).arrayBuffer())
+    const site = structuredClone(config)
+    const nav = { id: 'nav', type: 'navbar' as const, variant: 'default', props: { logo: 'Site', navItems: [{ label: 'Home', url: '/' }, { label: 'News', url: '/community/news' }, { label: 'About', url: '/about' }] } }
+    site.pages![0].blocks.unshift(nav)
+    site.pages![1].blocks.unshift({ ...nav, id: 'nav-news' })
+    const zip = await JSZip.loadAsync(await (await exportSiteZip(site)).arrayBuffer())
     const home = await zip.file('index.html')!.async('string')
     const news = await zip.file('community/news.html')!.async('string')
     const about = await zip.file('about.html')!.async('string')
@@ -99,9 +120,8 @@ describe('multi-page export', () => {
     expect(news).toContain('Latest text')
     expect(news).toContain('href="../index.html"')
     expect(news).toContain('href="../about.html"')
-    expect(about).toContain('aria-label="Site pages"')
-    expect(home).toContain('flex flex-wrap gap-x-4 gap-y-2')
-    expect(home).toContain('aria-current="page"')
+    expect(about).not.toContain('aria-label="Site pages"')
+    expect(home).not.toContain('aria-label="Site pages"')
     expect(news).toContain('href="../index.html"')
     expect(home).not.toContain('cdn.tailwindcss.com')
     expect(home).not.toContain('fonts.googleapis.com')
@@ -257,6 +277,7 @@ describe('multi-page export', () => {
   it('adds optional local site search without indexing contact addresses', async () => {
     const site = structuredClone(config)
     site.pages![1].blocks.push({ id: 'contact', type: 'contact', variant: 'form', props: { title: 'Questions', recipientEmail: 'secret@example.com' } } as never)
+    site.pages![1].blocks.push({ id: 'nav-search', type: 'navbar', variant: 'default', props: { logo: 'Site', navItems: [{ label: 'Search', url: '/search.html' }] } })
     const absent = await JSZip.loadAsync(await (await exportSiteZip(site)).arrayBuffer())
     expect(absent.file('search.html')).toBeNull()
     const zip = await JSZip.loadAsync(await (await exportSiteZip(site, { settings: { siteSearch: 'on' } })).arrayBuffer())
@@ -339,7 +360,8 @@ describe('multi-page export', () => {
       const html = await zip.file(path)!.async('string')
       expect(html).toContain('href="#main-content">Skip to main content</a>')
       expect(html).toContain('<main id="main-content" tabindex="-1"')
-      expect(html.indexOf('Skip to main content')).toBeLessThan(html.indexOf('aria-label="Site pages"'))
+      expect(html.indexOf('Skip to main content')).toBeLessThan(html.indexOf('<main id="main-content"'))
+      expect(html).not.toContain('aria-label="Site pages"')
       expect(html).toContain('prefers-reduced-motion: reduce')
     }
   })

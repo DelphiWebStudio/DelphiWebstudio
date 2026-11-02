@@ -28,6 +28,8 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
   const { ref: revealRef, isRevealed } = useScrollReveal(!previewMode)
 
   const imageLayout = block.type === 'image'
+  const navbarLayout = block.type === 'navbar'
+  const resizableLayout = imageLayout || navbarLayout
   const widthValue = Number(block.props.layoutWidth)
   const leftValue = Number(block.props.layoutLeft)
   const topValue = Number(block.props.layoutTop)
@@ -36,7 +38,9 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
   const left = Number.isFinite(leftValue) ? Math.max(0, Math.min(100 - width, leftValue)) : 0
   const top = Number.isFinite(topValue) ? Math.max(-2000, Math.min(2000, topValue)) : 0
   const layer = Number.isFinite(layerValue) && layerValue > 0 ? Math.max(1, Math.min(100, Math.round(layerValue))) : 1
-  const layoutStyle = imageLayout ? { position: 'relative' as const, width: `${width}%`, marginLeft: `${left}%`, marginTop: top, zIndex: layer } : undefined
+  const requestedHeight = Number(block.props.layoutHeight)
+  const navbarHeight = navbarLayout && Number.isFinite(requestedHeight) && requestedHeight > 0 ? Math.max(40, Math.min(2000, requestedHeight)) : undefined
+  const layoutStyle = resizableLayout ? { position: 'relative' as const, width: `${width}%`, marginLeft: `${left}%`, marginTop: top, zIndex: layer, ...(navbarHeight ? { height: navbarHeight } : {}) } : undefined
 
   const index = blocks.findIndex((b) => b.id === block.id)
   const isFirst = index === 0
@@ -94,7 +98,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
     ].filter(Boolean).join(';')
     return declarations ? [`${selector} [data-ws-text-key="${key}"]{${declarations}}`] : []
   }).join('')
-  const customStyle = (textRules ? `${selector} :is(h1,h2,h3,h4,h5,h6,p,span,a,li,label){${textRules}}` : '') + individualTextRules + imageRules
+  const customStyle = (textRules ? `${selector} :is(h1,h2,h3,h4,h5,h6,p,span,a,li,label){${textRules}}` : '') + individualTextRules + imageRules + (navbarHeight ? `${selector},${selector}>nav{height:100%}${selector}>nav{padding-block:4px}` : '')
 
   if (previewMode) {
     return (
@@ -117,7 +121,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
     const pageWidth = element.parentElement.getBoundingClientRect().width
     if (!pageWidth) return
     const image = element.querySelector('img')
-    const height = image?.getBoundingClientRect().height || element.getBoundingClientRect().height
+    const height = (imageLayout ? image?.getBoundingClientRect().height : 0) || element.getBoundingClientRect().height
     const canvas = element.closest('[aria-label^="Site preview"]')
     const minTop = canvas ? top + canvas.getBoundingClientRect().top - element.getBoundingClientRect().top : -2000
     dragRef.current = { kind, direction, x: event.clientX, y: event.clientY, width, left, top, height, pageWidth, minTop: Math.max(-2000, minTop) }
@@ -163,8 +167,11 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       element.style.marginLeft = `${nextLeft}%`
       element.style.marginTop = `${nextTop}px`
       element.style.width = `${nextWidth}%`
-      const image = element.querySelector('img')
-      if (image) image.style.height = `${nextHeight}px`
+      if (navbarLayout) element.style.height = `${nextHeight}px`
+      else {
+        const image = element.querySelector('img')
+        if (image) image.style.height = `${nextHeight}px`
+      }
     }
   }
 
@@ -186,6 +193,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
           element.style.width = `${width}%`
           element.style.marginLeft = `${left}%`
           element.style.marginTop = `${top}px`
+          if (navbarLayout) element.style.height = navbarHeight ? `${navbarHeight}px` : ''
           const image = element.querySelector('img')
           const height = Number(block.props.layoutHeight)
           if (image) image.style.height = Number.isFinite(height) && height > 0 ? `${Math.max(40, Math.min(2000, height))}px` : ''
@@ -226,7 +234,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       {/* Block type tag */}
       {hiddenOnCurrentWidth && <span className="absolute top-8 left-1.5 text-[10px] bg-bg-2 border border-border-default rounded px-1.5 py-0.5 z-10">Hidden at this width in preview and export</span>}
       {!imageLayout && <span
-        className={`absolute top-1.5 left-1.5 text-[9px] font-semibold uppercase tracking-wider text-green bg-green-glow px-1.5 py-0.5 rounded transition-opacity z-10 ${
+        className={`absolute top-8 left-1.5 text-[9px] font-semibold uppercase tracking-wider text-green bg-green-glow px-1.5 py-0.5 rounded transition-opacity z-10 ${
           isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
         }`}
       >
@@ -235,7 +243,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
 
       {/* Action buttons */}
       <div
-        className={`absolute top-1.5 right-1.5 flex gap-0.5 z-10 transition-opacity ${
+        className={`sticky top-1.5 left-1.5 w-fit h-0 flex gap-0.5 z-30 transition-opacity ${
           isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
         }`}
       >
@@ -311,13 +319,13 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
 
       {customStyle && <style>{customStyle}</style>}
       <div data-ws-content>{children}</div>
-      {imageLayout && isSelected && ([
+      {resizableLayout && isSelected && ([
         ['nw', 'top-0 left-0 cursor-nwse-resize'], ['n', 'top-0 left-1/2 -translate-x-1/2 cursor-ns-resize'],
         ['ne', 'top-0 right-0 cursor-nesw-resize'], ['e', 'top-1/2 right-0 -translate-y-1/2 cursor-ew-resize'],
         ['se', 'bottom-0 right-0 cursor-nwse-resize'], ['s', 'bottom-0 left-1/2 -translate-x-1/2 cursor-ns-resize'],
         ['sw', 'bottom-0 left-0 cursor-nesw-resize'], ['w', 'top-1/2 left-0 -translate-y-1/2 cursor-ew-resize'],
       ] as const).map(([direction, position]) => <button
-        key={direction} type="button" aria-label={`Resize image ${direction}`} title="Drag to resize image"
+        key={direction} type="button" aria-label={`Resize ${imageLayout ? 'image' : 'navbar'} ${direction}`} title={`Drag to resize ${imageLayout ? 'image' : 'navbar'}`}
         className={`absolute z-20 h-3 w-3 border border-black bg-white touch-none ${position}`}
         onClick={event => event.stopPropagation()}
         onPointerDown={event => startImageDrag(event, 'resize', direction)}

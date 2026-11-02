@@ -146,6 +146,9 @@ function renderNavbar(block: BlockConfig): string {
   const navItems = Array.isArray(block.props.navItems) ? block.props.navItems : []
   const ctaText = prop<string>(block.props, 'ctaText', '')
   const ctaUrl = prop<string>(block.props, 'ctaUrl', '')
+  const width = Number(block.props.layoutWidth), height = Number(block.props.layoutHeight), left = Number(block.props.layoutLeft), top = Number(block.props.layoutTop)
+  const layout = [Number.isFinite(width) && width > 0 ? `width:${Math.max(5, Math.min(100, width))}%` : '', Number.isFinite(height) && height > 0 ? `height:${Math.max(40, Math.min(2000, height))}px;box-sizing:border-box;padding-block:4px` : '', Number.isFinite(left) && left > 0 ? `margin-left:${Math.max(0, Math.min(95, left))}%` : '', Number.isFinite(top) && top !== 0 ? `margin-top:${Math.max(-2000, Math.min(2000, top))}px` : ''].filter(Boolean).join(';')
+  const layoutAttr = layout ? ` style="${layout}"` : ''
 
   const navLinks = links.map(l =>
     `          <span class="text-[13px] text-text-2 hover:text-text-0 transition-colors cursor-pointer">${escapeHtml(l)}</span>`
@@ -161,7 +164,7 @@ function renderNavbar(block: BlockConfig): string {
 
   if (block.variant === 'centered') {
     const mid = Math.ceil(navLinks.length / 2)
-    return `  <nav class="px-6 @md:px-10 py-4 flex flex-wrap gap-3 items-center justify-between">
+    return `  <nav${layoutAttr} class="px-6 @md:px-10 py-4 flex flex-wrap gap-3 items-center justify-between">
     <div class="hidden @2xl:flex flex-wrap items-center gap-6 flex-1">${navLinks.slice(0, mid).join('\n')}</div>
     <div class="flex min-w-0 items-center gap-2">${logoHtml}<span class="min-w-0 font-semibold text-[15px] text-text-0 tracking-tight">${logo}</span></div>
     <div class="hidden @2xl:flex flex-wrap items-center gap-6 flex-1 justify-end">${navLinks.slice(mid).join('\n')}${destinationLinks.join('\n')}
@@ -172,7 +175,7 @@ function renderNavbar(block: BlockConfig): string {
   </nav>`
   }
 
-  return `  <nav class="px-6 @md:px-10 py-4 flex flex-wrap gap-3 items-center justify-between">
+  return `  <nav${layoutAttr} class="px-6 @md:px-10 py-4 flex flex-wrap gap-3 items-center justify-between">
     <div class="flex min-w-0 items-center gap-2">
       ${logoHtml}
       <span class="min-w-0 font-semibold text-[15px] text-text-0 tracking-tight">${logo}</span>
@@ -1489,6 +1492,16 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     if (unknown) throw new Error(`Page ${page.name} contains unsupported block ${unknown.type}; it cannot be exported safely.`)
   }
   const paths = pages.map(page => page.path === '/' ? 'index.html' : `${page.path.slice(1)}.html`)
+  // Generated search and article pages reuse the user's Home Navbar, when present.
+  const homeNavbar = pages.find(page => page.path === '/')?.blocks.find(block => block.type === 'navbar')
+  const generatedNavbars = ['../', ''].map(prefix => homeNavbar ? renderNavbar(homeNavbar)
+    .replace(/\b(src|href|data)="assets\//g, `$1="${prefix}assets/`)
+    .replace(/(<a\s[^>]*?\bhref=")([^"]*)(")/gi, (match, start: string, href: string, end: string) => {
+      const separator = href.search(/[?#]/), path = separator < 0 ? href : href.slice(0, separator), suffix = separator < 0 ? '' : href.slice(separator)
+      const target = pages.findIndex(page => path === escapeHtml(page.path) || path === escapeHtml(encodeURI(page.path)))
+      const destination = target >= 0 ? paths[target] : path === '/search.html' && options?.settings?.siteSearch === 'on' ? 'search.html' : path === '/articles/index.html' && articles.length ? 'articles/index.html' : ''
+      return destination ? `${start}${escapeHtml(prefix + encodeURI(destination))}${suffix}${end}` : match
+    }) : '')
   for (const page of pages) {
     if (page.path.split('/').some(segment => /^(com|lpt)[¹²³](?:\.|$)/i.test(segment))) {
       throw new Error(`Page ${page.name} has a Windows-reserved address. Change its page address before exporting.`)
@@ -1534,13 +1547,11 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     }
   }
   if (articles.length) {
-    const nav = pages.map((page, index) => `<a href="../${escapeHtml(encodeURI(paths[index]))}" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">${escapeHtml(page.name)}</a>`).join(' ')
     const cards = articles.map(article => `<article class="p-4 rounded-lg border border-border-default"><h2 class="text-xl font-semibold"><a href="../${escapeHtml(encodeURI(paths[pages.indexOf(article)]))}" class="text-green hover:underline">${escapeHtml(article.name)}</a></h2>${article.webstudioArticle!.author ? `<p class="text-sm">By ${escapeHtml(article.webstudioArticle!.author)}</p>` : ''}${article.webstudioArticle!.summary ? `<p class="text-sm">${escapeHtml(article.webstudioArticle!.summary)}</p>` : ''}${article.webstudioArticle!.tags?.length ? `<p class="text-sm">Tags: ${article.webstudioArticle!.tags.map(escapeHtml).join(', ')}</p>` : ''}</article>`).join('')
     const content = `<main id="main-content" tabindex="-1" class="@container"><div class="max-w-3xl mx-auto px-6 py-12"><h1 class="text-3xl font-bold mb-4">Articles</h1><div class="space-y-4">${cards}</div>${siteBaseUrl ? '<p class="mt-4"><a href="../feed.xml" class="text-green hover:underline">RSS feed</a></p>' : ''}</div></main>`
-    const searchNav = options?.settings?.siteSearch === 'on' ? ' <a href="../search.html" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">Search</a>' : ''
     const archive = exportSiteToHTML({ ...validated, name: 'Articles', blocks: [] }, { settings: { ...options?.settings, seoTitle: 'Articles' } })
       .replace('</head>', canonicalBase ? `  <link rel="canonical" href="${escapeHtml(new URL('articles/index.html', canonicalBase).href)}" />\n  <meta property="og:url" content="${escapeHtml(new URL('articles/index.html', canonicalBase).href)}" />\n</head>` : '</head>')
-      .replace('<!-- WEBSTUDIO_PAGE_NAV -->', `<nav aria-label="Site pages" class="flex flex-wrap gap-x-4 gap-y-2 px-6 py-3 bg-bg-1 text-text-1">${nav} <a href="index.html" aria-current="page" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">Articles</a>${searchNav}</nav>`)
+      .replace('<!-- WEBSTUDIO_PAGE_NAV -->', generatedNavbars[0])
       .replace('<main id="main-content" tabindex="-1" class="@container"></main>', content)
     zip.file('articles/index.html', archive, { date: new Date('1980-01-01T00:00:00Z') })
   }
@@ -1559,7 +1570,6 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
       return { title: page.name, href: encodeURI(paths[pageIndex]), text: text.join(' ') }
     })
     const searchData = JSON.stringify(searchIndex).replace(/</g, '\\u003c')
-    const nav = pages.map((page, index) => `<a href="${escapeHtml(encodeURI(paths[index]))}" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">${escapeHtml(page.name)}</a>`).join(' ') + (articles.length ? ' <a href="articles/index.html" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">Articles</a>' : '')
     const searchContent = `<main id="main-content" tabindex="-1" class="@container"><div class="max-w-3xl mx-auto px-6 py-12"><h1 class="text-3xl font-bold mb-4">Search</h1><form id="site-search-form"><label for="site-search-query" class="block mb-2">Search this site</label><input id="site-search-query" type="search" maxlength="200" class="w-full px-3 py-2 rounded-lg border border-border-default bg-bg-2 text-text-0" /><button type="submit" class="mt-3 px-4 py-2 rounded-lg bg-green text-black font-semibold">Search</button></form><p id="site-search-status" role="status" class="mt-4"></p><ul id="site-search-results" class="mt-4 space-y-2"></ul><noscript>JavaScript is required for site search.</noscript></div></main>`
     const searchScript = `<script type="application/json" id="site-search-data">${searchData}</script><script>
       document.getElementById('site-search-form').addEventListener('submit', function(event) {
@@ -1578,7 +1588,7 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     </script>`
     const searchPage = exportSiteToHTML({ ...validated, name: 'Search', blocks: [] }, { settings: { ...options.settings, seoTitle: 'Search' } })
       .replace('</head>', '<meta name="robots" content="noindex" />\n</head>')
-      .replace('<!-- WEBSTUDIO_PAGE_NAV -->', `<nav aria-label="Site pages" class="flex flex-wrap gap-x-4 gap-y-2 px-6 py-3 bg-bg-1 text-text-1">${nav} <a href="search.html" aria-current="page" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">Search</a></nav>`)
+      .replace('<!-- WEBSTUDIO_PAGE_NAV -->', generatedNavbars[1])
       .replace('<main id="main-content" tabindex="-1" class="@container"></main>', searchContent)
       .replace('</body>', `${searchScript}\n</body>`)
     zip.file('search.html', searchPage, { date: new Date('1980-01-01T00:00:00Z') })
@@ -1617,13 +1627,12 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     })) throw new Error(`Page ${page.name} conflicts with an exported asset or folder: ${paths[index]}.`)
     const depth = paths[index].split('/').length - 1
     const prefix = '../'.repeat(depth)
-    const nav = pages.map((target, targetIndex) => `<a href="${escapeHtml(prefix + encodeURI(paths[targetIndex]))}"${target.id === page.id ? ' aria-current="page"' : ''} class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">${escapeHtml(target.name)}</a>`).join(' ') + (articles.length ? ` <a href="${prefix}articles/index.html" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">Articles</a>` : '') + (options?.settings?.siteSearch === 'on' ? ` <a href="${prefix}search.html" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">Search</a>` : '')
     const article = page.webstudioArticle
     const articleHeader = article && (article.author || article.summary || article.tags?.length) ? `<header class="px-6 py-3 text-text-1">${article.author ? `<p class="text-sm">By ${escapeHtml(article.author)}</p>` : ''}${article.summary ? `<p class="text-sm">${escapeHtml(article.summary)}</p>` : ''}${article.tags?.length ? `<p class="text-sm">Tags: ${article.tags.map(escapeHtml).join(', ')}</p>` : ''}</header>` : ''
     const pageSettings = { ...options?.settings, ...(page.webstudioSeo?.title?.trim() ? { seoTitle: page.webstudioSeo.title } : {}), ...(page.webstudioSeo?.description?.trim() ? { seoDescription: page.webstudioSeo.description } : {}) }
     let html = exportSiteToHTML({ ...validated, name: page.name, blocks: page.blocks }, { settings: pageSettings })
       .replace('</head>', canonicalBase ? `  <link rel="canonical" href="${escapeHtml(new URL(encodeURI(paths[index]), canonicalBase).href)}" />\n  <meta property="og:url" content="${escapeHtml(new URL(encodeURI(paths[index]), canonicalBase).href)}" />\n</head>` : '</head>')
-      .replace('<!-- WEBSTUDIO_PAGE_NAV -->', `<nav aria-label="Site pages" class="flex flex-wrap gap-x-4 gap-y-2 px-6 py-3 bg-bg-1 text-text-1">${nav}</nav>`)
+      .replace('<!-- WEBSTUDIO_PAGE_NAV -->', '')
       .replace('<main id="main-content" tabindex="-1" class="@container">', `<main id="main-content" tabindex="-1" class="@container">${articleHeader}`)
       .replace(/\b(src|href|data)="assets\//g, `$1="${prefix}assets/`)
       .replace(/(<a\s[^>]*?\bhref=")([^"]*)(")/gi, (match, start: string, href: string, end: string) => {
@@ -1634,6 +1643,8 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
         const draft = allPages.find(target => target.webstudioArticle?.status === 'draft' && (normalized === escapeHtml(target.path) || normalized === escapeHtml(encodeURI(target.path))))
         if (draft) throw new Error(`Page ${page.name} links to the draft article ${draft.name}.`)
         const targetIndex = pages.findIndex(target => normalized === escapeHtml(target.path) || normalized === escapeHtml(encodeURI(target.path)))
+        if (targetIndex < 0 && normalized === '/search.html' && options?.settings?.siteSearch === 'on') return `${start}${prefix}search.html${suffix}${end}`
+        if (targetIndex < 0 && normalized === '/articles/index.html' && articles.length) return `${start}${prefix}articles/index.html${suffix}${end}`
         return targetIndex < 0 ? match : `${start}${escapeHtml(prefix + encodeURI(paths[targetIndex]))}${suffix}${end}`
       })
     const custom = page.webstudioCustomCode
