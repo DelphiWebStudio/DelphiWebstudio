@@ -17,12 +17,10 @@ function NavbarDefault({ props }: { props: NavbarProps }) {
   return (
     <nav className="px-6 @md:px-10 py-4 flex flex-wrap gap-3 items-center justify-between">
       {/* Logo */}
-      <div className="flex min-w-0 items-center gap-2">
-        {logoImage ? <img src={logoImage} alt={logo} className="h-8 w-auto max-w-[96px] shrink-0 object-contain" /> : <div className="w-8 h-8 shrink-0 rounded-lg bg-green/10 flex items-center justify-center">
-          <div className="w-4 h-4 rounded-full bg-green" />
-        </div>}
+      {(logoImage || logo) && <div className="flex min-w-0 items-center gap-2">
+        {logoImage && <img src={logoImage} alt={logo} className="h-8 w-auto max-w-[96px] shrink-0 object-contain" />}
         <span className="min-w-0 font-semibold text-[15px] text-text-0 tracking-tight">{logo}</span>
-      </div>
+      </div>}
 
       {/* Desktop nav links */}
       <div className="hidden @2xl:flex flex-wrap items-center gap-6">
@@ -67,12 +65,10 @@ function NavbarCentered({ props }: { props: NavbarProps }) {
       </div>
 
       {/* Center logo */}
-      <div className="flex min-w-0 items-center gap-2">
-        {logoImage ? <img src={logoImage} alt={logo} className="h-8 w-auto max-w-[96px] shrink-0 object-contain" /> : <div className="w-8 h-8 shrink-0 rounded-lg bg-green/10 flex items-center justify-center">
-          <div className="w-4 h-4 rounded-full bg-green" />
-        </div>}
+      {(logoImage || logo) && <div className="flex min-w-0 items-center gap-2">
+        {logoImage && <img src={logoImage} alt={logo} className="h-8 w-auto max-w-[96px] shrink-0 object-contain" />}
         <span className="min-w-0 font-semibold text-[15px] text-text-0 tracking-tight">{logo}</span>
-      </div>
+      </div>}
 
       {/* Right links + CTA */}
       <div className="hidden @2xl:flex flex-wrap items-center gap-6 flex-1 justify-end">

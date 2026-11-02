@@ -14,10 +14,10 @@ export const blockMetadata: BlockMeta[] = [
   {
     type: 'navbar',
     label: 'Navbar',
-    description: 'Navigation bar with logo, links, and CTA',
+    description: 'Navigation bar with editable text links',
     category: 'Navigation',
     variants: ['default', 'centered'],
-    defaultProps: { logo: 'Brand', links: [], ctaText: '' },
+    defaultProps: { logo: '', links: [], navItems: [{ label: 'Home', url: '/' }], ctaText: '' },
   },
   {
     type: 'hero',

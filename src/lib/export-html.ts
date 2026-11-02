@@ -160,13 +160,13 @@ function renderNavbar(block: BlockConfig): string {
 
   const logoHtml = logoImage
     ? `<img src="${escapeHtml(logoImage)}" alt="${logo}" class="h-8 w-auto max-w-[96px] shrink-0 object-contain" />`
-    : `<div class="w-8 h-8 shrink-0 rounded-lg bg-green/10 flex items-center justify-center"><div class="w-4 h-4 rounded-full bg-green"></div></div>`
+    : ''
 
   if (block.variant === 'centered') {
     const mid = Math.ceil(navLinks.length / 2)
     return `  <nav${layoutAttr} class="px-6 @md:px-10 py-4 flex flex-wrap gap-3 items-center justify-between">
     <div class="hidden @2xl:flex flex-wrap items-center gap-6 flex-1">${navLinks.slice(0, mid).join('\n')}</div>
-    <div class="flex min-w-0 items-center gap-2">${logoHtml}<span class="min-w-0 font-semibold text-[15px] text-text-0 tracking-tight">${logo}</span></div>
+    ${logoImage || logo ? `<div class="flex min-w-0 items-center gap-2">${logoHtml}<span class="min-w-0 font-semibold text-[15px] text-text-0 tracking-tight">${logo}</span></div>` : ''}
     <div class="hidden @2xl:flex flex-wrap items-center gap-6 flex-1 justify-end">${navLinks.slice(mid).join('\n')}${destinationLinks.join('\n')}
       ${ctaText ? renderLink(ctaText, ctaUrl, 'px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold hover:bg-green-dim transition-colors ml-2') : ''}
     </div>
@@ -176,10 +176,10 @@ function renderNavbar(block: BlockConfig): string {
   }
 
   return `  <nav${layoutAttr} class="px-6 @md:px-10 py-4 flex flex-wrap gap-3 items-center justify-between">
-    <div class="flex min-w-0 items-center gap-2">
+    ${logoImage || logo ? `<div class="flex min-w-0 items-center gap-2">
       ${logoHtml}
       <span class="min-w-0 font-semibold text-[15px] text-text-0 tracking-tight">${logo}</span>
-    </div>
+    </div>` : ''}
     <div class="hidden @2xl:flex flex-wrap items-center gap-6">
 ${navLinks.join('\n')}
 ${destinationLinks.join('\n')}
