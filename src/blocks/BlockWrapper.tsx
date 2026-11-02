@@ -1,4 +1,4 @@
-import { type ReactNode, useRef, useEffect } from 'react'
+import { type ReactNode, useRef, useEffect, useLayoutEffect } from 'react'
 import { Copy, Trash2, ChevronUp, ChevronDown, Globe } from 'lucide-react'
 import { toast } from 'sonner'
 import { useConfigStore } from '@/store/configStore'
@@ -24,7 +24,6 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
   const { duplicateBlock, removeBlock, moveBlock, shareSectionAcrossPages, unshareSection } = useConfigStore()
   const { selectedBlockId, selectBlock } = useEditorStore()
   const previewMode = useEditorStore((s) => s.previewMode)
-  const scrollRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<{ kind: 'move' | 'resize'; x: number; y: number; width: number; left: number; top: number; height: number; pageWidth: number } | null>(null)
   const { ref: revealRef, isRevealed } = useScrollReveal(!previewMode)
 
@@ -44,10 +43,58 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
   const isLast = index === blocks.length - 1
 
   useEffect(() => {
-    if (isSelected && scrollRef.current) {
-      scrollRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    if (isSelected && revealRef.current) {
+      revealRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
     }
-  }, [isSelected])
+  }, [isSelected, revealRef])
+
+  useLayoutEffect(() => {
+    revealRef.current?.querySelectorAll('[data-ws-content] img').forEach((image, imageIndex) => {
+      image.setAttribute('data-ws-image-index', String(imageIndex))
+    })
+    const counts: Record<string, number> = {}
+    revealRef.current?.querySelectorAll('[data-ws-content] :is(h1,h2,h3,h4,h5,h6,p,span,a,li,label)').forEach(element => {
+      const tag = element.tagName.toLowerCase()
+      const ordinal = counts[tag] ?? 0
+      counts[tag] = ordinal + 1
+      element.setAttribute('data-ws-text-key', `${tag}-${ordinal}`)
+    })
+  }, [children, revealRef])
+
+  const scope = `ws-${index}`
+  const selector = `[data-ws-scope="${scope}"] [data-ws-content]`
+  const textSize = Number(block.props.textSize)
+  const textColor = typeof block.props.textColor === 'string' && /^#[0-9a-f]{6}$/i.test(block.props.textColor) ? block.props.textColor : ''
+  const textRules = [
+    Number.isFinite(textSize) && textSize >= 8 && textSize <= 200 ? `font-size:${textSize}px!important` : '',
+    textColor ? `color:${textColor}!important` : '',
+  ].filter(Boolean).join(';')
+  const adjustments = block.props.imageAdjustments && typeof block.props.imageAdjustments === 'object' && !Array.isArray(block.props.imageAdjustments)
+    ? block.props.imageAdjustments as Record<string, Record<string, unknown>> : {}
+  const imageRules = Object.entries(adjustments).flatMap(([key, value]) => {
+    if (!/^\d{1,4}$/.test(key) || !value || typeof value !== 'object' || Array.isArray(value)) return []
+    const declarations = [
+      value.width !== '' && Number.isFinite(Number(value.width)) && Number(value.width) > 0 ? `width:${Math.min(2000, Math.max(10, Number(value.width)))}px!important;max-width:none!important` : '',
+      value.height !== '' && Number.isFinite(Number(value.height)) && Number(value.height) > 0 ? `height:${Math.min(2000, Math.max(10, Number(value.height)))}px!important` : '',
+      value.left !== '' && Number.isFinite(Number(value.left)) ? `left:${Math.min(2000, Math.max(-2000, Number(value.left)))}px!important` : '',
+      value.top !== '' && Number.isFinite(Number(value.top)) ? `top:${Math.min(2000, Math.max(-2000, Number(value.top)))}px!important` : '',
+      value.layer !== '' && Number.isFinite(Number(value.layer)) ? `z-index:${Math.min(100, Math.max(1, Math.round(Number(value.layer))))}!important` : '',
+    ].filter(Boolean).join(';')
+    return declarations ? [`${selector} img[data-ws-image-index="${key}"]{position:relative!important;${declarations}}`, `${selector} :has(> img[data-ws-image-index="${key}"]){overflow:visible!important}`] : []
+  }).join('')
+  const textAdjustments = block.props.textAdjustments && typeof block.props.textAdjustments === 'object' && !Array.isArray(block.props.textAdjustments)
+    ? block.props.textAdjustments as Record<string, Record<string, unknown>> : {}
+  const individualTextRules = Object.entries(textAdjustments).flatMap(([key, value]) => {
+    if (!/^(h[1-6]|p|span|a|li|label)-\d{1,4}$/.test(key) || !value || typeof value !== 'object' || Array.isArray(value)) return []
+    const size = Number(value.size)
+    const color = typeof value.color === 'string' && /^#[0-9a-f]{6}$/i.test(value.color) ? value.color : ''
+    const declarations = [
+      Number.isFinite(size) && size >= 8 && size <= 200 ? `font-size:${size}px!important` : '',
+      color ? `color:${color}!important` : '',
+    ].filter(Boolean).join(';')
+    return declarations ? [`${selector} [data-ws-text-key="${key}"]{${declarations}}`] : []
+  }).join('')
+  const customStyle = (textRules ? `${selector} :is(h1,h2,h3,h4,h5,h6,p,span,a,li,label){${textRules}}` : '') + individualTextRules + imageRules
 
   if (previewMode) {
     return (
@@ -55,23 +102,30 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         ref={revealRef}
         className={isRevealed ? 'scroll-revealed' : ''}
         style={layoutStyle}
+        data-ws-scope={scope}
       >
-        {children}
+        {customStyle && <style>{customStyle}</style>}
+        <div data-ws-content>{children}</div>
       </div>
     )
   }
 
   return (
     <div
-      ref={(el) => {
-        (scrollRef as React.MutableRefObject<HTMLDivElement | null>).current = el
-        ;(revealRef as React.MutableRefObject<HTMLDivElement | null>).current = el
-      }}
+      ref={revealRef}
       data-webstudio-block-id={block.id}
+      data-ws-scope={scope}
       onClick={(e) => {
         if (e.target instanceof Element && e.target.closest('a')) e.preventDefault()
-        e.stopPropagation()
         onSelect()
+        if (e.target instanceof HTMLImageElement && e.target.hasAttribute('data-ws-image-index')) {
+          useEditorStore.getState().selectImage(Number(e.target.getAttribute('data-ws-image-index')))
+        }
+        if (e.target instanceof Element) {
+          const textElement = e.target.closest('[data-ws-text-key]')
+          if (textElement && e.currentTarget.contains(textElement)) useEditorStore.getState().selectText(textElement.getAttribute('data-ws-text-key') ?? '')
+        }
+        e.stopPropagation()
       }}
       className={`scroll-revealed relative cursor-pointer border-b border-border-subtle group transition-[opacity,transform] duration-500 ${
         isRevealed ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
@@ -179,7 +233,8 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         </button>
       </div>
 
-      {children}
+      {customStyle && <style>{customStyle}</style>}
+      <div data-ws-content>{children}</div>
       {imageLayout && isSelected && <div className="absolute bottom-1 right-1 z-20 flex gap-1">
         {(['move', 'resize'] as const).map(kind => <button
           key={kind}
@@ -191,7 +246,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
           onPointerDown={event => {
             event.preventDefault()
             event.stopPropagation()
-            const element = scrollRef.current
+            const element = revealRef.current
             if (!element?.parentElement) return
             const pageWidth = element.parentElement.getBoundingClientRect().width
             const image = element.querySelector('img')
@@ -202,7 +257,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
           }}
           onPointerMove={event => {
             const drag = dragRef.current
-            const element = scrollRef.current
+            const element = revealRef.current
             if (!drag || !element) return
             const dx = (event.clientX - drag.x) / drag.pageWidth * 100
             const dy = event.clientY - drag.y
@@ -227,7 +282,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
           }}
           onPointerCancel={() => {
             dragRef.current = null
-            const element = scrollRef.current
+            const element = revealRef.current
             if (element) {
               element.style.width = `${width}%`
               element.style.marginLeft = `${left}%`
