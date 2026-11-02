@@ -129,7 +129,7 @@ export const blockMetadata: BlockMeta[] = [
     description: 'Image with text overlay or side-by-side layout',
     category: 'Media',
     variants: ['hero-image', 'side-by-side', 'grid'],
-    defaultProps: { title: 'Visual Storytelling', subtitle: 'A picture is worth a thousand words.', imageSide: 'left' },
+    defaultProps: { imageSide: 'left', layoutWidth: 40 },
   },
   {
     type: 'video',

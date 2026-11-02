@@ -13,7 +13,9 @@ export function ImageBlock({ block }: { block: BlockConfig }) {
   const { variant, props } = block
   const src = props.src as string | undefined
   const alt = (props.alt as string) || ''
-  const title = props.title as string | undefined
+  const rawTitle = props.title as string | undefined
+  // Older inserted media used its filename as a visible title; retain the data but do not overlay it.
+  const title = rawTitle && rawTitle === alt && /\.(png|jpe?g|gif|webp|bmp|svg|avif)$/i.test(rawTitle) ? undefined : rawTitle
   const subtitle = props.subtitle as string | undefined
   const imageSide = (props.imageSide as string) || 'left'
   const images = (props.images as { src?: string; alt?: string }[]) || []
@@ -68,7 +70,7 @@ export function ImageBlock({ block }: { block: BlockConfig }) {
   return (
     <div className="reveal-scale reveal-d1 relative">
       {src
-        ? <img src={src} alt={alt} style={{ ...(imageHeight ? { height: imageHeight } : {}), objectFit: imageFit }} className="w-full h-64 @lg:h-96 object-cover" />
+        ? <img src={src} alt={alt} draggable={false} style={{ ...(imageHeight ? { height: imageHeight, objectFit: props.imageFit === 'cover' || props.imageFit === 'fill' ? props.imageFit : 'contain' } : {}) }} className="w-full h-auto" />
         : <Placeholder height={imageHeight} className="w-full h-64 @lg:h-96" />
       }
       {(title || subtitle) && (
