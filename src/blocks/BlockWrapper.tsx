@@ -251,7 +251,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       className={`scroll-revealed relative cursor-pointer border-b border-border-subtle group transition-[opacity,transform] duration-500 ${
         isRevealed ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
       } ${
-        imageLayout ? (isSelected ? 'outline outline-1 outline-white -outline-offset-1' : '') : isSelected
+        resizableLayout ? (isSelected ? 'outline outline-1 outline-white -outline-offset-1' : '') : isSelected
           ? 'bg-green-glow2 outline outline-2 outline-green -outline-offset-2 rounded animate-select-pulse'
           : 'hover:bg-green-glow2'
       }`}
@@ -277,7 +277,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
     >
       {/* Block type tag */}
       {hiddenOnCurrentWidth && <span className="absolute top-8 left-1.5 text-[10px] bg-bg-2 border border-border-default rounded px-1.5 py-0.5 z-10">Hidden at this width in preview and export</span>}
-      {!imageLayout && <span
+      {!resizableLayout && <span
         className={`absolute top-8 left-1.5 text-[9px] font-semibold uppercase tracking-wider text-green bg-green-glow px-1.5 py-0.5 rounded transition-opacity z-10 ${
           isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
         }`}

@@ -19,6 +19,14 @@ const baseConfig: SiteConfig = {
 }
 
 describe('exportSiteToHTML', () => {
+  it.each(['default', 'centered'])('exports a %s text Navbar without a placeholder logo', variant => {
+    const navbar = { id: 'nav', type: 'navbar' as const, variant, props: { logo: '', navItems: [{ label: 'Home', url: '/' }] } }
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [navbar] })
+    expect(html).toContain('>Home</a>')
+    expect(html).not.toContain('w-4 h-4 rounded-full bg-green')
+    const withLogo = exportSiteToHTML({ ...baseConfig, blocks: [{ ...navbar, props: { ...navbar.props, logoImage: 'assets/logo.png' } }] })
+    expect(withLogo).toContain('src="assets/logo.png"')
+  })
   it('renders imported photos without a filename overlay or forced crop while preserving intentional captions', () => {
     const photo = { id: 'photo', type: 'image' as const, variant: 'hero-image', props: { src: 'assets/church.png', alt: 'church.png', title: 'church.png' } }
     const html = exportSiteToHTML({ ...baseConfig, blocks: [photo] })
