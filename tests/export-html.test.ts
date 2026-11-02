@@ -19,6 +19,18 @@ const baseConfig: SiteConfig = {
 }
 
 describe('exportSiteToHTML', () => {
+  it('exports positioned image sections with their size, overlap and layer order', () => {
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [
+      { id: 'first-image', type: 'image', variant: 'hero-image', props: { src: 'assets/first.png', alt: 'First image', layoutWidth: 55, layoutHeight: 250, layoutLeft: 10, layoutLayer: 1 } },
+      { id: 'second-image', type: 'image', variant: 'hero-image', props: { src: 'assets/second.png', alt: 'Second image', layoutWidth: 40, layoutHeight: 180, layoutLeft: 45, layoutTop: -100, layoutLayer: 2 } },
+    ] })
+    expect(html).toContain('width:55%;margin-left:10%;margin-top:0px;z-index:1')
+    expect(html).toContain('width:40%;margin-left:45%;margin-top:-100px;z-index:2')
+    expect(html).toContain('height:250px')
+    expect(html).toContain('height:180px')
+    expect(html).toContain('alt="First image"')
+    expect(html).toContain('alt="Second image"')
+  })
   it('exports responsive visibility without removing the section content', () => {
     const html = exportSiteToHTML({ ...baseConfig, blocks: [{ ...baseConfig.blocks[0], webstudioHiddenOn: { mobile: true, desktop: true } }] })
     expect(html).toContain('class="ws-hidden-mobile ws-hidden-desktop"')
