@@ -1,14 +1,14 @@
 {
-  "name": "openpage",
+  "name": "delphi-web-studio",
   "private": false,
   "version": "1.0.0",
   "description": "Open-source website builder. Framer-quality visual editor + AI generation + JSON-first architecture.",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/buildingopen/openpage.git"
+    "url": "https://github.com/tmartindub/DelphiWebStudio.git"
   },
-  "homepage": "https://openpage-phi.vercel.app",
+  "homepage": "https://github.com/tmartindub/DelphiWebStudio",
   "keywords": [
     "website-builder",
     "page-builder",

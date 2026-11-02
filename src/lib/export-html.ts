@@ -812,26 +812,7 @@ interface TestimonialItem {
   avatar?: string
 }
 
-const defaultTestimonials: TestimonialItem[] = [
-  {
-    name: 'Sarah Chen',
-    role: 'CEO at TechCorp',
-    quote: 'OpenPage completely changed how we build landing pages. The JSON config approach is genius.',
-    rating: 5,
-  },
-  {
-    name: 'Marcus Johnson',
-    role: 'Lead Developer',
-    quote: 'Finally, a tool where both designers and AI agents can work together seamlessly.',
-    rating: 5,
-  },
-  {
-    name: 'Emma Wilson',
-    role: 'Product Manager',
-    quote: 'We shipped our marketing site in half the time. The component library is incredible.',
-    rating: 4,
-  },
-]
+const defaultTestimonials: TestimonialItem[] = []
 
 function renderTestimonials(block: BlockConfig): string {
   const title = escapeHtml(
@@ -953,28 +934,7 @@ interface FaqItem {
   answer: string
 }
 
-const defaultFaqs: FaqItem[] = [
-  {
-    question: 'What is OpenPage?',
-    answer:
-      'OpenPage is a visual website builder that uses structured JSON config as the source of truth. Both humans and AI agents can edit the same config to build beautiful websites.',
-  },
-  {
-    question: 'How does the JSON config work?',
-    answer:
-      'Every website is represented as a JSON document with blocks, styles, and content. The visual editor reads and writes this JSON, and agents can make surgical edits via the API.',
-  },
-  {
-    question: 'Can I use my own components?',
-    answer:
-      'Yes! OpenPage supports custom components. You can build your own blocks following our component schema and register them in the block registry.',
-  },
-  {
-    question: 'Is it free to use?',
-    answer:
-      'OpenPage offers a free tier for personal projects with up to 5 blocks. Pro and Team plans unlock unlimited blocks, custom domains, and priority support.',
-  },
-]
+const defaultFaqs: FaqItem[] = []
 
 function renderFaq(block: BlockConfig): string {
   const title = escapeHtml(

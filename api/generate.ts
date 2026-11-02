@@ -3,7 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY
 const GEMINI_MODEL = 'gemini-3-flash-preview'
 
-const systemPrompt = `You are a website configuration generator for OpenPage, a visual website builder.
+const systemPrompt = `You are a website configuration generator for Delphi Web Studio, a visual website builder.
 
 Given a user's description, generate a complete JSON site configuration.
 
