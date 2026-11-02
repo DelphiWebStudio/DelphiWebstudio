@@ -1,4 +1,5 @@
-import { type ReactNode, type PointerEvent as ReactPointerEvent, useRef, useEffect, useLayoutEffect } from 'react'
+import { type ReactNode, type PointerEvent as ReactPointerEvent, useRef, useState, useEffect, useLayoutEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { Copy, Trash2, ChevronUp, ChevronDown, Globe } from 'lucide-react'
 import { toast } from 'sonner'
 import { useConfigStore } from '@/store/configStore'
@@ -24,6 +25,8 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
   const { duplicateBlock, removeBlock, moveBlock, shareSectionAcrossPages, unshareSection } = useConfigStore()
   const { selectedBlockId, selectBlock } = useEditorStore()
   const previewMode = useEditorStore((s) => s.previewMode)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<{ kind: 'move' | 'resize'; direction: string; x: number; y: number; width: number; left: number; top: number; height: number; pageWidth: number; minTop: number } | null>(null)
   const { ref: revealRef, isRevealed } = useScrollReveal(!previewMode)
 
@@ -45,6 +48,34 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
   const index = blocks.findIndex((b) => b.id === block.id)
   const isFirst = index === 0
   const isLast = index === blocks.length - 1
+
+  useLayoutEffect(() => {
+    if (!contextMenu || !menuRef.current) return
+    const menu = menuRef.current
+    const bounds = menu.getBoundingClientRect()
+    menu.style.left = `${Math.max(0, Math.min(contextMenu.x, window.innerWidth - bounds.width))}px`
+    menu.style.top = `${Math.max(0, Math.min(contextMenu.y, window.innerHeight - bounds.height))}px`
+    menu.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus()
+  }, [contextMenu])
+
+  useEffect(() => {
+    if (!contextMenu) return
+    const dismiss = (event: PointerEvent) => { if (!menuRef.current?.contains(event.target as Node)) setContextMenu(null) }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); setContextMenu(null); revealRef.current?.focus(); return }
+      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
+      const buttons = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [])
+      if (!buttons.length) return
+      event.preventDefault()
+      const current = buttons.indexOf(document.activeElement as HTMLButtonElement)
+      buttons[(current + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length].focus()
+    }
+    const onResize = () => setContextMenu(null)
+    document.addEventListener('pointerdown', dismiss)
+    document.addEventListener('keydown', onKey)
+    window.addEventListener('resize', onResize)
+    return () => { document.removeEventListener('pointerdown', dismiss); document.removeEventListener('keydown', onKey); window.removeEventListener('resize', onResize) }
+  }, [contextMenu, revealRef])
 
   useEffect(() => {
     if (isSelected && revealRef.current) {
@@ -180,6 +211,12 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       ref={revealRef}
       data-webstudio-block-id={block.id}
       data-ws-scope={scope}
+      onContextMenu={event => {
+        event.preventDefault()
+        event.stopPropagation()
+        onSelect()
+        setContextMenu({ x: event.clientX, y: event.clientY })
+      }}
       onPointerDown={event => {
         if (imageLayout && isSelected && event.target instanceof HTMLImageElement) startImageDrag(event, 'move')
       }}
@@ -224,6 +261,13 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       tabIndex={0}
       onKeyDown={(e) => {
         if (e.target !== e.currentTarget) return
+        if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
+          e.preventDefault()
+          const bounds = e.currentTarget.getBoundingClientRect()
+          onSelect()
+          setContextMenu({ x: bounds.left + 10, y: bounds.top + 10 })
+          return
+        }
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
           onSelect()
@@ -241,81 +285,29 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         {block.type}
       </span>}
 
-      {/* Action buttons */}
-      <div
-        className={`sticky top-1.5 left-1.5 w-fit h-0 flex gap-0.5 z-30 transition-opacity ${
-          isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-        }`}
+      {contextMenu && createPortal(<div
+        ref={menuRef} role="menu" aria-label={`${block.type} block actions`}
+        className="fixed z-[10000] min-w-48 rounded border border-gray-400 bg-white p-1 text-sm text-black shadow-lg"
+        style={{ left: contextMenu.x, top: contextMenu.y }}
+        onClick={event => event.stopPropagation()} onContextMenu={event => event.preventDefault()}
       >
-        {(block.type === 'navbar' || block.type === 'footer') && <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation()
-            try {
-              if (block.webstudioSharedSectionId) {
-                unshareSection(block.id)
-                toast('Sections are now independent on each page')
-              } else {
-                shareSectionAcrossPages(block.id)
-                toast('Section shared across pages; edits update every copy')
-              }
-            } catch (error) { toast.error(error instanceof Error ? error.message : 'Section could not be shared') }
-          }}
-          className="w-6 h-6 rounded bg-bg-2/80 border border-border-default flex items-center justify-center text-text-3 hover:text-text-0"
-          title={block.webstudioSharedSectionId ? 'Stop sharing across pages' : 'Share across pages'}
-          aria-label={block.webstudioSharedSectionId ? `Stop sharing ${block.type} across pages` : `Share ${block.type} across pages`}
-        ><Globe size={12} /></button>}
-        {!isFirst && (
-          <button
-            onClick={(e) => { e.stopPropagation(); moveBlock(index, index - 1) }}
-            className="w-6 h-6 rounded bg-bg-2/80 border border-border-default backdrop-blur-sm flex items-center justify-center text-text-3 hover:text-text-0 hover:bg-bg-3 transition-colors"
-            title="Move up"
-            aria-label={`Move ${block.type} block up`}
-          >
-            <ChevronUp size={12} />
-          </button>
-        )}
-        {!isLast && (
-          <button
-            onClick={(e) => { e.stopPropagation(); moveBlock(index, index + 1) }}
-            className="w-6 h-6 rounded bg-bg-2/80 border border-border-default backdrop-blur-sm flex items-center justify-center text-text-3 hover:text-text-0 hover:bg-bg-3 transition-colors"
-            title="Move down"
-            aria-label={`Move ${block.type} block down`}
-          >
-            <ChevronDown size={12} />
-          </button>
-        )}
-        <button
-          onClick={(e) => { e.stopPropagation(); duplicateBlock(block.id) }}
-          className="w-6 h-6 rounded bg-bg-2/80 border border-border-default backdrop-blur-sm flex items-center justify-center text-text-3 hover:text-text-0 hover:bg-bg-3 transition-colors"
-          title="Duplicate"
-          aria-label={`Duplicate ${block.type} block`}
-        >
-          <Copy size={12} />
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            if (selectedBlockId === block.id) selectBlock(null)
-            removeBlock(block.id)
-            toast('Block removed', {
-              action: {
-                label: 'Undo',
-                onClick: () => {
-                  useConfigStore.getState().undo()
-                  toast('Block restored')
-                },
-              },
-              duration: 3000,
-            })
-          }}
-          className="w-6 h-6 rounded bg-bg-2/80 border border-border-default backdrop-blur-sm flex items-center justify-center text-text-3 hover:text-status-red hover:bg-status-red/10 transition-colors"
-          title="Delete"
-          aria-label={`Delete ${block.type} block`}
-        >
-          <Trash2 size={12} />
-        </button>
-      </div>
+        <button type="button" role="menuitem" disabled={isFirst} className="flex w-full items-center gap-2 rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100 disabled:opacity-40" onClick={() => { setContextMenu(null); moveBlock(index, index - 1) }}><ChevronUp size={15} />Move up</button>
+        <button type="button" role="menuitem" disabled={isLast} className="flex w-full items-center gap-2 rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100 disabled:opacity-40" onClick={() => { setContextMenu(null); moveBlock(index, index + 1) }}><ChevronDown size={15} />Move down</button>
+        <button type="button" role="menuitem" className="flex w-full items-center gap-2 rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100" onClick={() => { setContextMenu(null); duplicateBlock(block.id) }}><Copy size={15} />Duplicate</button>
+        {(block.type === 'navbar' || block.type === 'footer') && <button type="button" role="menuitem" className="flex w-full items-center gap-2 rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100" onClick={() => {
+          setContextMenu(null)
+          try {
+            if (block.webstudioSharedSectionId) { unshareSection(block.id); toast('Sections are now independent on each page') }
+            else { shareSectionAcrossPages(block.id); toast('Section shared across pages; edits update every copy') }
+          } catch (error) { toast.error(error instanceof Error ? error.message : 'Section could not be shared') }
+        }}><Globe size={15} />{block.webstudioSharedSectionId ? 'Stop sharing across pages' : 'Share across pages'}</button>}
+        <button type="button" role="menuitem" className="flex w-full items-center gap-2 rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100" onClick={() => {
+          setContextMenu(null)
+          if (selectedBlockId === block.id) selectBlock(null)
+          removeBlock(block.id)
+          toast('Block removed', { action: { label: 'Undo', onClick: () => { useConfigStore.getState().undo(); toast('Block restored') } }, duration: 3000 })
+        }}><Trash2 size={15} />Delete</button>
+      </div>, document.body)}
 
       {customStyle && <style>{customStyle}</style>}
       <div data-ws-content>{children}</div>
