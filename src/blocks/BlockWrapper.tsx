@@ -24,7 +24,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
   const { duplicateBlock, removeBlock, moveBlock, shareSectionAcrossPages, unshareSection } = useConfigStore()
   const { selectedBlockId, selectBlock } = useEditorStore()
   const previewMode = useEditorStore((s) => s.previewMode)
-  const dragRef = useRef<{ kind: 'move' | 'resize'; x: number; y: number; width: number; left: number; top: number; height: number; pageWidth: number; minTop: number } | null>(null)
+  const dragRef = useRef<{ kind: 'move' | 'resize'; direction: string; x: number; y: number; width: number; left: number; top: number; height: number; pageWidth: number; minTop: number } | null>(null)
   const { ref: revealRef, isRevealed } = useScrollReveal(!previewMode)
 
   const imageLayout = block.type === 'image'
@@ -110,7 +110,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
     )
   }
 
-  function startImageDrag(event: ReactPointerEvent<HTMLElement>, kind: 'move' | 'resize') {
+  function startImageDrag(event: ReactPointerEvent<HTMLElement>, kind: 'move' | 'resize', direction = '') {
     if (event.button !== 0) return
     const element = revealRef.current
     if (!element?.parentElement) return
@@ -120,7 +120,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
     const height = image?.getBoundingClientRect().height || element.getBoundingClientRect().height
     const canvas = element.closest('[aria-label^="Site preview"]')
     const minTop = canvas ? top + canvas.getBoundingClientRect().top - element.getBoundingClientRect().top : -2000
-    dragRef.current = { kind, x: event.clientX, y: event.clientY, width, left, top, height, pageWidth, minTop: Math.max(-2000, minTop) }
+    dragRef.current = { kind, direction, x: event.clientX, y: event.clientY, width, left, top, height, pageWidth, minTop: Math.max(-2000, minTop) }
     event.preventDefault()
     event.stopPropagation()
     event.currentTarget.setPointerCapture(event.pointerId)
@@ -132,19 +132,36 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
     if (!drag || !element) return
     const dx = (event.clientX - drag.x) / drag.pageWidth * 100
     const dy = event.clientY - drag.y
-    const nextLeft = Math.max(0, Math.min(100 - drag.width, drag.left + dx))
-    const nextTop = Math.max(drag.minTop, Math.min(2000, drag.top + dy))
-    const nextWidth = Math.max(5, Math.min(100 - drag.left, drag.width + dx))
-    const nextHeight = Math.max(40, Math.min(2000, drag.height + dy))
+    let nextLeft = drag.left
+    let nextTop = drag.top
+    let nextWidth = drag.width
+    let nextHeight = drag.height
+    if (drag.kind === 'move') {
+      nextLeft = Math.max(0, Math.min(100 - drag.width, drag.left + dx))
+      nextTop = Math.max(drag.minTop, Math.min(2000, drag.top + dy))
+    } else {
+      if (drag.direction.includes('e')) nextWidth = Math.max(5, Math.min(100 - drag.left, drag.width + dx))
+      if (drag.direction.includes('w')) {
+        nextLeft = Math.max(0, Math.min(drag.left + drag.width - 5, drag.left + dx))
+        nextWidth = drag.width + drag.left - nextLeft
+      }
+      if (drag.direction.includes('s')) nextHeight = Math.max(40, Math.min(2000, drag.height + dy))
+      if (drag.direction.includes('n')) {
+        nextTop = Math.max(drag.minTop, Math.max(drag.top + drag.height - 2000, Math.min(drag.top + drag.height - 40, drag.top + dy)))
+        nextHeight = drag.height + drag.top - nextTop
+      }
+    }
     if (finish) {
       dragRef.current = null
       useConfigStore.getState().updateBlockProps(block.id, drag.kind === 'move'
         ? { layoutLeft: Math.round(nextLeft), layoutTop: Math.round(nextTop) }
-        : { layoutWidth: Math.round(nextWidth), layoutHeight: Math.round(nextHeight) })
+        : { layoutLeft: Math.round(nextLeft), layoutTop: Math.round(nextTop), layoutWidth: Math.round(nextWidth), layoutHeight: Math.round(nextHeight) })
     } else if (drag.kind === 'move') {
       element.style.marginLeft = `${nextLeft}%`
       element.style.marginTop = `${nextTop}px`
     } else {
+      element.style.marginLeft = `${nextLeft}%`
+      element.style.marginTop = `${nextTop}px`
       element.style.width = `${nextWidth}%`
       const image = element.querySelector('img')
       if (image) image.style.height = `${nextHeight}px`
@@ -189,7 +206,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       className={`scroll-revealed relative cursor-pointer border-b border-border-subtle group transition-[opacity,transform] duration-500 ${
         isRevealed ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
       } ${
-        isSelected
+        imageLayout ? (isSelected ? 'outline outline-1 outline-white -outline-offset-1' : '') : isSelected
           ? 'bg-green-glow2 outline outline-2 outline-green -outline-offset-2 rounded animate-select-pulse'
           : 'hover:bg-green-glow2'
       }`}
@@ -208,13 +225,13 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
     >
       {/* Block type tag */}
       {hiddenOnCurrentWidth && <span className="absolute top-8 left-1.5 text-[10px] bg-bg-2 border border-border-default rounded px-1.5 py-0.5 z-10">Hidden at this width in preview and export</span>}
-      <span
+      {!imageLayout && <span
         className={`absolute top-1.5 left-1.5 text-[9px] font-semibold uppercase tracking-wider text-green bg-green-glow px-1.5 py-0.5 rounded transition-opacity z-10 ${
           isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
         }`}
       >
         {block.type}
-      </span>
+      </span>}
 
       {/* Action buttons */}
       <div
@@ -294,14 +311,19 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
 
       {customStyle && <style>{customStyle}</style>}
       <div data-ws-content>{children}</div>
-      {imageLayout && isSelected && <button
-        type="button" aria-label="Resize image" title="Drag to resize image"
-        className="absolute bottom-0 right-0 z-20 h-4 w-4 border-2 border-white bg-blue-700 cursor-nwse-resize touch-none"
+      {imageLayout && isSelected && ([
+        ['nw', 'top-0 left-0 cursor-nwse-resize'], ['n', 'top-0 left-1/2 -translate-x-1/2 cursor-ns-resize'],
+        ['ne', 'top-0 right-0 cursor-nesw-resize'], ['e', 'top-1/2 right-0 -translate-y-1/2 cursor-ew-resize'],
+        ['se', 'bottom-0 right-0 cursor-nwse-resize'], ['s', 'bottom-0 left-1/2 -translate-x-1/2 cursor-ns-resize'],
+        ['sw', 'bottom-0 left-0 cursor-nesw-resize'], ['w', 'top-1/2 left-0 -translate-y-1/2 cursor-ew-resize'],
+      ] as const).map(([direction, position]) => <button
+        key={direction} type="button" aria-label={`Resize image ${direction}`} title="Drag to resize image"
+        className={`absolute z-20 h-3 w-3 border border-black bg-white touch-none ${position}`}
         onClick={event => event.stopPropagation()}
-        onPointerDown={event => startImageDrag(event, 'resize')}
+        onPointerDown={event => startImageDrag(event, 'resize', direction)}
         onPointerMove={event => { event.stopPropagation(); moveImageDrag(event) }}
         onPointerUp={event => { event.stopPropagation(); moveImageDrag(event, true) }}
-      />}
+      />)}
     </div>
   )
 }
