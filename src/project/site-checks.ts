@@ -9,7 +9,7 @@ export interface SiteIssue {
 }
 
 /** Local, limited checks. External URLs and arbitrary extension content are not inspected. */
-export function checkSite(config: SiteConfig, settings?: { seoTitle?: string; seoDescription?: string; siteName?: string; siteDescription?: string }): SiteIssue[] {
+export function checkSite(config: SiteConfig, settings?: { seoTitle?: string; seoDescription?: string; siteName?: string; siteDescription?: string; webmasterEmail?: string }): SiteIssue[] {
   const pages = validateProjectConfig(config).pages!
   const issues: SiteIssue[] = []
   if (settings) {
@@ -117,7 +117,7 @@ export function checkSite(config: SiteConfig, settings?: { seoTitle?: string; se
         if (Array.isArray(value) && value.length === 0) add('This block has no entries yet. Add your own content in Properties or remove the block.')
       }
       if (block.type === 'contact') {
-        const email = typeof block.props.recipientEmail === 'string' ? block.props.recipientEmail.trim() : ''
+        const email = (typeof block.props.recipientEmail === 'string' && block.props.recipientEmail.trim()) || settings?.webmasterEmail?.trim() || ''
         const endpoint = typeof block.props.formEndpoint === 'string' ? block.props.formEndpoint.trim() : ''
         let validEndpoint = false
         try { const url = new URL(endpoint); validEndpoint = !/[\s\p{Cc}]/u.test(endpoint) && url.protocol === 'https:' && !url.username && !url.password && !url.hash } catch { /* no valid endpoint */ }

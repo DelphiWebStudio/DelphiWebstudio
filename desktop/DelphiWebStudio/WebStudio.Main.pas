@@ -61,7 +61,8 @@ var MainForm: TMainForm;
 implementation
 
 uses Winapi.ActiveX, System.IOUtils, System.Zip, System.JSON, System.UITypes, System.RegularExpressions,
-  WebStudio.ProjectSave, WebStudio.LocalAIForm, WebStudio.LocalAIHost, WebStudio.SftpForm;
+  WebStudio.ProjectSave, WebStudio.LocalAIForm, WebStudio.LocalAIHost, WebStudio.SftpForm,
+  WebStudio.Credentials;
 
 {$R *.dfm}
 
@@ -383,7 +384,7 @@ end;
 procedure TMainForm.EditorBrowserWebMessageReceived(Sender: TCustomEdgeBrowser; Args: TWebMessageReceivedEventArgs);
 var
   Source, Raw: PWideChar;
-  SourceText, RequestId, ProjectId, Kind, CapabilityName: string;
+  SourceText, RequestId, ProjectId, Kind, CapabilityName, Secret: string;
   Parsed: TJSONValue;
   Obj, Reply: TJSONObject;
   Request: TDesktopRequest;
@@ -403,6 +404,43 @@ begin
       if not (Parsed is TJSONObject) then Exit;
       Obj := TJSONObject(Parsed);
       if Obj.TryGetValue<string>('kind', Kind) then begin
+        if (Kind = 'gemini.read') or (Kind = 'gemini.write') or (Kind = 'gemini.delete') then begin
+          if not ((SourceText = 'https://webstudio.local/index.html') or
+              SourceText.StartsWith('https://webstudio.local/index.html#/')) or
+             not (Obj.GetValue('version') is TJSONNumber) or (Obj.GetValue('version').Value <> '1') or
+             not (Obj.GetValue('requestId') is TJSONString) or not Obj.TryGetValue<string>('requestId', RequestId) or
+             not TRegEx.IsMatch(RequestId, '^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$') then Exit;
+          if Kind = 'gemini.write' then begin
+            if (Obj.Count <> 4) or not (Obj.GetValue('key') is TJSONString) or
+              not Obj.TryGetValue<string>('key', Secret) or (Trim(Secret) = '') or
+              (TEncoding.UTF8.GetByteCount(Secret) > 2560) then Exit;
+          end else if Obj.Count <> 3 then Exit;
+          Reply := TJSONObject.Create;
+          try
+            Reply.AddPair('version', TJSONNumber.Create(1));
+            Reply.AddPair('kind', Kind);
+            Reply.AddPair('requestId', RequestId);
+            try
+              if Kind = 'gemini.read' then begin
+                Secret := ReadCredential('DelphiWebStudio/Gemini');
+                Reply.AddPair('key', Secret);
+              end else if Kind = 'gemini.write' then
+                WriteCredential('DelphiWebStudio/Gemini', Secret)
+              else DeleteCredential('DelphiWebStudio/Gemini');
+              Reply.AddPair('ok', TJSONBool.Create(True));
+            except
+              on E: Exception do begin
+                Reply.AddPair('ok', TJSONBool.Create(False));
+                Reply.AddPair('error', 'Windows Credential Manager could not complete the request.');
+              end;
+            end;
+            Sender.DefaultInterface.PostWebMessageAsJson(PWideChar(Reply.ToJSON));
+          finally
+            Secret := '';
+            Reply.Free;
+          end;
+          Exit;
+        end;
         if (Obj.Count <> 5) or (Kind <> 'session.open') or
            not (Obj.GetValue('version') is TJSONNumber) or (Obj.GetValue('version').Value <> '1') or
            not (Obj.GetValue('requestId') is TJSONString) or not Obj.TryGetValue<string>('requestId', RequestId) or
