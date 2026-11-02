@@ -7,7 +7,7 @@ import { DesignPanel } from './DesignPanel'
 
 type Tab = 'properties' | 'design'
 
-export function RightSidebar() {
+export function RightSidebar({ collapsed = false }: { collapsed?: boolean }) {
   const selectedBlockId = useEditorStore((s) => s.selectedBlockId)
   const mode = useEditorStore((s) => s.mode)
   const blocks = useConfigStore((s) => {
@@ -28,7 +28,7 @@ export function RightSidebar() {
     : selection.tab
 
   return (
-    <div className="hidden md:flex w-[280px] bg-bg-1 border-l border-border-default flex-col shrink-0">
+    <div id="editor-right-panel" className={collapsed ? 'hidden' : 'hidden md:flex w-[280px] bg-bg-1 border-l border-border-default flex-col shrink-0'}>
       {/* Tabs */}
       <div className="flex border-b border-border-default shrink-0">
         <button

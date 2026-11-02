@@ -127,12 +127,12 @@ function ComponentsPanel() {
 
 type Tab = 'layers' | 'components' | 'media' | 'articles'
 
-export function LeftSidebar() {
+export function LeftSidebar({ collapsed = false }: { collapsed?: boolean }) {
   const mode = useEditorStore((state) => state.mode)
   const [tab, setTab] = useState<Tab>(() => mode === 'beginner' ? 'components' : 'layers')
 
   return (
-    <div className="hidden md:flex w-[280px] bg-bg-1 border-r border-border-default flex-col shrink-0">
+    <div id="editor-left-panel" className={collapsed ? 'hidden' : 'hidden md:flex w-[280px] bg-bg-1 border-r border-border-default flex-col shrink-0'}>
       <div className="flex border-b border-border-default shrink-0">
         <button
           onClick={() => setTab('layers')}
