@@ -47,6 +47,9 @@ export function TopNav() {
 
       {/* Right side */}
       <div className="ml-auto flex items-center gap-2">
+        <NavLink to="/settings" aria-label="Settings" className="md:hidden flex items-center gap-1 rounded border border-border-default px-2 py-1 text-xs text-text-1">
+          <Settings size={14} /> Settings
+        </NavLink>
         <a
           href="https://github.com/tmartindub/DelphiWebStudio"
           target="_blank"

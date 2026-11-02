@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { useProjectsStore, type ProjectSettings } from '@/store/projectsStore'
 import { useEditorStore } from '@/store/editorStore'
 import { geminiSession } from '@/lib/generate-site'
+import { requestGeminiCredential } from '@/desktop/native-bridge'
 
 type SettingsTab = 'general' | 'seo' | 'api'
 
@@ -83,6 +84,12 @@ function GeneralPanel({ settings }: { settings: ReturnType<typeof useSettingsSta
     <div>
       <h2 className="text-lg font-semibold mb-4">General</h2>
       <FieldGroup label="Site Name"><ControlledInput settingsKey="siteName" settings={settings} /></FieldGroup>
+      <FieldGroup label="Webmaster contact email">
+        <input type="email" aria-label="Webmaster contact email" value={settings.data.webmasterEmail || ''}
+          onChange={event => settings.update('webmasterEmail', event.target.value)}
+          className="w-full px-3 py-2 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[13px] outline-none focus:border-green" />
+        <p className="text-[11px] text-text-3 mt-1.5">Default for contact forms without their own email. A form service URL takes precedence.</p>
+      </FieldGroup>
       <FieldGroup label="Site Description"><ControlledTextarea settingsKey="siteDescription" settings={settings} /></FieldGroup>
       <FieldGroup label="Favicon URL"><ControlledInput settingsKey="faviconUrl" placeholder="https://example.com/favicon.ico" settings={settings} /></FieldGroup>
       <FieldGroup label="Site search">
@@ -136,6 +143,20 @@ function SeoPanel({ settings }: { settings: ReturnType<typeof useSettingsState> 
 function ApiPanel({ settings }: { settings: ReturnType<typeof useSettingsState> }) {
   const [geminiKey, setGeminiKey] = useState(geminiSession.changed ? geminiSession.key : localStorage.getItem('openpage-gemini-key') || '')
   const [legacyKeySaved, setLegacyKeySaved] = useState(() => !!localStorage.getItem('openpage-gemini-key'))
+  const [secureSaved, setSecureSaved] = useState(false)
+  const [secureAvailable, setSecureAvailable] = useState(false)
+  const [savingKey, setSavingKey] = useState(false)
+  const keyEdited = useRef(false)
+  useEffect(() => {
+    let mounted = true
+    requestGeminiCredential('read').then(key => {
+      if (!mounted || key === null) return
+      setSecureAvailable(true)
+      setSecureSaved(!!key)
+      if (key && !keyEdited.current && !geminiSession.changed) setGeminiKey(key)
+    }).catch(() => { if (mounted) toast.error('Could not read the saved Google key from Windows Credential Manager.') })
+    return () => { mounted = false }
+  }, [])
   const [showKey, setShowKey] = useState(false)
   const [testing, setTesting] = useState(false)
   const [cloudEnabled, setCloudEnabled] = useState(geminiSession.cloudEnabled)
@@ -146,6 +167,7 @@ function ApiPanel({ settings }: { settings: ReturnType<typeof useSettingsState> 
   const deployKey = activeProjectId && hasSessionDeployKey ? deploymentKeys[activeProjectId] : settings.data.deployAccessKey || ''
 
   function handleKeyChange(value: string) {
+    keyEdited.current = true
     setGeminiKey(value)
     geminiSession.key = value
     geminiSession.changed = true
@@ -229,7 +251,21 @@ function ApiPanel({ settings }: { settings: ReturnType<typeof useSettingsState> 
           Used for client-side AI generation. Get one at{' '}
           <span className="text-text-2">aistudio.google.com</span>
         </p>
-        <p className="text-[11px] text-text-3 mt-1.5">New entries are kept only until the app closes or the page reloads.</p>
+        <p className="text-[11px] text-text-3 mt-1.5">{secureAvailable ? 'Save this key securely for your Windows account and reuse it in all projects.' : 'A key can be saved in Windows Credential Manager when using the desktop application.'}</p>
+        {secureAvailable && <div className="flex gap-3 mt-2">
+          <button type="button" disabled={!geminiKey.trim() || savingKey} className="underline disabled:opacity-40" onClick={async () => {
+            setSavingKey(true)
+            try { await requestGeminiCredential('write', geminiKey.trim()); geminiSession.key = geminiKey.trim(); geminiSession.changed = true; setSecureSaved(true); toast.success('Google key saved for this Windows user.') }
+            catch { toast.error('Could not save the Google key in Windows Credential Manager.') }
+            finally { setSavingKey(false) }
+          }}>Save key</button>
+          {secureSaved && <button type="button" disabled={savingKey} className="underline" onClick={async () => {
+            setSavingKey(true)
+            try { await requestGeminiCredential('delete'); handleKeyChange(''); setSecureSaved(false); toast('Saved Google key removed.') }
+            catch { toast.error('Could not remove the saved Google key.') }
+            finally { setSavingKey(false) }
+          }}>Remove saved key</button>}
+        </div>}
         {legacyKeySaved && <div className="text-[11px] text-status-yellow mt-1.5">
           <p>An older key is still stored without application-level encryption. It is not removed automatically.</p>
           <button type="button" className="underline" onClick={() => {

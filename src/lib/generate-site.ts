@@ -1,3 +1,4 @@
+import { requestGeminiCredential } from '@/desktop/native-bridge'
 import type { SiteConfig, BlockConfig, ThemeConfig } from '@/blocks/types'
 import { blockMetadata } from '@/lib/block-metadata'
 import { GENERATION_PROMPT } from '@/lib/generation-prompt'
@@ -10,7 +11,7 @@ const DEFAULT_PROPS_MAP = Object.fromEntries(blockMetadata.map((b) => [b.type, b
 const GEMINI_MODEL = 'gemini-3-flash-preview'
 const STORAGE_KEY = 'openpage-gemini-key'
 
-// Newly entered keys remain in memory; an existing saved key is left untouched until the user removes it.
+// Cloud consent remains a session choice; saved credentials belong to the Windows user.
 export const geminiSession = { key: '', changed: false, cloudEnabled: false }
 
 export interface GenerationResult {
@@ -21,7 +22,7 @@ export interface GenerationResult {
 export async function generateSiteConfig(prompt: string, signal?: AbortSignal): Promise<GenerationResult> {
   if (!geminiSession.cloudEnabled) return { config: getTemplateForPrompt(prompt), source: 'template' }
   // 1. Try client-side Gemini if key exists
-  const apiKey = geminiSession.changed ? geminiSession.key : localStorage.getItem(STORAGE_KEY)
+  const apiKey = geminiSession.changed ? geminiSession.key : (await requestGeminiCredential('read')) || localStorage.getItem(STORAGE_KEY)
   if (apiKey) {
     try {
       const config = await callGeminiDirect(prompt, apiKey, signal)

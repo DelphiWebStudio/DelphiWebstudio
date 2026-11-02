@@ -25,6 +25,7 @@ export function Canvas() {
   const { selectedBlockId, selectBlock, viewport, customViewportWidth, activeProjectId, previewMode } = useEditorStore()
   const revision = useProjectsStore(state => state.projects.find(project => project.id === activeProjectId)?.mediaRevision ?? 0)
   const searchEnabled = useProjectsStore(state => state.projects.find(project => project.id === activeProjectId)?.settings?.siteSearch === 'on')
+  const webmasterEmail = useProjectsStore(state => state.projects.find(project => project.id === activeProjectId)?.settings?.webmasterEmail ?? '')
   const [assetUrls, setAssetUrls] = useState<Record<string, string>>({})
   const referencedAssets = JSON.stringify([...new Set([
     ...blocks.map(block => typeof block.props.assetId === 'string' ? block.props.assetId : '').filter(Boolean),
@@ -100,6 +101,7 @@ export function Canvas() {
           return [key, value]
         }))
         if (typeof block.props.assetId === 'string' && assetUrls[block.props.assetId]) props.src = assetUrls[block.props.assetId]
+        if (block.type === 'contact' && !(typeof block.props.recipientEmail === 'string' && block.props.recipientEmail.trim())) props.recipientEmail = webmasterEmail
         return (
         <BlockWrapper
           key={block.id}

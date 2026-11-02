@@ -24,6 +24,7 @@ export interface Project {
 
 export interface ProjectSettings {
   siteName?: string
+  webmasterEmail?: string
   siteDescription?: string
   faviconUrl?: string
   language?: string

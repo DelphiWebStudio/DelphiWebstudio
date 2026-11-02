@@ -7,6 +7,32 @@ type NativeWebView = {
   removeEventListener(type: 'message', listener: (event: MessageEvent) => void): void
 }
 
+/** Store the Google key in the current Windows user's Credential Manager. */
+export async function requestGeminiCredential(action: 'read' | 'write' | 'delete', key?: string): Promise<string | null> {
+  if (typeof window === 'undefined' || window.location.origin !== 'https://webstudio.local') {
+    if (action === 'read') return null
+    throw new Error('Saving the Google key requires the Windows desktop application.')
+  }
+  const webview = (window as unknown as { chrome?: { webview?: NativeWebView } }).chrome?.webview
+  if (!webview) throw new Error('The desktop credential service is unavailable.')
+  const requestId = crypto.randomUUID()
+  const kind = `gemini.${action}`
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => { webview.removeEventListener('message', receive); reject(new Error('The credential request timed out.')) }, 5000)
+    function receive(event: MessageEvent) {
+      const reply = event.data as NativeMessage | null
+      if (!reply || typeof reply !== 'object' || reply.version !== 1 || reply.kind !== kind || reply.requestId !== requestId) return
+      window.clearTimeout(timer)
+      webview!.removeEventListener('message', receive)
+      if (reply.ok !== true || (action === 'read' && typeof reply.key !== 'string')) reject(new Error('Windows Credential Manager could not complete the request.'))
+      else resolve(action === 'read' ? reply.key as string : null)
+    }
+    webview.addEventListener('message', receive)
+    try { webview.postMessage(action === 'write' ? { version: 1, kind, requestId, key } : { version: 1, kind, requestId }) }
+    catch { window.clearTimeout(timer); webview.removeEventListener('message', receive); reject(new Error('The credential request could not be sent.')) }
+  })
+}
+
 /** Authorizes an existing local flow; no file paths or content cross this bridge. */
 export async function requestDesktopAction(capability: DesktopCapability, projectId: string | null): Promise<void> {
   if (window.location.hostname !== 'webstudio.local') return

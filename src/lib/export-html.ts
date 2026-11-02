@@ -13,6 +13,7 @@ import exportCss from './export.css?inline'
 
 export interface ExportSiteSettings {
   siteName?: string
+  webmasterEmail?: string
   siteDescription?: string
   faviconUrl?: string
   language?: string
@@ -1221,7 +1222,9 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
 
   const blocksHtml = `<main id="main-content" tabindex="-1" class="@container">${config.blocks.map((block, index) => {
     const classes = (['mobile', 'tablet', 'desktop'] as const).filter(device => block.webstudioHiddenOn?.[device] === true).map(device => `ws-hidden-${device}`)
-    let html = renderBlock(block)
+    const effectiveBlock = block.type === 'contact' && !(typeof block.props.recipientEmail === 'string' && block.props.recipientEmail.trim())
+      ? { ...block, props: { ...block.props, recipientEmail: settings?.webmasterEmail ?? '' } } : block
+    let html = renderBlock(effectiveBlock)
     const scope = `ws-${index}`
     const selector = `[data-ws-scope="${scope}"] [data-ws-content]`
     const textSize = Number(block.props.textSize)
