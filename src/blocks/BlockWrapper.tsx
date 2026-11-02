@@ -25,7 +25,19 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
   const { selectedBlockId, selectBlock } = useEditorStore()
   const previewMode = useEditorStore((s) => s.previewMode)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const dragRef = useRef<{ kind: 'move' | 'resize'; x: number; y: number; width: number; left: number; top: number; height: number; pageWidth: number } | null>(null)
   const { ref: revealRef, isRevealed } = useScrollReveal(!previewMode)
+
+  const imageLayout = block.type === 'image'
+  const widthValue = Number(block.props.layoutWidth)
+  const leftValue = Number(block.props.layoutLeft)
+  const topValue = Number(block.props.layoutTop)
+  const layerValue = Number(block.props.layoutLayer)
+  const width = Number.isFinite(widthValue) && widthValue > 0 ? Math.max(5, Math.min(100, widthValue)) : 100
+  const left = Number.isFinite(leftValue) ? Math.max(0, Math.min(100 - width, leftValue)) : 0
+  const top = Number.isFinite(topValue) ? Math.max(-2000, Math.min(2000, topValue)) : 0
+  const layer = Number.isFinite(layerValue) && layerValue > 0 ? Math.max(1, Math.min(100, Math.round(layerValue))) : 1
+  const layoutStyle = imageLayout ? { position: 'relative' as const, width: `${width}%`, marginLeft: `${left}%`, marginTop: top, zIndex: layer } : undefined
 
   const index = blocks.findIndex((b) => b.id === block.id)
   const isFirst = index === 0
@@ -42,6 +54,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       <div
         ref={revealRef}
         className={isRevealed ? 'scroll-revealed' : ''}
+        style={layoutStyle}
       >
         {children}
       </div>
@@ -78,7 +91,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
           onSelect()
         }
       }}
-      style={{ transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}
+      style={{ ...layoutStyle, transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}
     >
       {/* Block type tag */}
       {hiddenOnCurrentWidth && <span className="absolute top-8 left-1.5 text-[10px] bg-bg-2 border border-border-default rounded px-1.5 py-0.5 z-10">Hidden at this width in preview and export</span>}
@@ -167,6 +180,65 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       </div>
 
       {children}
+      {imageLayout && isSelected && <div className="absolute bottom-1 right-1 z-20 flex gap-1">
+        {(['move', 'resize'] as const).map(kind => <button
+          key={kind}
+          type="button"
+          aria-label={kind === 'move' ? 'Move image' : 'Resize image'}
+          title={kind === 'move' ? 'Drag to move image' : 'Drag to resize image'}
+          className="rounded border border-white bg-blue-700 px-2 py-1 text-xs font-semibold text-white touch-none"
+          onClick={event => event.stopPropagation()}
+          onPointerDown={event => {
+            event.preventDefault()
+            event.stopPropagation()
+            const element = scrollRef.current
+            if (!element?.parentElement) return
+            const pageWidth = element.parentElement.getBoundingClientRect().width
+            const image = element.querySelector('img')
+            const height = image?.getBoundingClientRect().height || element.getBoundingClientRect().height
+            if (!pageWidth) return
+            dragRef.current = { kind, x: event.clientX, y: event.clientY, width, left, top, height, pageWidth }
+            event.currentTarget.setPointerCapture(event.pointerId)
+          }}
+          onPointerMove={event => {
+            const drag = dragRef.current
+            const element = scrollRef.current
+            if (!drag || !element) return
+            const dx = (event.clientX - drag.x) / drag.pageWidth * 100
+            const dy = event.clientY - drag.y
+            if (drag.kind === 'move') {
+              element.style.marginLeft = `${Math.max(0, Math.min(100 - drag.width, drag.left + dx))}%`
+              element.style.marginTop = `${Math.max(-2000, Math.min(2000, drag.top + dy))}px`
+            } else {
+              element.style.width = `${Math.max(5, Math.min(100 - drag.left, drag.width + dx))}%`
+              const image = element.querySelector('img')
+              if (image) image.style.height = `${Math.max(40, Math.min(2000, drag.height + dy))}px`
+            }
+          }}
+          onPointerUp={event => {
+            const drag = dragRef.current
+            dragRef.current = null
+            if (!drag) return
+            const dx = (event.clientX - drag.x) / drag.pageWidth * 100
+            const dy = event.clientY - drag.y
+            useConfigStore.getState().updateBlockProps(block.id, drag.kind === 'move'
+              ? { layoutLeft: Math.round(Math.max(0, Math.min(100 - drag.width, drag.left + dx))), layoutTop: Math.round(Math.max(-2000, Math.min(2000, drag.top + dy))) }
+              : { layoutWidth: Math.round(Math.max(5, Math.min(100 - drag.left, drag.width + dx))), layoutHeight: Math.round(Math.max(40, Math.min(2000, drag.height + dy))) })
+          }}
+          onPointerCancel={() => {
+            dragRef.current = null
+            const element = scrollRef.current
+            if (element) {
+              element.style.width = `${width}%`
+              element.style.marginLeft = `${left}%`
+              element.style.marginTop = `${top}px`
+              const image = element.querySelector('img')
+              const height = Number(block.props.layoutHeight)
+              if (image) image.style.height = Number.isFinite(height) && height > 0 ? `${Math.max(40, Math.min(2000, height))}px` : ''
+            }
+          }}
+        >{kind === 'move' ? 'Move' : 'Resize'}</button>)}
+      </div>}
     </div>
   )
 }

@@ -294,6 +294,12 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
         title: 'Style',
         fields: [
           { key: 'variant', label: 'Variant', type: 'select', options: ['hero-image', 'side-by-side', 'grid'] },
+          { key: 'imageFit', label: 'Image fit', type: 'select', options: ['cover', 'contain', 'fill'] },
+          { key: 'layoutWidth', label: 'Section width (% of page)', type: 'text' },
+          { key: 'layoutHeight', label: 'Image height (px)', type: 'text' },
+          { key: 'layoutLeft', label: 'Left position (% of page)', type: 'text' },
+          { key: 'layoutTop', label: 'Vertical spacing (px; negative overlaps)', type: 'text' },
+          { key: 'layoutLayer', label: 'Layer order', type: 'text' },
         ],
       },
     ],
@@ -452,7 +458,8 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
           <label className="block text-[11.5px] text-text-2 mb-1 font-medium">{field.label}</label>
           <input
             type="text"
-            value={String(value || '')}
+            aria-label={field.label}
+            value={String(value ?? '')}
             onChange={(e) => onChange(e.target.value)}
             className="w-full px-2 py-1.5 rounded border border-border-default bg-bg-2 text-text-0 text-xs outline-none focus:border-green"
           />

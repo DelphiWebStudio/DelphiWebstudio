@@ -1222,6 +1222,17 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
   const blocksHtml = `<main id="main-content" tabindex="-1" class="@container">${config.blocks.map((block) => {
     const classes = (['mobile', 'tablet', 'desktop'] as const).filter(device => block.webstudioHiddenOn?.[device] === true).map(device => `ws-hidden-${device}`)
     const html = renderBlock(block)
+    if (block.type === 'image') {
+      const widthValue = Number(block.props.layoutWidth)
+      const leftValue = Number(block.props.layoutLeft)
+      const topValue = Number(block.props.layoutTop)
+      const layerValue = Number(block.props.layoutLayer)
+      const width = Number.isFinite(widthValue) && widthValue > 0 ? Math.max(5, Math.min(100, widthValue)) : 100
+      const left = Number.isFinite(leftValue) ? Math.max(0, Math.min(100 - width, leftValue)) : 0
+      const top = Number.isFinite(topValue) ? Math.max(-2000, Math.min(2000, topValue)) : 0
+      const layer = Number.isFinite(layerValue) && layerValue > 0 ? Math.max(1, Math.min(100, Math.round(layerValue))) : 1
+      return `<div${classes.length ? ` class="${classes.join(' ')}"` : ''} style="position:relative;width:${width}%;margin-left:${left}%;margin-top:${top}px;z-index:${layer}">${html}</div>`
+    }
     return classes.length ? `<div class="${classes.join(' ')}">${html}</div>` : html
   }).join('\n\n')}</main>`
   const documentLibraryScript = config.blocks.some(block => block.type === 'documentLibrary') ? `<script>document.querySelectorAll('[data-document-library]').forEach(function(library){var search=library.querySelector('[data-library-search]');search.addEventListener('input',function(){var query=search.value.toLocaleLowerCase();library.querySelectorAll('[data-library-item]').forEach(function(item){item.style.display=item.textContent.toLocaleLowerCase().includes(query)?'':'none';});});});</script>` : ''

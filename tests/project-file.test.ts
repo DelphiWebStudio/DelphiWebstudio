@@ -13,6 +13,12 @@ const fivePages = {
 }
 
 describe('portable project files', () => {
+  it('preserves image positioning, size and layering when saving and reopening', () => {
+    const props = { src: 'https://example.test/photo.png', alt: 'Photo', layoutWidth: 45, layoutHeight: 280, layoutLeft: 35, layoutTop: -100, layoutLayer: 2 }
+    const config = validateProjectConfig({ name: 'Site', blocks: [{ id: 'photo', type: 'image', variant: 'hero-image', props }] })
+    const reopened = parseProjectFile(serializeProjectFile(createProjectFile(config, 'project'))).project.config
+    expect(reopened.blocks[0].props).toEqual(props)
+  })
   it('preserves responsive visibility and rejects invalid values', () => {
     const config = { name: 'Site', blocks: [{ id: 'one', type: 'content', variant: 'prose', props: { body: 'Text' }, webstudioHiddenOn: { mobile: true, tablet: false } }] }
     const project = createProjectFile(validateProjectConfig(config), 'project')
