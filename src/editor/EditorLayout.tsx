@@ -1,7 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { FolderOpen, Layers, Briefcase, UtensilsCrossed, Building2, BookOpen } from 'lucide-react'
+import { FolderOpen, Layers, Briefcase, UtensilsCrossed, Building2, BookOpen, ChevronLeft, ChevronRight } from 'lucide-react'
 import { CanvasToolbar } from './CanvasToolbar'
 import { LeftSidebar } from './LeftSidebar'
 import { Canvas } from './Canvas'
@@ -163,6 +163,8 @@ function EditorEmptyState() {
 export function EditorLayout() {
   useAutoSaveToProject()
   useGenerationOrchestration()
+  const [leftCollapsed, setLeftCollapsed] = useState(false)
+  const [rightCollapsed, setRightCollapsed] = useState(false)
   const previewMode = useEditorStore((s) => s.previewMode)
   const mode = useEditorStore((s) => s.mode)
   const activeProjectId = useEditorStore((s) => s.activeProjectId)
@@ -174,7 +176,18 @@ export function EditorLayout() {
   return (
     <div className="h-full flex flex-col relative">
       <div className="flex-1 flex overflow-hidden">
-        {!previewMode && <LeftSidebar key={`left-${mode}`} />}
+        {!previewMode && <>
+          <LeftSidebar key={`left-${mode}`} collapsed={leftCollapsed} />
+          <div className="hidden md:flex w-6 shrink-0 items-start justify-center border-r border-border-default bg-bg-1 pt-1">
+            <button type="button" onClick={() => setLeftCollapsed(value => !value)}
+              aria-label={leftCollapsed ? 'Expand left panel' : 'Collapse left panel'}
+              aria-expanded={!leftCollapsed} aria-controls="editor-left-panel"
+              title={leftCollapsed ? 'Expand left panel' : 'Collapse left panel'}
+              className="flex h-7 w-5 items-center justify-center rounded border border-border-default text-text-2 hover:bg-bg-3 hover:text-text-0">
+              {leftCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+            </button>
+          </div>
+        </>}
         <div className="flex-1 flex flex-col min-w-0 relative">
           <CanvasToolbar />
           <div className="flex-1 flex flex-col overflow-hidden relative">
@@ -183,7 +196,18 @@ export function EditorLayout() {
             <GenerationOverlay />
           </div>
         </div>
-        {!previewMode && <RightSidebar key={`right-${mode}`} />}
+        {!previewMode && <>
+          <div className="hidden md:flex w-6 shrink-0 items-start justify-center border-l border-border-default bg-bg-1 pt-1">
+            <button type="button" onClick={() => setRightCollapsed(value => !value)}
+              aria-label={rightCollapsed ? 'Expand right panel' : 'Collapse right panel'}
+              aria-expanded={!rightCollapsed} aria-controls="editor-right-panel"
+              title={rightCollapsed ? 'Expand right panel' : 'Collapse right panel'}
+              className="flex h-7 w-5 items-center justify-center rounded border border-border-default text-text-2 hover:bg-bg-3 hover:text-text-0">
+              {rightCollapsed ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
+            </button>
+          </div>
+          <RightSidebar key={`right-${mode}`} collapsed={rightCollapsed} />
+        </>}
       </div>
       <VersionHistory />
       <LocalPlanReview />
