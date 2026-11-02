@@ -211,6 +211,41 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       ref={revealRef}
       data-webstudio-block-id={block.id}
       data-ws-scope={scope}
+      onDragStart={event => {
+        if (block.type !== 'navbar' || !(event.target instanceof Element)) return
+        const link = event.target.closest('[data-ws-nav-index]')
+        if (!link || !event.currentTarget.contains(link)) return
+        event.dataTransfer.setData('application/x-webstudio-navbar-link', link.getAttribute('data-ws-nav-index') ?? '')
+        event.dataTransfer.effectAllowed = 'move'
+        event.stopPropagation()
+        onSelect()
+      }}
+      onDragOver={event => {
+        if (block.type !== 'navbar' || !event.dataTransfer.types.includes('application/x-webstudio-navbar-link')) return
+        event.preventDefault()
+        event.stopPropagation()
+        event.dataTransfer.dropEffect = 'move'
+      }}
+      onDrop={event => {
+        if (block.type !== 'navbar' || !event.dataTransfer.types.includes('application/x-webstudio-navbar-link') || !(event.target instanceof Element)) return
+        event.preventDefault()
+        event.stopPropagation()
+        const target = event.target.closest('[data-ws-nav-index]')
+        if (!target || !event.currentTarget.contains(target)) return
+        const rawItems = Array.isArray(block.props.navItems) ? block.props.navItems : []
+        const legacy = Array.isArray(block.props.links) ? block.props.links : []
+        if (!rawItems.every(item => item && typeof item === 'object' && typeof item.label === 'string' && typeof item.url === 'string') || !legacy.every(item => typeof item === 'string')) {
+          toast.error('The Navbar contains invalid link data and cannot be reordered.')
+          return
+        }
+        const items = [...rawItems, ...legacy.map(label => ({ label, url: '' }))]
+        const from = Number(event.dataTransfer.getData('application/x-webstudio-navbar-link'))
+        const to = Number(target.getAttribute('data-ws-nav-index'))
+        if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < 0 || from >= items.length || to >= items.length || from === to) return
+        const [moved] = items.splice(from, 1)
+        items.splice(to, 0, moved)
+        useConfigStore.getState().updateBlockProps(block.id, { navItems: items, links: [] })
+      }}
       onContextMenu={event => {
         event.preventDefault()
         event.stopPropagation()

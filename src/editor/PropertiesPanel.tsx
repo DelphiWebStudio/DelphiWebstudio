@@ -625,6 +625,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
       return (
         <div className="mb-2.5">
           <label className="block text-[11.5px] text-text-2 mb-1 font-medium">{field.label}</label>
+          {block.type === 'navbar' && field.key === 'navItems' && <p className="mb-1 text-[10px] text-text-3">Drag links on the Navbar to change their order.</p>}
           {imageItems && block.type === 'features' && <p className="mb-1 text-[10px] text-text-3">Feature images appear in the alternating layout.</p>}
           {items.map((item, i) => (
             <div key={i} className="bg-bg-2 border border-border-default rounded p-2 mb-1.5">
@@ -686,7 +687,11 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
             </div>
           ))}
           <button
-            onClick={() => onChange([...items, createEmptyItem()])}
+            onClick={() => {
+              if (block.type === 'navbar' && field.key === 'navItems' && Array.isArray(block.props.links) && block.props.links.length > 0 && block.props.links.every(link => typeof link === 'string')) {
+                updateBlockProps(block.id, { navItems: [...items, ...block.props.links.map(label => ({ label, url: '' })), createEmptyItem()], links: [] })
+              } else onChange([...items, createEmptyItem()])
+            }}
             className="text-[10px] text-green hover:text-green-dim transition-colors"
           >
             + Add item

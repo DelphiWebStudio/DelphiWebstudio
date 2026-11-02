@@ -19,6 +19,14 @@ const baseConfig: SiteConfig = {
 }
 
 describe('exportSiteToHTML', () => {
+  it.each(['default', 'centered'])('keeps destination links before legacy labels in a %s Navbar', variant => {
+    const navbar = { id: 'nav', type: 'navbar' as const, variant, props: { logo: '', links: ['About'], navItems: [{ label: 'Home', url: '/' }, { label: 'Contact', url: '/contact' }] } }
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [navbar] })
+    const body = html.slice(html.indexOf('<body>'))
+    expect(body.indexOf('>Home</a>')).toBeGreaterThan(-1)
+    expect(body.indexOf('>Contact</a>')).toBeGreaterThan(body.indexOf('>Home</a>'))
+    expect(body.indexOf('>About</span>')).toBeGreaterThan(body.indexOf('>Contact</a>'))
+  })
   it.each(['default', 'centered'])('exports a %s text Navbar without a placeholder logo', variant => {
     const navbar = { id: 'nav', type: 'navbar' as const, variant, props: { logo: '', navItems: [{ label: 'Home', url: '/' }] } }
     const html = exportSiteToHTML({ ...baseConfig, blocks: [navbar] })
