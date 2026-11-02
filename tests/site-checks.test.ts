@@ -10,6 +10,16 @@ const config: SiteConfig = { name: 'Community', pages: [
 ], blocks: [hero] }
 
 describe('local site checks', () => {
+  it('recognizes generated Search and Articles destinations when enabled', () => {
+    const copy = structuredClone(config)
+    copy.pages![1].webstudioArticle = { status: 'ready', author: '', summary: '', createdAt: '', modifiedAt: '' }
+    copy.pages![0].blocks.push({ id: 'nav', type: 'navbar', variant: 'default', props: { links: [], navItems: [{ label: 'Search', url: '/search.html' }, { label: 'Articles', url: '/articles/index.html' }] } })
+    copy.blocks = copy.pages![0].blocks
+    const enabled = checkSite(copy, { siteSearch: 'on' })
+    expect(enabled.filter(issue => issue.blockId === 'nav')).toEqual([])
+    const disabled = checkSite(copy, { siteSearch: 'off' })
+    expect(disabled.some(issue => issue.blockId === 'nav' && issue.message.includes('/search.html'))).toBe(true)
+  })
   it('warns about online media during export review without flagging ordinary links', () => {
     const copy = structuredClone(config)
     copy.pages![0].blocks.push(

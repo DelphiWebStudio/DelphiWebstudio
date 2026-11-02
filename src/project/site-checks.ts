@@ -9,8 +9,9 @@ export interface SiteIssue {
 }
 
 /** Local, limited checks. External URLs and arbitrary extension content are not inspected. */
-export function checkSite(config: SiteConfig, settings?: { seoTitle?: string; seoDescription?: string; siteName?: string; siteDescription?: string; webmasterEmail?: string }): SiteIssue[] {
+export function checkSite(config: SiteConfig, settings?: { seoTitle?: string; seoDescription?: string; siteName?: string; siteDescription?: string; webmasterEmail?: string; siteSearch?: string }): SiteIssue[] {
   const pages = validateProjectConfig(config).pages!
+  const generatedPaths = new Set<string>([...(settings?.siteSearch === 'on' ? ['/search.html'] : []), ...(pages.some(page => page.webstudioArticle?.status === 'ready') ? ['/articles/index.html'] : [])])
   const issues: SiteIssue[] = []
   if (settings) {
     const publishedPages = pages.filter(page => page.webstudioArticle?.status !== 'draft')
@@ -44,7 +45,7 @@ export function checkSite(config: SiteConfig, settings?: { seoTitle?: string; se
         const links = Array.isArray(block.props.links) ? block.props.links : []
         const columns = block.type === 'footer' && block.variant === 'multi-column' && Array.isArray(block.props.columns) ? block.props.columns : []
         const hasColumnLinks = columns.some(column => column && typeof column === 'object' && Array.isArray(column.links) && column.links.some((link: unknown) => typeof link === 'string' && link.trim()))
-        if (links.some(link => typeof link === 'string' && link.trim()) || hasColumnLinks) add('This block contains text-only navigation labels that do not link to pages. Use the site page navigation for working links.')
+        if (links.some(link => typeof link === 'string' && link.trim()) || hasColumnLinks) add('This block contains text-only navigation labels that do not link to pages. Add working links under Navigation destinations.')
       }
       if ((block.type === 'navbar' || block.type === 'footer') && Array.isArray(block.props.navItems)) {
         for (const item of block.props.navItems) {
@@ -56,8 +57,8 @@ export function checkSite(config: SiteConfig, settings?: { seoTitle?: string; se
           if (url.startsWith('/')) {
             const path = url.split(/[?#]/, 1)[0].replace(/\/$/, '') || '/'
             const target = pages.find(page => page.path === path || encodeURI(page.path) === path)
-            if (!target) add(`${url}: does not match a site page; it may point to a separate file or host resource.`)
-            else if (target.webstudioArticle?.status === 'draft') add(`${url}: points to a draft article that is omitted from export.`)
+            if (!target && !generatedPaths.has(path)) add(`${url}: does not match a site page; it may point to a separate file or host resource.`)
+            else if (target?.webstudioArticle?.status === 'draft') add(`${url}: points to a draft article that is omitted from export.`)
           }
         }
       }
@@ -77,8 +78,8 @@ export function checkSite(config: SiteConfig, settings?: { seoTitle?: string; se
         if (!url.startsWith('/') || url.startsWith('//')) continue
         const path = url.split(/[?#]/, 1)[0].replace(/\/$/, '') || '/'
         const target = pages.find(item => item.path === path || encodeURI(item.path) === path)
-        if (!target) add(`${url}: does not match a site page; it may point to a separate file or host resource.`)
-        else if (target.webstudioArticle?.status === 'draft') add(`${url}: points to a draft article that is omitted from export.`)
+        if (!target && !generatedPaths.has(path)) add(`${url}: does not match a site page; it may point to a separate file or host resource.`)
+        else if (target?.webstudioArticle?.status === 'draft') add(`${url}: points to a draft article that is omitted from export.`)
       }
       if (block.type === 'content' && typeof block.props.body === 'string') {
         for (const match of block.props.body.matchAll(/\[([^\]\n]+)\]\(([^)\s]+)\)/g)) {
@@ -88,8 +89,8 @@ export function checkSite(config: SiteConfig, settings?: { seoTitle?: string; se
           } else if (url.startsWith('/')) {
             const path = url.split(/[?#]/, 1)[0].replace(/\/$/, '') || '/'
             const target = pages.find(item => item.path === path || encodeURI(item.path) === path)
-            if (!target) add(`${url}: does not match a site page; it may point to a separate file or host resource.`)
-            else if (target.webstudioArticle?.status === 'draft') add(`${url}: points to a draft article that is omitted from export.`)
+            if (!target && !generatedPaths.has(path)) add(`${url}: does not match a site page; it may point to a separate file or host resource.`)
+            else if (target?.webstudioArticle?.status === 'draft') add(`${url}: points to a draft article that is omitted from export.`)
           }
         }
       }
