@@ -145,7 +145,7 @@ export function Canvas() {
         if (!asset || useEditorStore.getState().activeProjectId !== activeProjectId) throw new Error('The media file is no longer available.')
         const id = `block-${crypto.randomUUID()}`
         const type = asset.mime === 'application/pdf' ? 'pdfViewer' : asset.mime.startsWith('image/') ? 'image' : asset.mime.startsWith('audio/') ? 'audio' : asset.mime.startsWith('video/') ? 'mediaVideo' : 'document'
-        useConfigStore.getState().addBlock({ id, type, variant: type === 'image' ? 'hero-image' : 'default', props: { assetId: asset.id, src: asset.path, title: asset.name, alt: asset.name } })
+        useConfigStore.getState().addBlock({ id, type, variant: type === 'image' ? 'hero-image' : 'default', props: type === 'image' ? { assetId: asset.id, src: asset.path, alt: asset.name, layoutWidth: 40 } : { assetId: asset.id, src: asset.path, title: asset.name, alt: asset.name } })
         useEditorStore.getState().selectBlock(id)
         toast('Added to page')
       }).catch(error => toast.error(error instanceof Error ? error.message : 'Media could not be added.'))

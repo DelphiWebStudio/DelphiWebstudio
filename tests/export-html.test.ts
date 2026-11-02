@@ -19,6 +19,15 @@ const baseConfig: SiteConfig = {
 }
 
 describe('exportSiteToHTML', () => {
+  it('renders imported photos without a filename overlay or forced crop while preserving intentional captions', () => {
+    const photo = { id: 'photo', type: 'image' as const, variant: 'hero-image', props: { src: 'assets/church.png', alt: 'church.png', title: 'church.png' } }
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [photo] })
+    expect(html).not.toContain('bg-gradient-to-t from-bg-0/80')
+    expect(html).not.toContain('h-64 @lg:h-96 object-cover')
+    expect(html).toContain('alt="church.png"')
+    const captioned = exportSiteToHTML({ ...baseConfig, blocks: [{ ...photo, props: { ...photo.props, title: 'Our church' } }] })
+    expect(captioned).toContain('Our church')
+  })
   it('exports individual gallery image adjustments and section text styling', () => {
     const html = exportSiteToHTML({ ...baseConfig, blocks: [{
       id: 'gallery', type: 'gallery', variant: 'grid',

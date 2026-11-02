@@ -1,4 +1,4 @@
-import { type ReactNode, useRef, useEffect, useLayoutEffect } from 'react'
+import { type ReactNode, type PointerEvent as ReactPointerEvent, useRef, useEffect, useLayoutEffect } from 'react'
 import { Copy, Trash2, ChevronUp, ChevronDown, Globe } from 'lucide-react'
 import { toast } from 'sonner'
 import { useConfigStore } from '@/store/configStore'
@@ -24,7 +24,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
   const { duplicateBlock, removeBlock, moveBlock, shareSectionAcrossPages, unshareSection } = useConfigStore()
   const { selectedBlockId, selectBlock } = useEditorStore()
   const previewMode = useEditorStore((s) => s.previewMode)
-  const dragRef = useRef<{ kind: 'move' | 'resize'; x: number; y: number; width: number; left: number; top: number; height: number; pageWidth: number } | null>(null)
+  const dragRef = useRef<{ kind: 'move' | 'resize'; x: number; y: number; width: number; left: number; top: number; height: number; pageWidth: number; minTop: number } | null>(null)
   const { ref: revealRef, isRevealed } = useScrollReveal(!previewMode)
 
   const imageLayout = block.type === 'image'
@@ -110,11 +110,70 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
     )
   }
 
+  function startImageDrag(event: ReactPointerEvent<HTMLElement>, kind: 'move' | 'resize') {
+    if (event.button !== 0) return
+    const element = revealRef.current
+    if (!element?.parentElement) return
+    const pageWidth = element.parentElement.getBoundingClientRect().width
+    if (!pageWidth) return
+    const image = element.querySelector('img')
+    const height = image?.getBoundingClientRect().height || element.getBoundingClientRect().height
+    const canvas = element.closest('[aria-label^="Site preview"]')
+    const minTop = canvas ? top + canvas.getBoundingClientRect().top - element.getBoundingClientRect().top : -2000
+    dragRef.current = { kind, x: event.clientX, y: event.clientY, width, left, top, height, pageWidth, minTop: Math.max(-2000, minTop) }
+    event.preventDefault()
+    event.stopPropagation()
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  function moveImageDrag(event: ReactPointerEvent<HTMLElement>, finish = false) {
+    const drag = dragRef.current
+    const element = revealRef.current
+    if (!drag || !element) return
+    const dx = (event.clientX - drag.x) / drag.pageWidth * 100
+    const dy = event.clientY - drag.y
+    const nextLeft = Math.max(0, Math.min(100 - drag.width, drag.left + dx))
+    const nextTop = Math.max(drag.minTop, Math.min(2000, drag.top + dy))
+    const nextWidth = Math.max(5, Math.min(100 - drag.left, drag.width + dx))
+    const nextHeight = Math.max(40, Math.min(2000, drag.height + dy))
+    if (finish) {
+      dragRef.current = null
+      useConfigStore.getState().updateBlockProps(block.id, drag.kind === 'move'
+        ? { layoutLeft: Math.round(nextLeft), layoutTop: Math.round(nextTop) }
+        : { layoutWidth: Math.round(nextWidth), layoutHeight: Math.round(nextHeight) })
+    } else if (drag.kind === 'move') {
+      element.style.marginLeft = `${nextLeft}%`
+      element.style.marginTop = `${nextTop}px`
+    } else {
+      element.style.width = `${nextWidth}%`
+      const image = element.querySelector('img')
+      if (image) image.style.height = `${nextHeight}px`
+    }
+  }
+
   return (
     <div
       ref={revealRef}
       data-webstudio-block-id={block.id}
       data-ws-scope={scope}
+      onPointerDown={event => {
+        if (imageLayout && isSelected && event.target instanceof HTMLImageElement) startImageDrag(event, 'move')
+      }}
+      onPointerMove={event => moveImageDrag(event)}
+      onPointerUp={event => moveImageDrag(event, true)}
+      onPointerCancel={() => {
+        if (!dragRef.current) return
+        dragRef.current = null
+        const element = revealRef.current
+        if (element) {
+          element.style.width = `${width}%`
+          element.style.marginLeft = `${left}%`
+          element.style.marginTop = `${top}px`
+          const image = element.querySelector('img')
+          const height = Number(block.props.layoutHeight)
+          if (image) image.style.height = Number.isFinite(height) && height > 0 ? `${Math.max(40, Math.min(2000, height))}px` : ''
+        }
+      }}
       onClick={(e) => {
         if (e.target instanceof Element && e.target.closest('a')) e.preventDefault()
         onSelect()
@@ -235,65 +294,14 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
 
       {customStyle && <style>{customStyle}</style>}
       <div data-ws-content>{children}</div>
-      {imageLayout && isSelected && <div className="absolute bottom-1 right-1 z-20 flex gap-1">
-        {(['move', 'resize'] as const).map(kind => <button
-          key={kind}
-          type="button"
-          aria-label={kind === 'move' ? 'Move image' : 'Resize image'}
-          title={kind === 'move' ? 'Drag to move image' : 'Drag to resize image'}
-          className="rounded border border-white bg-blue-700 px-2 py-1 text-xs font-semibold text-white touch-none"
-          onClick={event => event.stopPropagation()}
-          onPointerDown={event => {
-            event.preventDefault()
-            event.stopPropagation()
-            const element = revealRef.current
-            if (!element?.parentElement) return
-            const pageWidth = element.parentElement.getBoundingClientRect().width
-            const image = element.querySelector('img')
-            const height = image?.getBoundingClientRect().height || element.getBoundingClientRect().height
-            if (!pageWidth) return
-            dragRef.current = { kind, x: event.clientX, y: event.clientY, width, left, top, height, pageWidth }
-            event.currentTarget.setPointerCapture(event.pointerId)
-          }}
-          onPointerMove={event => {
-            const drag = dragRef.current
-            const element = revealRef.current
-            if (!drag || !element) return
-            const dx = (event.clientX - drag.x) / drag.pageWidth * 100
-            const dy = event.clientY - drag.y
-            if (drag.kind === 'move') {
-              element.style.marginLeft = `${Math.max(0, Math.min(100 - drag.width, drag.left + dx))}%`
-              element.style.marginTop = `${Math.max(-2000, Math.min(2000, drag.top + dy))}px`
-            } else {
-              element.style.width = `${Math.max(5, Math.min(100 - drag.left, drag.width + dx))}%`
-              const image = element.querySelector('img')
-              if (image) image.style.height = `${Math.max(40, Math.min(2000, drag.height + dy))}px`
-            }
-          }}
-          onPointerUp={event => {
-            const drag = dragRef.current
-            dragRef.current = null
-            if (!drag) return
-            const dx = (event.clientX - drag.x) / drag.pageWidth * 100
-            const dy = event.clientY - drag.y
-            useConfigStore.getState().updateBlockProps(block.id, drag.kind === 'move'
-              ? { layoutLeft: Math.round(Math.max(0, Math.min(100 - drag.width, drag.left + dx))), layoutTop: Math.round(Math.max(-2000, Math.min(2000, drag.top + dy))) }
-              : { layoutWidth: Math.round(Math.max(5, Math.min(100 - drag.left, drag.width + dx))), layoutHeight: Math.round(Math.max(40, Math.min(2000, drag.height + dy))) })
-          }}
-          onPointerCancel={() => {
-            dragRef.current = null
-            const element = revealRef.current
-            if (element) {
-              element.style.width = `${width}%`
-              element.style.marginLeft = `${left}%`
-              element.style.marginTop = `${top}px`
-              const image = element.querySelector('img')
-              const height = Number(block.props.layoutHeight)
-              if (image) image.style.height = Number.isFinite(height) && height > 0 ? `${Math.max(40, Math.min(2000, height))}px` : ''
-            }
-          }}
-        >{kind === 'move' ? 'Move' : 'Resize'}</button>)}
-      </div>}
+      {imageLayout && isSelected && <button
+        type="button" aria-label="Resize image" title="Drag to resize image"
+        className="absolute bottom-0 right-0 z-20 h-4 w-4 border-2 border-white bg-blue-700 cursor-nwse-resize touch-none"
+        onClick={event => event.stopPropagation()}
+        onPointerDown={event => startImageDrag(event, 'resize')}
+        onPointerMove={event => { event.stopPropagation(); moveImageDrag(event) }}
+        onPointerUp={event => { event.stopPropagation(); moveImageDrag(event, true) }}
+      />}
     </div>
   )
 }
