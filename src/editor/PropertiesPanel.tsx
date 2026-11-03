@@ -876,7 +876,7 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
           return <div key={key} className="mt-3 border-t border-border-default pt-2"><div className="text-xs font-semibold">Section {number} objects</div><div className="mt-1 flex flex-wrap gap-1">
             {(['text', 'image', 'button', 'panel'] as const).map(type => <button key={type} type="button" className="rounded border border-border-default px-2 py-1 text-xs" onClick={() => {
               const items = Array.isArray(block.props[key]) ? block.props[key] : []
-              updateBlockProps(block.id, { [key]: [...items, { id: `object-${crypto.randomUUID()}`, type, text: type === 'text' ? 'Text' : type === 'button' ? 'Button' : type === 'panel' ? 'Panel' : '', src: '', alt: '', url: '', color: '#ffffff', x: 0, y: items.length * 90, width: 30, height: 80, layer: items.length + 1 }] })
+              updateBlockProps(block.id, { [key]: [...items, { id: `object-${crypto.randomUUID()}`, type, text: type === 'text' ? 'Text' : type === 'button' ? 'Button' : type === 'panel' ? 'Panel' : '', src: '', alt: '', url: '', color: '#ffffff', textColor: '', fontSize: '', x: 0, y: items.length * 90, width: 30, height: 80, layer: items.length + 1 }] })
             }}>Add {type}</button>)}
           </div><PropertyField block={block} field={{ key, label: `Section ${number} objects`, type: 'array-items' }} /></div>
         })}
