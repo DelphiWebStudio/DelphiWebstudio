@@ -1,7 +1,8 @@
 import { renderMarkdown } from '@/lib/markdown'
 import type { BlockConfig } from '../types'
+import { RichText } from '../RichText'
 
-export function ContentBlock({ block }: { block: BlockConfig }) {
+export function ContentBlock({ block, editable = false }: { block: BlockConfig; editable?: boolean }) {
   const { variant, props } = block
   if (variant === 'imported-source') {
     return (
@@ -31,7 +32,7 @@ export function ContentBlock({ block }: { block: BlockConfig }) {
     return (
       <div className="px-6 py-12 @lg:px-16 @lg:py-16">
         <div className="reveal-slide-right reveal-d1 border-l-2 border-green pl-6 @lg:pl-8 bg-green-glow2 rounded-r-lg py-6 px-4">
-          {rendered}
+          <RichText blockId={block.id} field="body" text={body} value={props.bodyRich} editable={editable} multiline markdown />
         </div>
       </div>
     )
@@ -40,7 +41,7 @@ export function ContentBlock({ block }: { block: BlockConfig }) {
   // prose (default)
   return (
     <div className="reveal-fade-up reveal-d1 px-6 py-12 @lg:px-16 @lg:py-16 max-w-3xl mx-auto">
-      {rendered}
+      <RichText blockId={block.id} field="body" text={body} value={props.bodyRich} editable={editable} multiline markdown />
     </div>
   )
 }

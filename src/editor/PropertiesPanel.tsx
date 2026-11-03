@@ -417,7 +417,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
     if (field.key === 'variant') {
       updateBlock(block.id, { variant: newValue as string })
     } else {
-      updateBlockProps(block.id, field.key === 'src' ? { [field.key]: newValue, assetId: undefined } : { [field.key]: newValue })
+      updateBlockProps(block.id, field.key === 'src' ? { [field.key]: newValue, assetId: undefined } : (block.type === 'hero' && ['headline', 'subheadline'].includes(field.key)) || (block.type === 'content' && field.key === 'body' && block.variant !== 'columns') || (block.type === 'panel' && ['title', 'body'].includes(field.key)) || /^section[2-4]Text$/.test(field.key) ? { [field.key]: newValue, [`${field.key}Rich`]: undefined } : { [field.key]: newValue })
     }
   }
 

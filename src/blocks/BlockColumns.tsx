@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import { renderMarkdown } from '@/lib/markdown'
 import type { BlockConfig } from './types'
+import { RichText } from './RichText'
 
 export function BlockColumns({ block, children, editable = false, selectedSection = 0, onSelectSection }: { block: BlockConfig; children?: ReactNode; editable?: boolean; selectedSection?: number; onSelectSection?: (section: number) => void }) {
   const count = Math.min(4, Math.max(1, Math.floor(Number(block.props.sectionCount) || 1)))
@@ -18,10 +18,10 @@ export function BlockColumns({ block, children, editable = false, selectedSectio
       const text = typeof block.props[`section${number}Text`] === 'string' ? block.props[`section${number}Text`] as string : ''
       const panel = block.props[`section${number}Panel`] === true
       const color = typeof block.props[`section${number}Color`] === 'string' && /^#[0-9a-f]{6}$/i.test(block.props[`section${number}Color`] as string) ? block.props[`section${number}Color`] as string : '#b9aeb6'
-      return <div key={number} className="min-w-0 p-4 relative" data-editor-section={editable ? String(number) : undefined} role={editable ? 'group' : undefined} aria-label={editable ? `Section ${number}` : undefined} tabIndex={editable ? 0 : undefined} onClick={editable ? () => onSelectSection?.(number) : undefined} onKeyDown={editable ? event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); event.stopPropagation(); onSelectSection?.(number) } } : undefined} style={{ ...(panel ? { backgroundColor: color, borderRadius: '1rem' } : {}), ...(editable ? { minHeight: '80px', borderLeft: '1px solid #c3c7cb' } : {}) }}>
+      return <div key={number} className="min-w-0 p-4 relative" data-editor-section={editable ? String(number) : undefined} role={editable ? 'group' : undefined} aria-label={editable ? `Section ${number}` : undefined} tabIndex={editable ? 0 : undefined} onClick={editable ? () => onSelectSection?.(number) : undefined} onKeyDown={editable ? event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); event.stopPropagation(); onSelectSection?.(number) } } : undefined} style={{ ...(panel ? { backgroundColor: color, borderRadius: '1rem' } : {}), ...(editable ? { minHeight: '80px', paddingTop: '2rem', borderLeft: '1px solid #c3c7cb' } : {}) }}>
         {editable && <span aria-hidden="true" className="absolute top-1 left-2 z-20 rounded bg-[#005a9e] px-2 py-1 text-xs text-white pointer-events-none" style={{ opacity: selectedSection === number ? 1 : 0.7 }}>Section {number}</span>}
         {image && <img src={image} alt={alt} className="max-w-full h-auto" />}
-        {renderMarkdown(text)}
+        <RichText blockId={block.id} field={`section${number}Text`} text={text} value={block.props[`section${number}TextRich`]} editable={editable} multiline markdown />
       </div>
     })}
   </div>

@@ -360,7 +360,7 @@ export function CanvasToolbar() {
         </div>
 
       {/* Right side */}
-      <div className="ml-auto flex flex-wrap justify-end items-center gap-1 min-w-0">
+      <div className="flex flex-wrap justify-start items-center gap-1 min-w-0">
         {portableProjectsEnabled && <button type="button" onClick={() => setShowPlanPages(true)} className="px-2 py-1 rounded text-xs text-text-1 hover:bg-bg-3">Plan pages</button>}
         {portableProjectsEnabled && <button type="button" onClick={() => setShowSiteChecks(true)} className="px-2 py-1 rounded text-xs text-text-1 hover:bg-bg-3">Check site</button>}
         <label className="text-xs text-text-1 flex items-center gap-1">
