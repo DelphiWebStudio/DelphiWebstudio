@@ -57,7 +57,7 @@ export function Canvas() {
 
   const canvasContent = (
     <div
-      className="@container outline outline-1 rounded-xl min-h-[400px] relative z-[1] overflow-clip transition-all duration-300 mx-auto shrink-0"
+      className={`@container outline outline-1 rounded-xl ${blocks.length === 0 ? 'min-h-[400px]' : ''} relative z-[1] overflow-clip transition-all duration-300 mx-auto shrink-0`}
       style={{ width: `${previewWidth}px`, ...cssVars, color: 'var(--color-text-0)', backgroundColor: 'var(--color-bg-1)', outlineColor: 'var(--color-border-default)', overflowWrap: 'anywhere' } as React.CSSProperties}
       onClick={(e) => {
         if (previewMode && !e.defaultPrevented && e.target instanceof Element) {
