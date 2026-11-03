@@ -178,6 +178,14 @@ export const useConfigStore = create<ConfigState>()(
         }
         else { const [moved] = updated.splice(from, 1); updated.splice(to, 0, moved) }
         const changes: Record<string, unknown> = { [field]: updated }
+        if (operation === 'duplicate' && /^section[1-4]Objects$/.test(field)) {
+          const source = items[from] as { id?: unknown }, copy = updated[from + 1] as { id?: unknown }
+          if (typeof source?.id === 'string' && typeof copy?.id === 'string') {
+            const fromKey = `sectionObject_${source.id}`, toKey = `sectionObject_${copy.id}`
+            if (block.props[fromKey] !== undefined) changes[toKey] = structuredClone(block.props[fromKey])
+            if (block.props[`${fromKey}Rich`] !== undefined) changes[`${toKey}Rich`] = structuredClone(block.props[`${fromKey}Rich`])
+          }
+        }
         const text = block.props.textAdjustments && typeof block.props.textAdjustments === 'object' && !Array.isArray(block.props.textAdjustments) ? block.props.textAdjustments as Record<string, unknown> : {}
         const images = block.props.imageAdjustments && typeof block.props.imageAdjustments === 'object' && !Array.isArray(block.props.imageAdjustments) ? block.props.imageAdjustments as Record<string, unknown> : {}
         if (!/^section[1-4]Objects$/.test(field) && (Object.keys(text).length || Object.keys(images).length)) {

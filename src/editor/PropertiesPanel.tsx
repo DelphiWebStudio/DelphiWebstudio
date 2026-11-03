@@ -714,12 +714,13 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
                   <input
                     type="text"
                     aria-label={`${field.label} item ${i + 1} ${key}`}
-                    value={String(val)}
+                    value={String(/^section[1-4]Objects$/.test(field.key) && key === 'text' && typeof item.id === 'string' ? block.props[`sectionObject_${item.id}`] ?? val : val)}
                     onChange={(e) => {
                       const updated = [...items]
                       updated[i] = { ...updated[i], [key]: e.target.value }
                       if (mediaItems && key === imageKey) delete updated[i].assetId
-                      onChange(updated)
+                      if (/^section[1-4]Objects$/.test(field.key) && key === 'text' && typeof item.id === 'string') updateBlockProps(block.id, { [field.key]: updated, [`sectionObject_${item.id}`]: e.target.value, [`sectionObject_${item.id}Rich`]: undefined })
+                      else onChange(updated)
                     }}
                     className="w-full px-1.5 py-1 rounded border border-border-subtle bg-bg-3 text-text-0 text-[11px] outline-none focus:border-green"
                   />

@@ -19,15 +19,24 @@ const baseConfig: SiteConfig = {
 }
 
 describe('exportSiteToHTML', () => {
+  it('exports selected text alignment independently and keeps the section text container size', () => {
+    const block = { id: 'hero-align', type: 'hero' as const, variant: 'centered', props: { sectionCount: 2, headline: '', section2Text: 'BeforeSelectedAfter', section2TextWidth: 180, section2TextHeight: 60, section2TextLeft: 8, section2TextTop: 4, section2TextRich: [{ text: 'Before' }, { text: 'Selected', align: 'center' }, { text: 'After' }] } }
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
+    expect(html).toContain('data-section-text-container="2"')
+    expect(html).toContain('width:180px')
+    expect(html).toContain('min-height:60px')
+    expect(html).toContain('display:block;text-align:center')
+    expect(html).toMatch(/Before[\s\S]*text-align:center[\s\S]*Selected[\s\S]*After/)
+  })
   it('exports independently positioned section objects', () => {
-    const block = { id: 'objects', type: 'content' as const, variant: 'prose', props: { body: 'Existing content', sectionCount: 2, section2Objects: [
+    const block = { id: 'objects', type: 'content' as const, variant: 'prose', props: { body: 'Existing content', sectionCount: 2, 'sectionObject_text-1': 'Independent text', 'sectionObject_text-1Rich': [{ text: 'Independent ', bold: true }, { text: 'text', align: 'center' }], section2Objects: [
       { id: 'text-1', type: 'text', text: 'Independent text', x: 5, y: 10, width: 35, height: 40, layer: 1 },
       { id: 'image-1', type: 'image', src: 'assets/photo.png', alt: 'Church', x: 45, y: 20, width: 40, height: 90, layer: 2 },
       { id: 'button-1', type: 'button', text: 'Visit', url: '/visit', x: 0, y: 120, width: 30, height: 40, layer: 3 },
       { id: 'panel-1', type: 'panel', text: 'Notice', color: '#ddeeff', x: 20, y: 180, width: 50, height: 80, layer: 4 },
     ] } }
     const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
-    for (const value of ['Independent text', 'assets/photo.png', 'alt="Church"', 'href="/visit"', 'Notice', '#ddeeff', 'data-section-object-area="2"']) expect(html).toContain(value)
+    for (const value of ['Independent ', 'font-weight:bold', 'text-align:center', 'assets/photo.png', 'alt="Church"', 'href="/visit"', 'Notice', '#ddeeff', 'data-section-object-area="2"']) expect(html).toContain(value)
   })
   it('exports multiple linked section items and a resource footer without unsafe links', () => {
     const section = { id: 'section', type: 'content' as const, variant: 'prose', props: { body: 'Intro', sectionCount: 2, section1Items: [{ src: 'assets/one.png', alt: 'One', text: 'First', url: '/first' }, { src: 'assets/two.png', alt: 'Two', text: 'Second', url: 'javascript:alert(1)' }], section2Items: [{ text: 'Third', src: '', alt: '', url: '#third' }] } }
