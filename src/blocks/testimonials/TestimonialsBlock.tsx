@@ -49,7 +49,7 @@ function TestimonialsCards({ props }: { props: TestimonialsProps }) {
       <div className="grid grid-cols-1 @2xl:grid-cols-3 gap-4">
         {items.map((item, i) => (
           <div
-            key={i}
+            key={i} data-ws-item-field="items" data-ws-item-index={i}
             className={`reveal-fade-up reveal-d${Math.min(i + 2, 8)} bg-bg-2 border border-border-default rounded-xl p-5 transition-all hover:border-border-hover`}
           >
             <Quote size={20} className="text-green/30 mb-3" />
@@ -98,7 +98,7 @@ function TestimonialsCarousel({ props }: { props: TestimonialsProps }) {
       </div>
 
       <div className="reveal-fade-up reveal-d2 max-w-2xl mx-auto">
-        <div className="text-center">
+        <div className="text-center" data-ws-item-field="items" data-ws-item-index={safeIndex}>
           <Quote size={32} className="text-green/20 mx-auto mb-4" />
           <p className="text-lg text-text-0 leading-relaxed mb-4 italic">
             "{item.quote}"
@@ -161,7 +161,7 @@ function TestimonialsSpotlight({ props }: { props: TestimonialsProps }) {
 
   return (
     <section className="px-6 @md:px-10 py-16 @md:py-24">
-      <div className="max-w-2xl mx-auto text-center">
+      <div className="max-w-2xl mx-auto text-center" data-ws-item-field="items" data-ws-item-index={0}>
         <div className="reveal-fade-up reveal-d1"><Quote size={48} className="text-green/20 mx-auto mb-6" /></div>
         <p className="reveal-fade-up reveal-d2 text-xl @md:text-2xl text-text-0 leading-relaxed mb-8 italic font-display">
           "{item.quote}"

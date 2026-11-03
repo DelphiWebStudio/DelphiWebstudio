@@ -63,7 +63,7 @@ export function FaqBlock({ block }: { block: BlockConfig }) {
 
       <div className="max-w-2xl mx-auto">
         {items.map((item, i) => (
-          <div key={i} className={`reveal-fade-up reveal-d${Math.min(i + 2, 8)}`}>
+          <div key={i} data-ws-item-field="items" data-ws-item-index={i} className={`reveal-fade-up reveal-d${Math.min(i + 2, 8)}`}>
             <AccordionItem
               item={item}
               isOpen={openIndex === i}

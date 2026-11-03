@@ -1265,9 +1265,14 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
       if (!/^(h[1-6]|p|span|a|li|label)-\d{1,4}$/.test(key) || !value || typeof value !== 'object' || Array.isArray(value)) return []
       const size = Number(value.size)
       const color = typeof value.color === 'string' && /^#[0-9a-f]{6}$/i.test(value.color) ? value.color : ''
+      const font = typeof value.font === 'string' && /^[\p{L}\p{N} ,._-]{1,100}$/u.test(value.font) ? value.font : ''
       const declarations = [
-        Number.isFinite(size) && size >= 8 && size <= 200 ? `font-size:${size}px!important` : '',
+        Number.isFinite(size) && size >= 6 && size <= 200 ? `font-size:${size}px!important` : '',
         color ? `color:${color}!important` : '',
+        font ? `font-family:"${font}"!important` : '',
+        typeof value.bold === 'boolean' ? `font-weight:${value.bold ? 'bold' : 'normal'}!important` : '',
+        typeof value.italic === 'boolean' ? `font-style:${value.italic ? 'italic' : 'normal'}!important` : '',
+        typeof value.underline === 'boolean' ? `text-decoration:${value.underline ? 'underline' : 'none'}!important` : '',
       ].filter(Boolean).join(';')
       return declarations ? [`${selector} [data-ws-text-key="${key}"]{${declarations}}`] : []
     }).join('')

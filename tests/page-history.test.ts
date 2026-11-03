@@ -13,6 +13,22 @@ beforeEach(() => {
 })
 
 describe('page history', () => {
+  it('moves, duplicates, and removes composite items with undo', () => {
+    useConfigStore.getState().addBlock({ id: 'features', type: 'features', variant: 'grid', props: { items: [{ title: 'First' }, { title: 'Second' }] } })
+    useConfigStore.getState().editBlockItems('features', 'items', 0, 1)
+    expect(useConfigStore.getState().getActivePageBlocks()[0].props.items).toEqual([{ title: 'Second' }, { title: 'First' }])
+    useConfigStore.getState().editBlockItems('features', 'items', 1, 1, 'duplicate')
+    expect(useConfigStore.getState().getActivePageBlocks()[0].props.items).toEqual([{ title: 'Second' }, { title: 'First' }, { title: 'First' }])
+    useConfigStore.getState().editBlockItems('features', 'items', 0, 0, 'remove')
+    expect(useConfigStore.getState().getActivePageBlocks()[0].props.items).toEqual([{ title: 'First' }, { title: 'First' }])
+    useConfigStore.getState().undo()
+    expect(useConfigStore.getState().getActivePageBlocks()[0].props.items).toEqual([{ title: 'Second' }, { title: 'First' }, { title: 'First' }])
+  })
+  it('keeps individually adjusted items unchanged when their layout cannot be mapped', () => {
+    useConfigStore.getState().addBlock({ id: 'features', type: 'features', variant: 'grid', props: { items: [{ title: 'First' }, { title: 'Second' }], textAdjustments: { 'h3-0': { color: '#123456' } } } })
+    expect(() => useConfigStore.getState().editBlockItems('features', 'items', 0, 1)).toThrow('no data was changed')
+    expect(useConfigStore.getState().getActivePageBlocks()[0].props.items).toEqual([{ title: 'First' }, { title: 'Second' }])
+  })
   it('moves placed media between blocks as one undoable change', () => {
     const media = { id: 'photo', src: 'assets/photo.png', assetId: 'a', mime: 'image/png', name: 'Photo', x: 5, y: 10, width: 20 }
     useConfigStore.getState().addBlock({ id: 'first', type: 'hero', variant: 'centered', props: { placedMedia: [media] } })

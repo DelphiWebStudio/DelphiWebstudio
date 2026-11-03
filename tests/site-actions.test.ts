@@ -38,7 +38,8 @@ describe('site action previews', () => {
     expect(reopened.pages?.map(page => page.blocks[0].props.headline)).toEqual(localPlan.pages.map(page => page.headline))
     const zip = await JSZip.loadAsync(await (await exportSiteZip(reopened)).arrayBuffer())
     for (const [index, path] of ['index.html', 'about.html', 'events.html', 'resources.html', 'contact.html'].entries()) {
-      expect(await zip.file(path)!.async('string')).toContain(localPlan.pages[index].headline.replace(/'/g, '&#39;'))
+      const html = (await zip.file(path)!.async('string')).replace(/&#x27;/gi, '&#39;')
+      expect(html).toContain(localPlan.pages[index].headline.replace(/'/g, '&#39;'))
     }
   })
   it('turns a five-page model-shaped plan into an editable reviewed transaction', () => {

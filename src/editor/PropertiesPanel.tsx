@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronDown, ChevronRight, Code } from 'lucide-react'
 import { toast } from 'sonner'
 import type { BlockConfig, BlockType } from '@/blocks/types'
@@ -7,6 +8,8 @@ import { portableProjectsEnabled } from '@/project/project-file'
 import { useEditorStore } from '@/store/editorStore'
 import { useProjectsStore } from '@/store/projectsStore'
 import { ProjectMediaLibrary, type MediaAsset } from '@/media/media-library'
+import { WindowsColorInput } from './WindowsColorInput'
+import { chooseWindowsFont } from '@/desktop/native-bridge'
 
 interface FieldDef {
   key: string
@@ -392,11 +395,20 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
   const siteSearchEnabled = useProjectsStore((s) => s.projects.find(project => project.id === projectId)?.settings?.siteSearch === 'on')
   const mediaRevision = useProjectsStore((s) => s.projects.find(project => project.id === projectId)?.mediaRevision ?? 0)
   const [media, setMedia] = useState<{ projectId: string; revision: number; images: MediaAsset[] } | null>(null)
+  const [itemMenu, setItemMenu] = useState<{ index: number; x: number; y: number } | null>(null)
   const imageItems = field.type === 'array-items' && ((field.key === 'images' && (block.type === 'gallery' || block.type === 'image' || block.type === 'collage')) || (field.key === 'items' && block.type === 'features') || (field.key === 'members' && block.type === 'team'))
   const documentItems = field.type === 'array-items' && block.type === 'documentLibrary' && field.key === 'items'
   const mediaItems = imageItems || documentItems
   const imageKey = block.type === 'features' ? 'image' : block.type === 'team' ? 'avatar' : 'src'
   const contentMedia = block.type === 'content' && field.key === 'body' && field.type === 'textarea'
+
+  useEffect(() => {
+    if (!itemMenu) return
+    const dismiss = (event: PointerEvent) => { if (!(event.target instanceof Element) || !event.target.closest('[data-property-item-menu]')) setItemMenu(null) }
+    const key = (event: KeyboardEvent) => { if (event.key === 'Escape') setItemMenu(null) }
+    document.addEventListener('pointerdown', dismiss); document.addEventListener('keydown', key)
+    return () => { document.removeEventListener('pointerdown', dismiss); document.removeEventListener('keydown', key) }
+  }, [itemMenu])
 
   useEffect(() => {
     if (!portableProjectsEnabled || (field.type !== 'image' && !mediaItems && !contentMedia) || !projectId) return
@@ -577,19 +589,30 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
         <div className="mb-2.5">
           <label className="block text-[11.5px] text-text-2 mb-1 font-medium">{field.label}</label>
           {items.map((item, i) => (
-            <div key={i} className="flex gap-1 mb-1">
+            <div key={i} className="flex gap-1 mb-1" onDragOver={event => { if (event.dataTransfer.types.includes('application/x-webstudio-property-item')) { event.preventDefault(); event.dataTransfer.dropEffect = 'move' } }} onDrop={event => {
+              const data = event.dataTransfer.getData('application/x-webstudio-property-item'); if (!data) return
+              event.preventDefault(); event.stopPropagation()
+              try {
+                const source = JSON.parse(data) as { block: string; field: string; index: number }
+                if (source.block !== block.id || source.field !== field.key || !Number.isInteger(source.index) || source.index < 0 || source.index >= items.length || source.index === i) return
+                useConfigStore.getState().editBlockItems(block.id, field.key, source.index, i)
+              } catch (error) { toast.error(error instanceof Error ? error.message : 'The item could not be moved.') }
+            }}>
+              <button type="button" draggable aria-label={`Drag ${field.label} item ${i + 1}`} title="Drag to reorder" className="cursor-grab rounded border border-border-default px-1 text-xs" onDragStart={event => { event.dataTransfer.setData('application/x-webstudio-property-item', JSON.stringify({ block: block.id, field: field.key, index: i })); event.dataTransfer.effectAllowed = 'move' }}>↕</button>
               <input
                 type="text"
+                aria-label={`${field.label} item ${i + 1}`}
                 value={item}
                 onChange={(e) => {
                   const updated = [...items]
                   updated[i] = e.target.value
                   onChange(updated)
                 }}
-                className="flex-1 px-2 py-1 rounded border border-border-default bg-bg-2 text-text-0 text-xs outline-none focus:border-green"
+                className="min-w-0 flex-1 px-2 py-1 rounded border border-border-default bg-bg-2 text-text-0 text-xs outline-none focus:border-green"
               />
+              {([-1, 1] as const).map(delta => <button key={delta} type="button" aria-label={`Move ${field.label} item ${i + 1} ${delta < 0 ? 'up' : 'down'}`} disabled={i + delta < 0 || i + delta >= items.length} className="rounded border border-border-default px-1 text-xs disabled:opacity-40" onClick={() => { try { useConfigStore.getState().editBlockItems(block.id, field.key, i, i + delta) } catch (error) { toast.error(error instanceof Error ? error.message : 'The item could not be moved.') } }}>{delta < 0 ? '↑' : '↓'}</button>)}
               <button
-                onClick={() => onChange(items.filter((_, idx) => idx !== i))}
+                onClick={() => { try { useConfigStore.getState().editBlockItems(block.id, field.key, i, i, 'remove') } catch (error) { toast.error(error instanceof Error ? error.message : 'The item could not be removed.') } }}
                 className="px-1.5 text-text-3 hover:text-status-red text-xs transition-colors"
               >
                 x
@@ -641,15 +664,38 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
           {block.type === 'navbar' && field.key === 'navItems' && <p className="mb-1 text-[10px] text-text-3">Drag links on the Navbar to change their order.</p>}
           {imageItems && block.type === 'features' && <p className="mb-1 text-[10px] text-text-3">Feature images appear in the alternating layout.</p>}
           {items.map((item, i) => (
-            <div key={i} className="bg-bg-2 border border-border-default rounded p-2 mb-1.5">
+            <div key={i} className="bg-bg-2 border border-border-default rounded p-2 mb-1.5" onContextMenu={event => {
+              if (event.target instanceof Element && event.target.closest('input,textarea,select')) return
+              event.preventDefault(); event.stopPropagation(); setItemMenu({ index: i, x: Math.max(0, Math.min(event.clientX, window.innerWidth - 160)), y: Math.max(0, Math.min(event.clientY, window.innerHeight - 125)) })
+            }} onDragOver={event => {
+              if (event.dataTransfer.types.includes('application/x-webstudio-property-item')) { event.preventDefault(); event.dataTransfer.dropEffect = 'move' }
+            }} onDrop={event => {
+              const data = event.dataTransfer.getData('application/x-webstudio-property-item')
+              if (!data) return
+              event.preventDefault(); event.stopPropagation()
+              try {
+                const source = JSON.parse(data) as { block: string; field: string; index: number }
+                if (source.block !== block.id || source.field !== field.key || !Number.isInteger(source.index) || source.index < 0 || source.index >= items.length || source.index === i) return
+                useConfigStore.getState().editBlockItems(block.id, field.key, source.index, i)
+              } catch (error) { toast.error(error instanceof Error ? error.message : 'The item could not be moved.') }
+            }}>
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[10px] text-text-3 font-medium">Item {i + 1}</span>
+                <button type="button" draggable aria-label={`Drag ${field.label} item ${i + 1}`} title="Drag to reorder" className="cursor-grab rounded border border-border-default px-1.5 py-0.5 text-[10px] text-text-1 active:cursor-grabbing" onDragStart={event => {
+                  event.dataTransfer.setData('application/x-webstudio-property-item', JSON.stringify({ block: block.id, field: field.key, index: i })); event.dataTransfer.effectAllowed = 'move'
+                }}>Item {i + 1} ↕</button>
+                <div className="flex gap-1">
+                {([-1, 1] as const).map(delta => <button key={delta} type="button" aria-label={`Move ${field.label} item ${i + 1} ${delta < 0 ? 'up' : 'down'}`} disabled={i + delta < 0 || i + delta >= items.length} className="rounded border border-border-default px-1 text-[10px] disabled:opacity-40" onClick={() => {
+                  try { useConfigStore.getState().editBlockItems(block.id, field.key, i, i + delta) } catch (error) { toast.error(error instanceof Error ? error.message : 'The item could not be moved.') }
+                }}>{delta < 0 ? '↑' : '↓'}</button>)}
                 <button
-                  onClick={() => onChange(items.filter((_, idx) => idx !== i))}
+                  onClick={() => {
+                    try { useConfigStore.getState().editBlockItems(block.id, field.key, i, i, 'remove') } catch (error) { toast.error(error instanceof Error ? error.message : 'The item could not be removed.') }
+                  }}
                   className="text-[10px] text-text-3 hover:text-status-red transition-colors"
                 >
                   Remove
                 </button>
+                </div>
               </div>
               {block.type === 'collage' && <div className="mb-2 flex gap-1">
                 {(['Send to back', 'Bring to front'] as const).map(direction => <button key={direction} type="button" className="rounded border border-border-default px-2 py-1 text-[10px]" onClick={() => {
@@ -708,6 +754,20 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
               ))}
             </div>
           ))}
+          {itemMenu && createPortal(<div data-property-item-menu role="menu" aria-label={`${field.label} item actions`} className="fixed z-[10001] w-40 rounded border border-gray-400 bg-white p-1 text-sm text-black shadow-lg" style={{ left: itemMenu.x, top: itemMenu.y }}>
+            {([-1, 1] as const).map(delta => <button key={delta} type="button" role="menuitem" disabled={itemMenu.index + delta < 0 || itemMenu.index + delta >= items.length} className="block w-full rounded px-3 py-1 text-left hover:bg-blue-100 disabled:opacity-40" onClick={() => {
+              try { useConfigStore.getState().editBlockItems(block.id, field.key, itemMenu.index, itemMenu.index + delta) } catch (error) { toast.error(error instanceof Error ? error.message : 'The item could not be moved.') }
+              setItemMenu(null)
+            }}>Move {delta < 0 ? 'up' : 'down'}</button>)}
+            <button type="button" role="menuitem" className="block w-full rounded px-3 py-1 text-left hover:bg-blue-100" onClick={() => {
+              try { useConfigStore.getState().editBlockItems(block.id, field.key, itemMenu.index, itemMenu.index, 'duplicate') } catch (error) { toast.error(error instanceof Error ? error.message : 'The item could not be duplicated.') }
+              setItemMenu(null)
+            }}>Duplicate</button>
+            <button type="button" role="menuitem" className="block w-full rounded px-3 py-1 text-left hover:bg-blue-100" onClick={() => {
+              try { useConfigStore.getState().editBlockItems(block.id, field.key, itemMenu.index, itemMenu.index, 'remove') } catch (error) { toast.error(error instanceof Error ? error.message : 'The item could not be removed.') }
+              setItemMenu(null)
+            }}>Remove</button>
+          </div>, document.body)}
           <button
             onClick={() => {
               if (block.type === 'navbar' && field.key === 'navItems' && Array.isArray(block.props.links) && block.props.links.length > 0 && block.props.links.every(link => typeof link === 'string')) {
@@ -762,6 +822,9 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
     ? block.props.textAdjustments as Record<string, Record<string, unknown>> : {}
   const textKey = textNames.some(item => item.key === selectedTextKey) ? selectedTextKey : (textNames[0]?.key ?? '')
   const selectedTextAdjustment = textAdjustments[textKey] ?? {}
+  const selectedTextElement = typeof document === 'undefined' ? undefined : Array.from(document.querySelectorAll('[data-webstudio-block-id]')).find(element => element.getAttribute('data-webstudio-block-id') === block.id)?.querySelector<HTMLElement>(`[data-ws-text-key="${textKey}"]`)
+  const selectedColorParts = selectedTextElement ? getComputedStyle(selectedTextElement).color.match(/\d+/g)?.slice(0, 3) : null
+  const defaultTextColor = selectedColorParts?.length === 3 ? `#${selectedColorParts.map(value => Math.min(255, Number(value)).toString(16).padStart(2, '0')).join('')}` : '#000000'
 
   useEffect(() => {
     if (selectedSection < 2) return
@@ -793,7 +856,7 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
       {/* Property sections */}
       <Section title="Block background">
         <label className="block text-xs text-text-2">Background color
-          <input type="color" aria-label="Block background color" value={typeof block.props.blockBackgroundColor === 'string' && /^#[0-9a-f]{6}$/i.test(block.props.blockBackgroundColor) ? block.props.blockBackgroundColor : '#ffffff'} onChange={event => updateBlockProps(block.id, { blockBackgroundColor: event.target.value })} className="mt-1 block h-9 w-full cursor-pointer rounded border border-border-default bg-bg-2 p-1" />
+          <WindowsColorInput label="Block background color" value={typeof block.props.blockBackgroundColor === 'string' && /^#[0-9a-f]{6}$/i.test(block.props.blockBackgroundColor) ? block.props.blockBackgroundColor : '#ffffff'} onChange={value => updateBlockProps(block.id, { blockBackgroundColor: value })} className="mt-1 block h-9 w-full cursor-pointer rounded border border-border-default p-1" />
         </label>
         <p className="mt-1 text-[10px] text-text-3">{block.props.blockBackgroundColor ? 'Custom block color' : 'Using the block’s default background'}</p>
         <button type="button" onClick={() => updateBlockProps(block.id, { blockBackgroundColor: '' })} className="mt-2 rounded border border-border-default px-2 py-1 text-xs">Reset background</button>
@@ -813,7 +876,7 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
             <PropertyField block={block} field={{ key: `section${number}Image`, label: `Section ${number} image`, type: 'image' }} />
             <PropertyField block={block} field={{ key: `section${number}Alt`, label: `Section ${number} image description`, type: 'text' }} />
             <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={block.props[`section${number}Panel`] === true} onChange={event => updateBlockProps(block.id, { [`section${number}Panel`]: event.target.checked })} /> Show this section as a panel</label>
-            {block.props[`section${number}Panel`] === true && <label className="mt-2 block text-xs">Panel color <input type="color" aria-label={`Section ${number} panel color`} value={typeof block.props[`section${number}Color`] === 'string' && /^#[0-9a-f]{6}$/i.test(block.props[`section${number}Color`] as string) ? block.props[`section${number}Color`] as string : '#b9aeb6'} onChange={event => updateBlockProps(block.id, { [`section${number}Color`]: event.target.value })} className="mt-1 block h-9 w-full rounded border border-border-default bg-bg-2 p-1" /></label>}
+            {block.props[`section${number}Panel`] === true && <label className="mt-2 block text-xs">Panel color <WindowsColorInput label={`Section ${number} panel color`} value={typeof block.props[`section${number}Color`] === 'string' && /^#[0-9a-f]{6}$/i.test(block.props[`section${number}Color`] as string) ? block.props[`section${number}Color`] as string : '#b9aeb6'} onChange={value => updateBlockProps(block.id, { [`section${number}Color`]: value })} className="mt-1 block h-9 w-full rounded border border-border-default p-1" /></label>}
           </div>
         })}
       </Section>
@@ -861,6 +924,7 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
             onChange={event => updateBlockProps(block.id, { textColor: event.target.value })}
             className="mt-1 w-full rounded border border-border-default bg-bg-2 p-1 text-xs" />
         </label>
+        <WindowsColorInput label="Choose section text color" value={typeof block.props.textColor === 'string' && /^#[0-9a-f]{6}$/i.test(block.props.textColor) ? block.props.textColor : defaultTextColor} onChange={value => updateBlockProps(block.id, { textColor: value })} className="mb-2 h-7 w-full rounded border border-border-default" />
         {textNames.length > 0 && <>
           <label className="mb-2 block text-xs text-text-2">Individual text
             <select aria-label="Choose text to adjust" value={textKey} onChange={event => selectText(event.target.value)}
@@ -874,6 +938,18 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
                 onChange={event => updateBlockProps(block.id, { textAdjustments: { ...textAdjustments, [textKey]: { ...selectedTextAdjustment, [key]: event.target.value } } })}
                 className="mt-1 w-full rounded border border-border-default bg-bg-2 p-1 text-xs" />
             </label>)}
+          <WindowsColorInput label="Choose selected text color" value={typeof selectedTextAdjustment.color === 'string' && /^#[0-9a-f]{6}$/i.test(selectedTextAdjustment.color) ? selectedTextAdjustment.color : defaultTextColor} onChange={value => updateBlockProps(block.id, { textAdjustments: { ...textAdjustments, [textKey]: { ...selectedTextAdjustment, color: value } } })} className="mb-2 h-7 w-full rounded border border-border-default" />
+          {typeof window !== 'undefined' && window.location.origin === 'https://webstudio.local' && <button type="button" className="mb-2 w-full rounded border border-border-default px-2 py-1 text-left text-xs" onClick={async () => {
+            const wrapper = Array.from(document.querySelectorAll('[data-webstudio-block-id]')).find(element => element.getAttribute('data-webstudio-block-id') === block.id)
+            const element = Array.from(wrapper?.querySelectorAll<HTMLElement>('[data-ws-text-key]') ?? []).find(item => item.dataset.wsTextKey === textKey)
+            if (!element) { toast.error('Select text in the block first.'); return }
+            const style = getComputedStyle(element)
+            const rgb = style.color.match(/\d+/g)?.slice(0, 3).map(value => Math.min(255, Number(value)).toString(16).padStart(2, '0')).join('')
+            try {
+              const font = await chooseWindowsFont({ font: style.fontFamily.split(',')[0].replace(/["']/g, '').trim().replace(/[^\p{L}\p{N} ,._-]/gu, '') || 'Arial', size: Math.max(6, Math.min(200, Math.round(parseFloat(style.fontSize) || 16))), color: rgb?.length === 6 ? `#${rgb}` : '#000000', bold: style.fontWeight === 'bold' || Number(style.fontWeight) >= 600, italic: style.fontStyle === 'italic', underline: style.textDecorationLine.includes('underline') })
+              if (font) updateBlockProps(block.id, { textAdjustments: { ...textAdjustments, [textKey]: { ...selectedTextAdjustment, ...font } } })
+            } catch { toast.error('The Windows font dialog could not be opened.') }
+          }}>Font for selected text...</button>}
           <button type="button" onClick={() => {
             const next = { ...textAdjustments }; delete next[textKey]
             updateBlockProps(block.id, { textAdjustments: next })

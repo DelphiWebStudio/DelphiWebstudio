@@ -60,7 +60,7 @@ export function LogoCloudBlock({ block }: { block: BlockConfig }) {
 
       <div className="flex flex-wrap items-center justify-center gap-8 @md:gap-12">
         {logos.map((logo, i) => (
-          <div key={i} className={`reveal-fade-up reveal-d${Math.min(i + 2, 8)}`}>
+          <div key={i} data-ws-item-field="logos" data-ws-item-index={i} className={`reveal-fade-up reveal-d${Math.min(i + 2, 8)}`}>
             <LogoPlaceholder name={logo} />
           </div>
         ))}
