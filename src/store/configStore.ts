@@ -171,12 +171,16 @@ export const useConfigStore = create<ConfigState>()(
         if (operation === 'move' && (!Number.isInteger(to) || to < 0 || to >= items.length || from === to)) return
         const updated = [...items]
         if (operation === 'remove') updated.splice(from, 1)
-        else if (operation === 'duplicate') updated.splice(from + 1, 0, structuredClone(updated[from]))
+        else if (operation === 'duplicate') {
+          const copy = structuredClone(updated[from])
+          if (/^section[1-4]Objects$/.test(field) && copy && typeof copy === 'object') (copy as Record<string, unknown>).id = `object-${crypto.randomUUID()}`
+          updated.splice(from + 1, 0, copy)
+        }
         else { const [moved] = updated.splice(from, 1); updated.splice(to, 0, moved) }
         const changes: Record<string, unknown> = { [field]: updated }
         const text = block.props.textAdjustments && typeof block.props.textAdjustments === 'object' && !Array.isArray(block.props.textAdjustments) ? block.props.textAdjustments as Record<string, unknown> : {}
         const images = block.props.imageAdjustments && typeof block.props.imageAdjustments === 'object' && !Array.isArray(block.props.imageAdjustments) ? block.props.imageAdjustments as Record<string, unknown> : {}
-        if (Object.keys(text).length || Object.keys(images).length) {
+        if (!/^section[1-4]Objects$/.test(field) && (Object.keys(text).length || Object.keys(images).length)) {
           const wrapper = typeof document === 'undefined' ? undefined : Array.from(document.querySelectorAll('[data-webstudio-block-id]')).find(element => element.getAttribute('data-webstudio-block-id') === id)
           const clone = wrapper?.cloneNode(true) as HTMLElement | undefined
           const cards = Array.from(clone?.querySelectorAll<HTMLElement>('[data-ws-item-field][data-ws-item-index]') ?? []).filter(element => element.dataset.wsItemField === field)

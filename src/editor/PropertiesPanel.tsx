@@ -398,7 +398,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
   const mediaRevision = useProjectsStore((s) => s.projects.find(project => project.id === projectId)?.mediaRevision ?? 0)
   const [media, setMedia] = useState<{ projectId: string; revision: number; images: MediaAsset[] } | null>(null)
   const [itemMenu, setItemMenu] = useState<{ index: number; x: number; y: number } | null>(null)
-  const imageItems = field.type === 'array-items' && ((field.key === 'images' && (block.type === 'gallery' || block.type === 'image' || block.type === 'collage')) || (field.key === 'items' && block.type === 'features') || (field.key === 'members' && block.type === 'team') || (field.key === 'resources' && block.type === 'footer') || /^section[1-4]Items$/.test(field.key))
+  const imageItems = field.type === 'array-items' && ((field.key === 'images' && (block.type === 'gallery' || block.type === 'image' || block.type === 'collage')) || (field.key === 'items' && block.type === 'features') || (field.key === 'members' && block.type === 'team') || (field.key === 'resources' && block.type === 'footer') || /^section[1-4](Items|Objects)$/.test(field.key))
   const documentItems = field.type === 'array-items' && block.type === 'documentLibrary' && field.key === 'items'
   const mediaItems = imageItems || documentItems
   const imageKey = block.type === 'features' ? 'image' : block.type === 'team' ? 'avatar' : 'src'
@@ -708,7 +708,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
                   onChange(updated)
                 }}>{direction}</button>)}
               </div>}
-              {Object.entries(mediaItems && !(imageKey in item) ? { ...item, [imageKey]: '' } : item).filter(([key]) => !(mediaItems && key === 'assetId')).map(([key, val]) => (
+              {Object.entries(mediaItems && !(imageKey in item) ? { ...item, [imageKey]: '' } : item).filter(([key]) => !(mediaItems && key === 'assetId') && !(/^section[1-4]Objects$/.test(field.key) && key === 'id')).map(([key, val]) => (
                 <div key={key} className="mb-1">
                   <label className="block text-[10px] text-text-3 mb-0.5">{block.type === 'collage' ? ({ src: 'Image', alt: 'Image description', x: 'Left (%)', y: 'Top (%)', width: 'Width (%)', height: 'Height (%)', layer: 'Layer order' } as Record<string, string>)[key] ?? key : key}</label>
                   <input
@@ -770,7 +770,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
               setItemMenu(null)
             }}>Remove</button>
           </div>, document.body)}
-          <button
+          {!/^section[1-4]Objects$/.test(field.key) && <button
             onClick={() => {
               if (block.type === 'navbar' && field.key === 'navItems' && Array.isArray(block.props.links) && block.props.links.length > 0 && block.props.links.every(link => typeof link === 'string')) {
                 updateBlockProps(block.id, { navItems: [...items, ...block.props.links.map(label => ({ label, url: '' })), createEmptyItem()], links: [] })
@@ -779,7 +779,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
             className="text-[10px] text-green hover:text-green-dim transition-colors"
           >
             + Add item
-          </button>
+          </button>}
         </div>
       )
     }
@@ -871,6 +871,15 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
         </label>
         <p className="mt-2 text-[10px] text-text-3">The original block is section 1. Additional sections can contain text and an image. Reducing the count keeps their contents for later.</p>
         <button type="button" onClick={() => updateBlockProps(block.id, { sectionWidths: [] })} className="mt-2 rounded border border-border-default px-2 py-1 text-xs">Reset section widths</button>
+        {Array.from({ length: Math.min(4, Math.max(1, Number(block.props.sectionCount) || 1)) }, (_, index) => {
+          const number = index + 1, key = `section${number}Objects`
+          return <div key={key} className="mt-3 border-t border-border-default pt-2"><div className="text-xs font-semibold">Section {number} objects</div><div className="mt-1 flex flex-wrap gap-1">
+            {(['text', 'image', 'button', 'panel'] as const).map(type => <button key={type} type="button" className="rounded border border-border-default px-2 py-1 text-xs" onClick={() => {
+              const items = Array.isArray(block.props[key]) ? block.props[key] : []
+              updateBlockProps(block.id, { [key]: [...items, { id: `object-${crypto.randomUUID()}`, type, text: type === 'text' ? 'Text' : type === 'button' ? 'Button' : type === 'panel' ? 'Panel' : '', src: '', alt: '', url: '', color: '#ffffff', x: 0, y: items.length * 90, width: 30, height: 80, layer: items.length + 1 }] })
+            }}>Add {type}</button>)}
+          </div><PropertyField block={block} field={{ key, label: `Section ${number} objects`, type: 'array-items' }} /></div>
+        })}
         <PropertyField block={block} field={{ key: 'section1Items', label: 'Section 1 additional items', type: 'array-items' }} />
         {Array.from({ length: Math.min(4, Math.max(1, Number(block.props.sectionCount) || 1)) - 1 }, (_, i) => {
           const number = i + 2
