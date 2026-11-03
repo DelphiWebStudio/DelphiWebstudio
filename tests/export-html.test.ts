@@ -19,6 +19,15 @@ const baseConfig: SiteConfig = {
 }
 
 describe('exportSiteToHTML', () => {
+  it('exports a valid block background and ignores invalid CSS values', () => {
+    const block = { id: 'content', type: 'content' as const, variant: 'prose', props: { body: 'Hello', blockBackgroundColor: '#aabbcc' } }
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
+    expect(html).toContain('background-color:#aabbcc!important')
+    const invalid = exportSiteToHTML({ ...baseConfig, blocks: [{ ...block, props: { ...block.props, blockBackgroundColor: 'red;display:none' } }] })
+    expect(invalid).not.toContain('red;display:none')
+    const reset = exportSiteToHTML({ ...baseConfig, blocks: [{ ...block, props: { ...block.props, blockBackgroundColor: '' } }] })
+    expect(reset).not.toContain('background-color:#aabbcc!important')
+  })
   it('exports the selected number of independent sections and preserves hidden section data', () => {
     const block = { id: 'content', type: 'content' as const, variant: 'prose', props: {
       body: 'First section', sectionCount: 3, section2Text: 'Second section', section2Image: 'assets/church.png', section2Alt: 'Church', section3Text: 'Third section', section4Text: 'Hidden section',
