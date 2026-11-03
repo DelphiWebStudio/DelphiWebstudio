@@ -6,6 +6,7 @@ import { useConfigStore } from '@/store/configStore'
 import { useEditorStore } from '@/store/editorStore'
 import { useScrollReveal } from '@/lib/useScrollReveal'
 import type { BlockConfig } from './types'
+import { BlockColumns } from './BlockColumns'
 
 interface Props {
   block: BlockConfig
@@ -140,7 +141,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         data-ws-scope={scope}
       >
         {customStyle && <style>{customStyle}</style>}
-        <div data-ws-content>{children}</div>
+        <div data-ws-content><BlockColumns block={block}>{children}</BlockColumns></div>
       </div>
     )
   }
@@ -329,6 +330,10 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         <button type="button" role="menuitem" disabled={isFirst} className="flex w-full items-center gap-2 rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100 disabled:opacity-40" onClick={() => { setContextMenu(null); moveBlock(index, index - 1) }}><ChevronUp size={15} />Move up</button>
         <button type="button" role="menuitem" disabled={isLast} className="flex w-full items-center gap-2 rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100 disabled:opacity-40" onClick={() => { setContextMenu(null); moveBlock(index, index + 1) }}><ChevronDown size={15} />Move down</button>
         <button type="button" role="menuitem" className="flex w-full items-center gap-2 rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100" onClick={() => { setContextMenu(null); duplicateBlock(block.id) }}><Copy size={15} />Duplicate</button>
+        <div className="border-t border-gray-300 px-3 pt-2 text-xs font-semibold">Sections across</div>
+        {[1, 2, 3, 4].map(count => <button key={count} type="button" role="menuitemradio" aria-checked={(Number(block.props.sectionCount) || 1) === count} className="flex w-full items-center rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100" onClick={() => { useConfigStore.getState().updateBlockProps(block.id, { sectionCount: count }); setContextMenu(null) }}>
+          {(Number(block.props.sectionCount) || 1) === count ? '✓ ' : '　'}{count} {count === 1 ? 'section' : 'sections'}
+        </button>)}
         {(block.type === 'navbar' || block.type === 'footer') && <button type="button" role="menuitem" className="flex w-full items-center gap-2 rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100" onClick={() => {
           setContextMenu(null)
           try {
@@ -345,7 +350,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       </div>, document.body)}
 
       {customStyle && <style>{customStyle}</style>}
-      <div data-ws-content>{children}</div>
+      <div data-ws-content><BlockColumns block={block}>{children}</BlockColumns></div>
       {resizableLayout && isSelected && ([
         ['nw', 'top-0 left-0 cursor-nwse-resize'], ['n', 'top-0 left-1/2 -translate-x-1/2 cursor-ns-resize'],
         ['ne', 'top-0 right-0 cursor-nesw-resize'], ['e', 'top-1/2 right-0 -translate-y-1/2 cursor-ew-resize'],

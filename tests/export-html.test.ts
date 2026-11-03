@@ -19,6 +19,21 @@ const baseConfig: SiteConfig = {
 }
 
 describe('exportSiteToHTML', () => {
+  it('exports the selected number of independent sections and preserves hidden section data', () => {
+    const block = { id: 'content', type: 'content' as const, variant: 'prose', props: {
+      body: 'First section', sectionCount: 3, section2Text: 'Second section', section2Image: 'assets/church.png', section2Alt: 'Church', section3Text: 'Third section', section4Text: 'Hidden section',
+    } }
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
+    expect(html).toContain('@md:grid-cols-3')
+    expect(html).toContain('First section')
+    expect(html).toContain('Second section')
+    expect(html).toContain('src="assets/church.png"')
+    expect(html).toContain('alt="Church"')
+    expect(html).toContain('Third section')
+    expect(html).not.toContain('Hidden section')
+    const expanded = exportSiteToHTML({ ...baseConfig, blocks: [{ ...block, props: { ...block.props, sectionCount: 4 } }] })
+    expect(expanded).toContain('Hidden section')
+  })
   it.each(['default', 'centered'])('keeps destination links before legacy labels in a %s Navbar', variant => {
     const navbar = { id: 'nav', type: 'navbar' as const, variant, props: { logo: '', links: ['About'], navItems: [{ label: 'Home', url: '/' }, { label: 'Contact', url: '/contact' }] } }
     const html = exportSiteToHTML({ ...baseConfig, blocks: [navbar] })
