@@ -798,6 +798,8 @@ function renderFooterMinimal(block: BlockConfig): string {
 
 function renderFooter(block: BlockConfig): string {
   switch (block.variant) {
+    case 'resources':
+      return renderToStaticMarkup(createElement(RenderBlock, { block }))
     case 'multi-column':
       return renderFooterMultiColumn(block)
     case 'minimal':
@@ -1233,7 +1235,7 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
     const effectiveBlock = block.type === 'contact' && !(typeof block.props.recipientEmail === 'string' && block.props.recipientEmail.trim())
       ? { ...block, props: { ...block.props, recipientEmail: settings?.webmasterEmail ?? '' } } : block
     let html = renderBlock(effectiveBlock)
-    if (Number(block.props.sectionCount) > 1) {
+    if (Number(block.props.sectionCount) > 1 || (Array.isArray(block.props.section1Items) && block.props.section1Items.length > 0)) {
       html = renderToStaticMarkup(createElement(BlockColumns, { block }, createElement('div', { dangerouslySetInnerHTML: { __html: html } })))
     }
     const scope = `ws-${index}`

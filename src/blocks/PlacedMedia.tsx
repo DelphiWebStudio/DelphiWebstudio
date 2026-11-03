@@ -9,6 +9,7 @@ type Item = { id: string; assetId: string; src: string; name: string; mime: stri
 export function PlacedMedia({ block, editable = false }: { block: BlockConfig; editable?: boolean }) {
   const items = Array.isArray(block.props.placedMedia) ? block.props.placedMedia as Item[] : []
   const [selected, setSelected] = useState<string | null>(null)
+  const [guides, setGuides] = useState<{ vertical?: { x: number; top: number; height: number }; horizontal?: { y: number; left: number; width: number } }>({})
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null)
   const drag = useRef<{ id: string; resize: boolean; startX: number; startY: number; grabX: number; grabY: number; x: number; y: number; width: number; parentWidth: number; parentHeight: number } | null>(null)
   const number = (value: unknown, fallback: number, min: number, max: number) => {
@@ -39,8 +40,26 @@ export function PlacedMedia({ block, editable = false }: { block: BlockConfig; e
     const width = state.resize ? Math.max(1, Math.min(100 - x, state.width + dx)) : state.width
     const element = event.currentTarget.closest<HTMLElement>('[data-placed-media]')
     if (element) Object.assign(element.style, { left: `${!finish && !state.resize ? state.x + dx : x}%`, top: `${!finish && !state.resize ? state.y + dy : y}%`, width: `${width}%` })
+    if (!finish && !state.resize && element) {
+      const canvas = element.closest('[aria-label^="Site preview"]')
+      const current = element.getBoundingClientRect()
+      const matches: { vertical?: { x: number; top: number; height: number }; horizontal?: { y: number; left: number; width: number } } = {}
+      canvas?.querySelectorAll<HTMLElement>('[data-placed-media], [data-ws-image-index], [contenteditable="true"]').forEach(other => {
+        if (other === element || element.contains(other) || other.contains(element)) return
+        const rect = other.getBoundingClientRect()
+        if (!rect.width || !rect.height) return
+        if (!matches.vertical) for (const [a, b] of [[current.left, rect.left], [current.right, rect.right], [(current.left + current.right) / 2, (rect.left + rect.right) / 2]]) {
+          if (Math.abs(a - b) <= 4) { const top = Math.min(current.top, rect.top); matches.vertical = { x: b, top, height: Math.max(current.bottom, rect.bottom) - top }; break }
+        }
+        if (!matches.horizontal) for (const [a, b] of [[current.top, rect.top], [current.bottom, rect.bottom], [(current.top + current.bottom) / 2, (rect.top + rect.bottom) / 2]]) {
+          if (Math.abs(a - b) <= 4) { const left = Math.min(current.left, rect.left); matches.horizontal = { y: b, left, width: Math.max(current.right, rect.right) - left }; break }
+        }
+      })
+      setGuides(matches)
+    }
     event.stopPropagation()
     if (finish) {
+      setGuides({})
       drag.current = null
       if (!state.resize && element) {
         const previous = element.style.pointerEvents
@@ -69,7 +88,7 @@ export function PlacedMedia({ block, editable = false }: { block: BlockConfig; e
     {items.filter(item => item && typeof item.id === 'string' && typeof item.src === 'string' && typeof item.mime === 'string').map(item => {
       const x = number(item.x, 0, 0, 99), y = number(item.y, 0, 0, 99), width = number(item.width, 25, 1, 100 - x)
       return <div key={item.id} data-placed-media={item.id} style={{ position: 'absolute', left: `${x}%`, top: `${y}%`, width: `${width}%`, zIndex: 10, ...(editable && selected === item.id ? { outline: '1px solid white' } : {}), ...(editable ? { cursor: 'move', touchAction: 'none' } : {}) }}
-        onPointerDown={event => begin(event, item, false)} onPointerMove={event => move(event)} onPointerUp={event => move(event, true)} onPointerCancel={() => { drag.current = null }}
+        onPointerDown={event => begin(event, item, false)} onPointerMove={event => move(event)} onPointerUp={event => move(event, true)} onPointerCancel={() => { drag.current = null; setGuides({}) }}
         onClick={event => { if (editable) { event.preventDefault(); event.stopPropagation(); setSelected(item.id); useEditorStore.getState().selectBlock(block.id) } }}
         onContextMenu={event => { if (editable) { event.preventDefault(); event.stopPropagation(); setSelected(item.id); setMenu({ id: item.id, x: event.clientX, y: event.clientY }) } }}>
         {item.mime.startsWith('image/') ? <img src={item.src} alt={item.name || ''} draggable={false} loading="lazy" style={{ display: 'block', width: '100%', height: 'auto' }} />
@@ -79,6 +98,10 @@ export function PlacedMedia({ block, editable = false }: { block: BlockConfig; e
         {editable && selected === item.id && <button type="button" aria-label={`Resize ${item.name || 'media'}`} title="Drag to resize" style={{ position: 'absolute', right: 0, bottom: 0, width: 12, height: 12, background: 'white', border: '1px solid black', cursor: 'nwse-resize', touchAction: 'none' }} onPointerDown={event => begin(event, item, true)} onPointerMove={event => move(event)} onPointerUp={event => move(event, true)} onClick={event => event.stopPropagation()} />}
       </div>
     })}
+    {editable && (guides.vertical || guides.horizontal) && createPortal(<div aria-hidden="true" style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 10000 }}>
+      {guides.vertical && <div style={{ position: 'fixed', left: guides.vertical.x, top: guides.vertical.top, height: guides.vertical.height, width: 1, background: '#1683e5' }} />}
+      {guides.horizontal && <div style={{ position: 'fixed', left: guides.horizontal.left, top: guides.horizontal.y, width: guides.horizontal.width, height: 1, background: '#1683e5' }} />}
+    </div>, document.body)}
     {editable && menu && createPortal(<div role="menu" aria-label="Media actions" style={{ position: 'fixed', left: Math.max(0, Math.min(menu.x, window.innerWidth - 150)), top: Math.max(0, Math.min(menu.y, window.innerHeight - 50)), zIndex: 10001 }} className="rounded border border-gray-400 bg-white p-1 text-sm text-black shadow-lg" onClick={event => event.stopPropagation()} onMouseLeave={() => setMenu(null)}>
       <button type="button" role="menuitem" className="rounded px-3 py-1 hover:bg-blue-100" onClick={() => {
         const original = useConfigStore.getState().getActivePageBlocks().find(candidate => candidate.id === block.id)
