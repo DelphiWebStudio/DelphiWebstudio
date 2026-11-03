@@ -8,8 +8,8 @@ export function BlockColumns({ block, children, editable = false, selectedSectio
   const layouts = ['', '', '@md:grid-cols-2', '@md:grid-cols-3', '@md:grid-cols-4']
   return <div className={`grid grid-cols-1 ${layouts[count]} gap-4`}>
     <div className="min-w-0 relative" data-editor-section={editable ? '1' : undefined} role={editable ? 'group' : undefined} aria-label={editable ? 'Section 1' : undefined} tabIndex={editable ? 0 : undefined} onClick={editable ? () => onSelectSection?.(1) : undefined} onKeyDown={editable ? event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); event.stopPropagation(); onSelectSection?.(1) } } : undefined}>
-      {editable && <span aria-hidden="true" className="absolute top-1 left-1 z-20 rounded bg-[#005a9e] px-2 py-1 text-xs text-white pointer-events-none" style={{ opacity: selectedSection === 1 ? 1 : 0.7 }}>Section 1</span>}
       {children}
+      {editable && <span aria-hidden="true" className="absolute top-1 left-1 z-20 rounded bg-[#005a9e] px-2 py-1 text-xs text-white pointer-events-none" style={{ opacity: selectedSection === 1 ? 1 : 0.7 }}>Section 1</span>}
     </div>
     {Array.from({ length: count - 1 }, (_, i) => {
       const number = i + 2
