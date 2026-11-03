@@ -17,6 +17,7 @@ export function RichText({ blockId, field, text, value, editable = false, multil
   const menuActive = useRef(false)
   const menuElement = useRef<HTMLDivElement>(null)
   const moveRef = useRef<{ startX: number; startY: number; x: number; y: number } | null>(null)
+  const [guides, setGuides] = useState<{ vertical?: { x: number; top: number; height: number }; horizontal?: { y: number; left: number; width: number } }>({})
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const [clipboardError, setClipboardError] = useState('')
   const runs = Array.isArray(value) ? value.filter((item): item is Run => !!item && typeof item === 'object' && typeof item.text === 'string') : null
@@ -232,10 +233,26 @@ export function RichText({ blockId, field, text, value, editable = false, multil
       dangerouslySetInnerHTML={editable ? undefined : { __html: markup }} />
     {position && editable && <button type="button" aria-label={`Move ${field}`} title="Drag to move text, or focus and use arrow keys" className="absolute -top-5 left-0 z-30 rounded border border-gray-400 bg-white px-1 text-xs leading-4 text-black opacity-0 group-hover/text:opacity-100 focus:opacity-100" style={{ cursor: 'move', touchAction: 'none' }}
       onPointerDown={event => { if (event.button !== 0) return; event.preventDefault(); event.stopPropagation(); moveRef.current = { startX: event.clientX, startY: event.clientY, x, y }; event.currentTarget.setPointerCapture(event.pointerId) }}
-      onPointerMove={event => { const move = moveRef.current; if (move) event.currentTarget.parentElement!.style.transform = `translate(${move.x + event.clientX - move.startX}px, ${move.y + event.clientY - move.startY}px)` }}
-      onPointerUp={event => { const move = moveRef.current; if (move) { moveRef.current = null; updatePosition(move.x + event.clientX - move.startX, move.y + event.clientY - move.startY) } }}
+      onPointerMove={event => { const move = moveRef.current; const element = event.currentTarget.parentElement; if (move && element) {
+        element.style.transform = `translate(${move.x + event.clientX - move.startX}px, ${move.y + event.clientY - move.startY}px)`
+        const current = element.getBoundingClientRect()
+        const matches: typeof guides = {}
+        element.closest('[aria-label^="Site preview"]')?.querySelectorAll<HTMLElement>('[data-placed-media], [data-ws-image-index], [contenteditable="true"]').forEach(other => {
+          if (element.contains(other) || other.contains(element)) return
+          const rect = other.getBoundingClientRect(); if (!rect.width || !rect.height) return
+          if (!matches.vertical) for (const [a, b] of [[current.left, rect.left], [current.right, rect.right], [(current.left + current.right) / 2, (rect.left + rect.right) / 2]]) if (Math.abs(a - b) <= 4) { const top = Math.min(current.top, rect.top); matches.vertical = { x: b, top, height: Math.max(current.bottom, rect.bottom) - top }; break }
+          if (!matches.horizontal) for (const [a, b] of [[current.top, rect.top], [current.bottom, rect.bottom], [(current.top + current.bottom) / 2, (rect.top + rect.bottom) / 2]]) if (Math.abs(a - b) <= 4) { const left = Math.min(current.left, rect.left); matches.horizontal = { y: b, left, width: Math.max(current.right, rect.right) - left }; break }
+        })
+        setGuides(matches)
+      } }}
+      onPointerUp={event => { const move = moveRef.current; setGuides({}); if (move) { moveRef.current = null; updatePosition(move.x + event.clientX - move.startX, move.y + event.clientY - move.startY) } }}
+      onPointerCancel={() => { moveRef.current = null; setGuides({}) }}
       onKeyDown={event => { const delta = event.shiftKey ? 10 : 1; const dx = event.key === 'ArrowLeft' ? -delta : event.key === 'ArrowRight' ? delta : 0; const dy = event.key === 'ArrowUp' ? -delta : event.key === 'ArrowDown' ? delta : 0; if (dx || dy) { event.preventDefault(); event.stopPropagation(); updatePosition(x + dx, y + dy) } }}>Move</button>}
     </Outer>
+    {editable && (guides.vertical || guides.horizontal) && createPortal(<div aria-hidden="true" style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 10000 }}>
+      {guides.vertical && <div style={{ position: 'fixed', left: guides.vertical.x, top: guides.vertical.top, height: guides.vertical.height, width: 1, background: '#1683e5' }} />}
+      {guides.horizontal && <div style={{ position: 'fixed', left: guides.horizontal.left, top: guides.horizontal.y, width: guides.horizontal.width, height: 1, background: '#1683e5' }} />}
+    </div>, document.body)}
     {menu && createPortal(<div ref={menuElement} data-rich-menu role="menu" aria-label="Text formatting" className="fixed z-[10001] w-56 rounded border border-gray-400 bg-white p-2 text-sm text-black shadow-lg" style={{ left: menu.x, top: menu.y }} onContextMenu={event => event.preventDefault()} onClick={event => event.stopPropagation()}>
       <div className="mb-2 flex flex-wrap gap-1 border-b border-gray-300 pb-2">
         <button type="button" className="rounded border border-gray-400 px-2 py-1" onMouseDown={event => event.preventDefault()} onClick={() => {

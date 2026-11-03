@@ -32,6 +32,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
   const menuRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<{ kind: 'move' | 'resize'; direction: string; x: number; y: number; width: number; left: number; top: number; height: number; pageWidth: number; minTop: number } | null>(null)
   const imageDragRef = useRef<{ index: string; x: number; y: number; left: number; top: number; originalStyle: string; element: HTMLImageElement } | null>(null)
+  const [guides, setGuides] = useState<{ vertical?: { x: number; top: number; height: number }; horizontal?: { y: number; left: number; width: number } }>({})
   const { ref: revealRef, isRevealed } = useScrollReveal(!previewMode)
 
   const imageLayout = block.type === 'image'
@@ -325,10 +326,20 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
           drag.element.style.setProperty('position', 'relative', 'important')
           drag.element.style.setProperty('left', `${drag.left + event.clientX - drag.x}px`, 'important')
           drag.element.style.setProperty('top', `${drag.top + event.clientY - drag.y}px`, 'important')
+          const current = drag.element.getBoundingClientRect()
+          const matches: typeof guides = {}
+          drag.element.closest('[aria-label^="Site preview"]')?.querySelectorAll<HTMLElement>('[data-placed-media], [data-ws-image-index], [contenteditable="true"]').forEach(other => {
+            if (other === drag.element || other.contains(drag.element) || drag.element.contains(other)) return
+            const rect = other.getBoundingClientRect(); if (!rect.width || !rect.height) return
+            if (!matches.vertical) for (const [a, b] of [[current.left, rect.left], [current.right, rect.right], [(current.left + current.right) / 2, (rect.left + rect.right) / 2]]) if (Math.abs(a - b) <= 4) { const top = Math.min(current.top, rect.top); matches.vertical = { x: b, top, height: Math.max(current.bottom, rect.bottom) - top }; break }
+            if (!matches.horizontal) for (const [a, b] of [[current.top, rect.top], [current.bottom, rect.bottom], [(current.top + current.bottom) / 2, (rect.top + rect.bottom) / 2]]) if (Math.abs(a - b) <= 4) { const left = Math.min(current.left, rect.left); matches.horizontal = { y: b, left, width: Math.max(current.right, rect.right) - left }; break }
+          })
+          setGuides(matches)
           event.stopPropagation()
         } else moveImageDrag(event)
       }}
       onPointerUp={event => {
+        setGuides({})
         const drag = imageDragRef.current
         if (drag) {
           imageDragRef.current = null
@@ -344,6 +355,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         } else moveImageDrag(event, true)
       }}
       onPointerCancel={() => {
+        setGuides({})
         if (imageDragRef.current) {
           const drag = imageDragRef.current; imageDragRef.current = null
           drag.element.style.cssText = drag.originalStyle
@@ -466,6 +478,10 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       </div>, document.body)}
 
       {customStyle && <style>{customStyle}</style>}
+      {(guides.vertical || guides.horizontal) && createPortal(<div aria-hidden="true" style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 10000 }}>
+        {guides.vertical && <div style={{ position: 'fixed', left: guides.vertical.x, top: guides.vertical.top, height: guides.vertical.height, width: 1, background: '#1683e5' }} />}
+        {guides.horizontal && <div style={{ position: 'fixed', left: guides.horizontal.left, top: guides.horizontal.y, width: guides.horizontal.width, height: 1, background: '#1683e5' }} />}
+      </div>, document.body)}
       <div data-ws-content><BlockColumns block={block} editable selectedSection={isSelected ? selectedSection : 0} onSelectSection={section => { selectBlock(block.id); useEditorStore.getState().selectSection(section) }}>{children}</BlockColumns></div>
       <PlacedMedia block={block} editable />
       {resizableLayout && isSelected && ([

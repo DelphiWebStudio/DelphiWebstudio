@@ -27,10 +27,23 @@ export function BlockColumns({ block, children, editable = false, selectedSectio
       setDragWidths(null)
     } else setDragWidths(next)
   }
-  if (count === 1) return <>{children}</>
+  if (count === 1) return <>{children}{Array.isArray(block.props.section1Items) && block.props.section1Items.map((value, index) => {
+    if (!value || typeof value !== 'object') return null
+    const item = value as Record<string, unknown>
+    const url = typeof item.url === 'string' && /^(https?:\/\/|\/(?!\/)|#)/i.test(item.url) ? item.url : undefined
+    const image = typeof item.src === 'string' && item.src ? <img src={item.src} alt={typeof item.alt === 'string' ? item.alt : ''} className="max-w-full h-auto" /> : null
+    return <div key={index} className="my-2">{url && image ? <a href={url} onClick={editable ? event => event.preventDefault() : undefined}>{image}</a> : image}{typeof item.text === 'string' && item.text && <p className="whitespace-pre-wrap">{url ? <a href={url} onClick={editable ? event => event.preventDefault() : undefined}>{item.text}</a> : item.text}</p>}</div>
+  })}</>
   return <div className="ws-block-columns grid grid-cols-1" style={{ '--ws-section-widths': widths.map(value => `${value}fr`).join(' ') } as CSSProperties}>
     <div className="min-w-0 relative" data-editor-section={editable ? '1' : undefined} role={editable ? 'group' : undefined} aria-label={editable ? 'Section 1' : undefined} tabIndex={editable ? 0 : undefined} onClick={editable ? () => onSelectSection?.(1) : undefined} onKeyDown={editable ? event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); event.stopPropagation(); onSelectSection?.(1) } } : undefined}>
       {children}
+      {Array.isArray(block.props.section1Items) && block.props.section1Items.map((value, index) => {
+        if (!value || typeof value !== 'object') return null
+        const item = value as Record<string, unknown>
+        const url = typeof item.url === 'string' && /^(https?:\/\/|\/(?!\/)|#)/i.test(item.url) ? item.url : undefined
+        const image = typeof item.src === 'string' && item.src ? <img src={item.src} alt={typeof item.alt === 'string' ? item.alt : ''} className="max-w-full h-auto" /> : null
+        return <div key={index} className="my-2">{url && image ? <a href={url} onClick={editable ? event => event.preventDefault() : undefined}>{image}</a> : image}{typeof item.text === 'string' && item.text && <p className="whitespace-pre-wrap">{url ? <a href={url} onClick={editable ? event => event.preventDefault() : undefined}>{item.text}</a> : item.text}</p>}</div>
+      })}
       {editable && <span aria-hidden="true" className="absolute top-1 left-1 z-20 rounded bg-[#005a9e] px-2 py-1 text-xs text-white pointer-events-none" style={{ opacity: selectedSection === 1 ? 1 : 0.7 }}>Section 1</span>}
     </div>
     {Array.from({ length: count - 1 }, (_, i) => {
@@ -66,6 +79,13 @@ export function BlockColumns({ block, children, editable = false, selectedSectio
         {!textFirst && sectionImage}
         <RichText blockId={block.id} field={`section${number}Text`} text={text} value={block.props[`section${number}TextRich`]} alignment={block.props[`section${number}TextAlign`]} editable={editable} multiline markdown fill />
         {textFirst && sectionImage}
+        {Array.isArray(block.props[`section${number}Items`]) && (block.props[`section${number}Items`] as unknown[]).map((value, index) => {
+          if (!value || typeof value !== 'object') return null
+          const item = value as Record<string, unknown>
+          const url = typeof item.url === 'string' && /^(https?:\/\/|\/(?!\/)|#)/i.test(item.url) ? item.url : undefined
+          const extraImage = typeof item.src === 'string' && item.src ? <img src={item.src} alt={typeof item.alt === 'string' ? item.alt : ''} className="max-w-full h-auto" /> : null
+          return <div key={index} className="my-2">{url && extraImage ? <a href={url} onClick={editable ? event => event.preventDefault() : undefined}>{extraImage}</a> : extraImage}{typeof item.text === 'string' && item.text && <p className="whitespace-pre-wrap">{url ? <a href={url} onClick={editable ? event => event.preventDefault() : undefined}>{item.text}</a> : item.text}</p>}</div>
+        })}
       </div>
     })}
   </div>

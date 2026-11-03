@@ -165,12 +165,14 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
           { key: 'copyright', label: 'Copyright', type: 'text' },
           { key: 'links', label: 'Legacy text-only labels', type: 'array-strings' },
           { key: 'navItems', label: 'Navigation destinations', type: 'array-items' },
+          { key: 'resources', label: 'Resource images and links', type: 'array-items' },
+          { key: 'resourceButtons', label: 'Resource buttons', type: 'array-items' },
         ],
       },
       {
         title: 'Style',
         fields: [
-          { key: 'variant', label: 'Variant', type: 'select', options: ['simple', 'multi-column', 'minimal'] },
+          { key: 'variant', label: 'Variant', type: 'select', options: ['simple', 'multi-column', 'minimal', 'resources'] },
         ],
       },
     ],
@@ -396,7 +398,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
   const mediaRevision = useProjectsStore((s) => s.projects.find(project => project.id === projectId)?.mediaRevision ?? 0)
   const [media, setMedia] = useState<{ projectId: string; revision: number; images: MediaAsset[] } | null>(null)
   const [itemMenu, setItemMenu] = useState<{ index: number; x: number; y: number } | null>(null)
-  const imageItems = field.type === 'array-items' && ((field.key === 'images' && (block.type === 'gallery' || block.type === 'image' || block.type === 'collage')) || (field.key === 'items' && block.type === 'features') || (field.key === 'members' && block.type === 'team'))
+  const imageItems = field.type === 'array-items' && ((field.key === 'images' && (block.type === 'gallery' || block.type === 'image' || block.type === 'collage')) || (field.key === 'items' && block.type === 'features') || (field.key === 'members' && block.type === 'team') || (field.key === 'resources' && block.type === 'footer') || /^section[1-4]Items$/.test(field.key))
   const documentItems = field.type === 'array-items' && block.type === 'documentLibrary' && field.key === 'items'
   const mediaItems = imageItems || documentItems
   const imageKey = block.type === 'features' ? 'image' : block.type === 'team' ? 'avatar' : 'src'
@@ -643,7 +645,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
         // Fallback templates by block type + field key
         const blockTemplates: Partial<Record<string, Record<string, Record<string, string>>>> = {
           navbar: { navItems: { label: '', url: '' } },
-          footer: { navItems: { label: '', url: '' } },
+          footer: { navItems: { label: '', url: '' }, resources: { src: '', alt: '', title: '', description: '', url: '' }, resourceButtons: { label: '', url: '' } },
           testimonials: { items: { name: '', role: '', quote: '' } },
           stats: { items: { value: '', label: '' } },
           faq: { items: { question: '', answer: '' } },
@@ -654,7 +656,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
           collage: { images: { src: '', alt: '', x: '', y: '', width: '', height: '', layer: '' } },
           documentLibrary: { items: { title: '', description: '', src: '' } },
         }
-        return blockTemplates[block.type]?.[field.key] || { title: '', description: '' }
+        return blockTemplates[block.type]?.[field.key] || (/^section[1-4]Items$/.test(field.key) ? { src: '', alt: '', text: '', url: '' } : { title: '', description: '' })
       }
 
       return (
@@ -869,6 +871,7 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
         </label>
         <p className="mt-2 text-[10px] text-text-3">The original block is section 1. Additional sections can contain text and an image. Reducing the count keeps their contents for later.</p>
         <button type="button" onClick={() => updateBlockProps(block.id, { sectionWidths: [] })} className="mt-2 rounded border border-border-default px-2 py-1 text-xs">Reset section widths</button>
+        <PropertyField block={block} field={{ key: 'section1Items', label: 'Section 1 additional items', type: 'array-items' }} />
         {Array.from({ length: Math.min(4, Math.max(1, Number(block.props.sectionCount) || 1)) - 1 }, (_, i) => {
           const number = i + 2
           return <div key={number} data-section-properties={number} className={`mt-3 border-t border-border-default pt-2 ${selectedSection === number ? 'outline outline-1 outline-[#c3c7cb] rounded' : ''}`}>
@@ -877,6 +880,7 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
             <PropertyField block={block} field={{ key: `section${number}Image`, label: `Section ${number} image`, type: 'image' }} />
             <PropertyField block={block} field={{ key: `section${number}Alt`, label: `Section ${number} image description`, type: 'text' }} />
             <PropertyField block={block} field={{ key: `section${number}ImageLink`, label: `Section ${number} image link`, type: 'text' }} />
+            <PropertyField block={block} field={{ key: `section${number}Items`, label: `Section ${number} additional items`, type: 'array-items' }} />
             <label className="mb-2 flex items-center gap-2 text-xs"><input type="checkbox" checked={block.props[`section${number}TextFirst`] === true} onChange={event => updateBlockProps(block.id, { [`section${number}TextFirst`]: event.target.checked })} /> Put text above image</label>
             <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={block.props[`section${number}Panel`] === true} onChange={event => updateBlockProps(block.id, { [`section${number}Panel`]: event.target.checked })} /> Show this section as a panel</label>
             {block.props[`section${number}Panel`] === true && <label className="mt-2 block text-xs">Panel color <WindowsColorInput label={`Section ${number} panel color`} value={typeof block.props[`section${number}Color`] === 'string' && /^#[0-9a-f]{6}$/i.test(block.props[`section${number}Color`] as string) ? block.props[`section${number}Color`] as string : '#b9aeb6'} onChange={value => updateBlockProps(block.id, { [`section${number}Color`]: value })} className="mt-1 block h-9 w-full rounded border border-border-default p-1" /></label>}

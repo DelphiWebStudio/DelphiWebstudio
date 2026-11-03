@@ -8,6 +8,8 @@ interface FooterProps {
   links: string[]
   navItems?: { label: string; url: string }[]
   columns?: { title: string; links: string[] }[]
+  resources?: { src?: string; alt?: string; title?: string; description?: string; url?: string }[]
+  resourceButtons?: { label?: string; url?: string }[]
 }
 
 function FooterSimple({ props }: { props: FooterProps }) {
@@ -130,6 +132,25 @@ export function FooterBlock({ block }: { block: BlockConfig }) {
   const props = block.props as unknown as FooterProps
 
   switch (block.variant) {
+    case 'resources':
+      return <footer className="px-6 @md:px-10 py-12">
+        {props.logo && <h2 className="mb-8 text-center text-xl font-semibold">{props.logo}</h2>}
+        <div className="grid grid-cols-1 @md:grid-cols-2 @2xl:grid-cols-4 gap-8">
+          {(Array.isArray(props.resources) ? props.resources : []).map((item, index) => {
+            if (!item || typeof item !== 'object') return null
+            const url = typeof item.url === 'string' && /^(https?:\/\/|\/(?!\/)|#)/i.test(item.url) ? item.url : undefined
+            const image = item.src ? <img src={item.src} alt={item.alt || item.title || ''} className="mx-auto max-w-full h-auto" /> : null
+            return <div key={index} className="text-center">
+              {url && image ? <a href={url}>{image}</a> : image}
+              {item.title && <p className="mt-2">{url ? <a href={url} className="underline">{item.title}</a> : item.title}</p>}
+              {item.description && <p className="mt-2 whitespace-pre-wrap">{item.description}</p>}
+            </div>
+          })}
+        </div>
+        <div className="mt-10 flex flex-wrap justify-center gap-3">
+          {(Array.isArray(props.resourceButtons) ? props.resourceButtons : []).map((item, index) => item && typeof item.url === 'string' && /^(https?:\/\/|\/(?!\/)|#)/i.test(item.url) && item.label ? <a key={index} href={item.url} className="rounded border border-current px-5 py-2 text-center">{item.label}</a> : null)}
+        </div>
+      </footer>
     case 'multi-column':
       return <FooterMultiColumn props={props} />
     case 'minimal':

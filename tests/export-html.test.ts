@@ -19,6 +19,13 @@ const baseConfig: SiteConfig = {
 }
 
 describe('exportSiteToHTML', () => {
+  it('exports multiple linked section items and a resource footer without unsafe links', () => {
+    const section = { id: 'section', type: 'content' as const, variant: 'prose', props: { body: 'Intro', sectionCount: 2, section1Items: [{ src: 'assets/one.png', alt: 'One', text: 'First', url: '/first' }, { src: 'assets/two.png', alt: 'Two', text: 'Second', url: 'javascript:alert(1)' }], section2Items: [{ text: 'Third', src: '', alt: '', url: '#third' }] } }
+    const footer = { id: 'footer', type: 'footer' as const, variant: 'resources', props: { logo: 'Resources', resources: [{ src: 'assets/resource.png', alt: 'Resource', title: 'Giving', description: 'Support us', url: 'https://example.org' }], resourceButtons: [{ label: 'Contact', url: '/contact' }, { label: 'Unsafe', url: 'javascript:alert(1)' }] } }
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [section, footer] })
+    for (const content of ['First', 'Second', 'Third', 'Giving', 'Support us', 'Contact', 'assets/one.png', 'assets/two.png', 'assets/resource.png', 'href="/contact"']) expect(html).toContain(content)
+    expect(html).not.toContain('href="javascript:')
+  })
   it('exports the selected paragraph alignment for section and Hero text', () => {
     const block = { id: 'hero', type: 'hero' as const, variant: 'centered', props: { headline: 'Welcome', headlineAlign: 'right', sectionCount: 2, section2Text: 'Second section', section2TextAlign: 'center' } }
     const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
