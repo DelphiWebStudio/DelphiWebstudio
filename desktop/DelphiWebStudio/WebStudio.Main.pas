@@ -22,6 +22,7 @@ type
     ProjectMenuItem: TMenuItem;
     BackupProjectItem: TMenuItem;
     RestoreBackupItem: TMenuItem;
+    ExitItem: TMenuItem;
     BackupSourceDialog: TOpenDialog;
     BackupSaveDialog: TSaveDialog;
     BackupOpenDialog: TOpenDialog;
@@ -45,6 +46,7 @@ type
     procedure RecoverStageButtonClick(Sender: TObject);
     procedure BackupProjectItemClick(Sender: TObject);
     procedure RestoreBackupItemClick(Sender: TObject);
+    procedure ExitItemClick(Sender: TObject);
     procedure LocalAIItemClick(Sender: TObject);
     procedure SftpItemClick(Sender: TObject);
     procedure DiagnosticsItemClick(Sender: TObject);
@@ -65,6 +67,12 @@ uses Winapi.ActiveX, System.IOUtils, System.Zip, System.JSON, System.UITypes, Sy
   WebStudio.Credentials;
 
 {$R *.dfm}
+
+procedure TMainForm.ExitItemClick(Sender: TObject);
+begin
+  if MessageDlg('Save your project before exiting if you want to keep your changes. Exit Delphi Web Studio?', mtConfirmation, [mbYes, mbNo], 0) = mrYes then
+    Close;
+end;
 
 procedure TMainForm.DiagnosticsItemClick(Sender: TObject);
 var RuntimeVersion, EditorState: string;

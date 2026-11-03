@@ -5,13 +5,15 @@ import { useConfigStore } from '@/store/configStore'
 import { renderMarkdown } from '@/lib/markdown'
 
 type Run = { text: string; font?: string; size?: number; color?: string; bold?: boolean; italic?: boolean; underline?: boolean; href?: string }
-type Props = { blockId: string; field: string; text: string; value: unknown; editable?: boolean; multiline?: boolean; markdown?: boolean }
+type Props = { blockId: string; field: string; text: string; value: unknown; editable?: boolean; multiline?: boolean; markdown?: boolean; position?: { x: number; y: number }; fill?: boolean }
+let draggedText: { element: HTMLElement; range: Range } | null = null
 
-export function RichText({ blockId, field, text, value, editable = false, multiline = false, markdown = false }: Props) {
+export function RichText({ blockId, field, text, value, editable = false, multiline = false, markdown = false, position, fill = false }: Props) {
   const root = useRef<HTMLElement>(null)
   const dirty = useRef(false)
   const savedRange = useRef<Range | null>(null)
   const menuActive = useRef(false)
+  const moveRef = useRef<{ startX: number; startY: number; x: number; y: number } | null>(null)
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const runs = Array.isArray(value) ? value.filter((item): item is Run => !!item && typeof item === 'object' && typeof item.text === 'string') : null
 
@@ -124,15 +126,33 @@ export function RichText({ blockId, field, text, value, editable = false, multil
   }, [editable, markup])
 
   const Tag = multiline ? 'div' : 'span'
+  const Outer = multiline ? 'div' : 'span'
+  const x = Number.isFinite(position?.x) ? Math.max(-2000, Math.min(2000, position!.x)) : 0
+  const y = Number.isFinite(position?.y) ? Math.max(-2000, Math.min(2000, position!.y)) : 0
+  const updatePosition = (nextX: number, nextY: number) => useConfigStore.getState().updateBlockProps(blockId, { [`${field}OffsetX`]: Math.round(Math.max(-2000, Math.min(2000, nextX))), [`${field}OffsetY`]: Math.round(Math.max(-2000, Math.min(2000, nextY))) })
   return <>
-    <Tag ref={(element: HTMLElement | null) => { root.current = element }} data-rich-editor={editable ? field : undefined} role={editable ? 'textbox' : undefined} aria-label={editable ? `Edit ${field}` : undefined} aria-multiline={editable && multiline ? true : undefined} contentEditable={editable || undefined} suppressContentEditableWarning style={{ whiteSpace: 'pre-wrap', ...(editable && multiline ? { display: 'block', minHeight: '3em', cursor: 'text' } : {}) }}
-      onBlur={() => { if (!menuActive.current) save() }}
+    <Outer data-text-position={position ? field : undefined} className={position && editable ? 'group/text relative inline-block' : undefined} style={position ? { display: 'inline-block', position: 'relative', transform: `translate(${x}px, ${y}px)` } : fill && editable ? { display: 'flex', flex: '1 1 auto' } : undefined}>
+    <Tag ref={(element: HTMLElement | null) => { root.current = element }} data-rich-editor={editable ? field : undefined} role={editable ? 'textbox' : undefined} aria-label={editable ? `Edit ${field}` : undefined} aria-multiline={editable && multiline ? true : undefined} contentEditable={editable || undefined} suppressContentEditableWarning style={{ whiteSpace: 'pre-wrap', ...(editable && multiline ? { display: 'block', minHeight: '3em', cursor: 'text', ...(fill ? { flex: 1 } : {}) } : {}) }}
+      onBlur={() => { if (!menuActive.current && !draggedText) save() }}
       onInput={() => { dirty.current = true }}
+      onCopy={event => {
+        const selection = window.getSelection()
+        if (!selection || selection.isCollapsed || !root.current?.contains(selection.getRangeAt(0).commonAncestorContainer)) return
+        const style = getComputedStyle(root.current)
+        const span = document.createElement('span')
+        span.style.fontFamily = style.fontFamily; span.style.fontSize = style.fontSize; span.style.color = style.color
+        span.style.fontWeight = style.fontWeight; span.style.fontStyle = style.fontStyle
+        span.appendChild(selection.getRangeAt(0).cloneContents())
+        event.clipboardData.setData('text/plain', selection.toString())
+        event.clipboardData.setData('text/html', span.outerHTML)
+        event.preventDefault()
+      }}
       onPaste={event => {
         const html = event.clipboardData.getData('text/html')
         if (!html) return
         event.preventDefault()
         insertPastedHtml(html, event.clipboardData.getData('text/plain'))
+        dirty.current = true
       }}
       onKeyDown={event => { event.stopPropagation(); if (!multiline && event.key === 'Enter') { event.preventDefault(); root.current?.blur() } }}
       onContextMenu={event => {
@@ -157,25 +177,35 @@ export function RichText({ blockId, field, text, value, editable = false, multil
         span.style.fontStyle = style.fontStyle
         span.appendChild(selection.getRangeAt(0).cloneContents())
         root.current.dataset.richDragging = 'true'
+        draggedText = { element: root.current, range: selection.getRangeAt(0).cloneRange() }
         event.dataTransfer.setData('text/plain', selection.toString())
         event.dataTransfer.setData('text/html', span.outerHTML)
         event.dataTransfer.effectAllowed = 'copyMove'
       }}
-      onDragEnd={() => { if (root.current) delete root.current.dataset.richDragging; if (!menuActive.current) save() }}
+      onDragEnd={() => { if (root.current) delete root.current.dataset.richDragging; draggedText = null; if (!menuActive.current) save() }}
       onDrop={event => {
         const html = event.dataTransfer.getData('text/html')
-        if (html && !document.querySelector('[data-rich-dragging="true"]')) {
+        if (html && draggedText?.element !== root.current) {
           event.preventDefault()
-          const range = document.caretRangeFromPoint(event.clientX, event.clientY)
-          if (range && root.current?.contains(range.commonAncestorContainer)) {
+          let range = document.caretRangeFromPoint(event.clientX, event.clientY)
+          if (root.current && (!range || !root.current.contains(range.commonAncestorContainer))) { range = document.createRange(); range.selectNodeContents(root.current); range.collapse(false) }
+          if (range && root.current) {
             root.current.focus()
             const selection = window.getSelection(); selection?.removeAllRanges(); selection?.addRange(range)
             insertPastedHtml(html, event.dataTransfer.getData('text/plain'))
+            dirty.current = true
+            if (draggedText && !event.ctrlKey) { draggedText.range.deleteContents(); draggedText.element.dispatchEvent(new Event('input', { bubbles: true })) }
           }
         }
         window.setTimeout(() => { if (root.current && document.activeElement !== root.current) save() }, 0)
       }}
       dangerouslySetInnerHTML={editable ? undefined : { __html: markup }} />
+    {position && editable && <button type="button" aria-label={`Move ${field}`} title="Drag to move text, or focus and use arrow keys" className="absolute -top-5 left-0 z-30 rounded border border-gray-400 bg-white px-1 text-xs leading-4 text-black opacity-0 group-hover/text:opacity-100 focus:opacity-100" style={{ cursor: 'move', touchAction: 'none' }}
+      onPointerDown={event => { if (event.button !== 0) return; event.preventDefault(); event.stopPropagation(); moveRef.current = { startX: event.clientX, startY: event.clientY, x, y }; event.currentTarget.setPointerCapture(event.pointerId) }}
+      onPointerMove={event => { const move = moveRef.current; if (move) event.currentTarget.parentElement!.style.transform = `translate(${move.x + event.clientX - move.startX}px, ${move.y + event.clientY - move.startY}px)` }}
+      onPointerUp={event => { const move = moveRef.current; if (move) { moveRef.current = null; updatePosition(move.x + event.clientX - move.startX, move.y + event.clientY - move.startY) } }}
+      onKeyDown={event => { const delta = event.shiftKey ? 10 : 1; const dx = event.key === 'ArrowLeft' ? -delta : event.key === 'ArrowRight' ? delta : 0; const dy = event.key === 'ArrowUp' ? -delta : event.key === 'ArrowDown' ? delta : 0; if (dx || dy) { event.preventDefault(); event.stopPropagation(); updatePosition(x + dx, y + dy) } }}>Move</button>}
+    </Outer>
     {menu && createPortal(<div data-rich-menu role="menu" aria-label="Text formatting" className="fixed z-[10001] w-56 rounded border border-gray-400 bg-white p-2 text-sm text-black shadow-lg" style={{ left: menu.x, top: menu.y }} onContextMenu={event => event.preventDefault()} onClick={event => event.stopPropagation()}>
       {!savedRange.current || savedRange.current.collapsed ? <p className="mb-2 text-xs">Select text to format it.</p> : <>
         <label className="mb-2 block text-xs">Font<select aria-label="Text font" defaultValue="" className="mt-1 w-full rounded border border-gray-400 p-1" onChange={event => { if (event.target.value) apply({ fontFamily: event.target.value }) }}><option value="">Choose font</option>{['Arial', 'Calibri', 'Georgia', 'Tahoma', 'Times New Roman', 'Verdana'].map(font => <option key={font}>{font}</option>)}</select></label>
