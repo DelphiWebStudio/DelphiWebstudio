@@ -76,13 +76,14 @@ describe('exportSiteToHTML', () => {
     expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
     expect(html).not.toContain('<script>alert(1)</script>')
   })
-  it('preserves resized Hero dimensions in the exported page', () => {
-    const hero = { id: 'hero', type: 'hero' as const, variant: 'centered', props: { headline: 'Welcome', subheadline: '', primaryCta: '', sectionCount: 2, layoutWidth: 75, layoutHeight: 260, layoutLeft: 10 } }
+  it('exports a resized white Hero without clipping its contents in a scrolling box', () => {
+    const hero = { id: 'hero', type: 'hero' as const, variant: 'centered', props: { headline: 'Welcome', subheadline: '', primaryCta: '', sectionCount: 2, blockBackgroundColor: '#ffffff', layoutWidth: 75, layoutHeight: 260, layoutLeft: 10 } }
     const html = exportSiteToHTML({ ...baseConfig, blocks: [hero] })
     expect(html).toContain('width:75%')
     expect(html).toContain('margin-left:10%')
-    expect(html).toContain('height:260px')
-    expect(html).toContain('height:100%;box-sizing:border-box;overflow:auto')
+    expect(html).toContain('min-height:260px')
+    expect(html).toContain('background-color:#ffffff!important')
+    expect(html).not.toContain('height:100%;box-sizing:border-box;overflow:auto')
     expect(html).toContain('Welcome')
   })
   it('exports separate positioned collage layers and a movable colored panel', () => {
