@@ -763,6 +763,13 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
       </div>
 
       {/* Property sections */}
+      <Section title="Block background">
+        <label className="block text-xs text-text-2">Background color
+          <input type="color" aria-label="Block background color" value={typeof block.props.blockBackgroundColor === 'string' && /^#[0-9a-f]{6}$/i.test(block.props.blockBackgroundColor) ? block.props.blockBackgroundColor : '#ffffff'} onChange={event => updateBlockProps(block.id, { blockBackgroundColor: event.target.value })} className="mt-1 block h-9 w-full cursor-pointer rounded border border-border-default bg-bg-2 p-1" />
+        </label>
+        <p className="mt-1 text-[10px] text-text-3">{block.props.blockBackgroundColor ? 'Custom block color' : 'Using the block’s default background'}</p>
+        <button type="button" onClick={() => updateBlockProps(block.id, { blockBackgroundColor: '' })} className="mt-2 rounded border border-border-default px-2 py-1 text-xs">Reset background</button>
+      </Section>
       <Section title="Sections across">
         <label className="block text-xs text-text-2">Number of sections
           <select aria-label="Number of sections" value={Math.min(4, Math.max(1, Number(block.props.sectionCount) || 1))} onChange={event => updateBlockProps(block.id, { sectionCount: Number(event.target.value) })} className="mt-1 w-full rounded border border-border-default bg-bg-2 p-1 text-xs">

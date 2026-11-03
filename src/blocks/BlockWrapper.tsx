@@ -99,6 +99,8 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
 
   const scope = `ws-${index}`
   const selector = `[data-ws-scope="${scope}"] [data-ws-content]`
+  const backgroundColor = typeof block.props.blockBackgroundColor === 'string' && /^#[0-9a-f]{6}$/i.test(block.props.blockBackgroundColor) ? block.props.blockBackgroundColor : ''
+  const backgroundTarget = Number(block.props.sectionCount) > 1 ? `${selector}>:first-child>:first-child>:first-child` : `${selector}>:first-child`
   const textSize = Number(block.props.textSize)
   const textColor = typeof block.props.textColor === 'string' && /^#[0-9a-f]{6}$/i.test(block.props.textColor) ? block.props.textColor : ''
   const textRules = [
@@ -130,7 +132,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
     ].filter(Boolean).join(';')
     return declarations ? [`${selector} [data-ws-text-key="${key}"]{${declarations}}`] : []
   }).join('')
-  const customStyle = (textRules ? `${selector} :is(h1,h2,h3,h4,h5,h6,p,span,a,li,label){${textRules}}` : '') + individualTextRules + imageRules + (navbarHeight ? `${selector},${selector}>nav{height:100%}${selector}>nav{padding-block:4px}` : '')
+  const customStyle = (backgroundColor ? `${selector},${backgroundTarget}{background-color:${backgroundColor}!important}` : '') + (textRules ? `${selector} :is(h1,h2,h3,h4,h5,h6,p,span,a,li,label){${textRules}}` : '') + individualTextRules + imageRules + (navbarHeight ? `${selector},${selector}>nav{height:100%}${selector}>nav{padding-block:4px}` : '')
 
   if (previewMode) {
     return (
