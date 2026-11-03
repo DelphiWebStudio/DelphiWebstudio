@@ -750,6 +750,7 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
   const selectedImageIndex = useEditorStore(state => state.selectedImageIndex)
   const selectImage = useEditorStore(state => state.selectImage)
   const selectedTextKey = useEditorStore(state => state.selectedTextKey)
+  const selectedSection = useEditorStore(state => state.selectedSection)
   const selectText = useEditorStore(state => state.selectText)
   const schema = Object.hasOwn(blockFields, block.type) ? blockFields[block.type] : undefined
   const adjustments = block.props.imageAdjustments && typeof block.props.imageAdjustments === 'object' && !Array.isArray(block.props.imageAdjustments)
@@ -759,6 +760,11 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
     ? block.props.textAdjustments as Record<string, Record<string, unknown>> : {}
   const textKey = textNames.some(item => item.key === selectedTextKey) ? selectedTextKey : (textNames[0]?.key ?? '')
   const selectedTextAdjustment = textAdjustments[textKey] ?? {}
+
+  useEffect(() => {
+    if (selectedSection < 2) return
+    document.querySelector<HTMLElement>(`[data-section-properties="${selectedSection}"]`)?.scrollIntoView({ block: 'nearest' })
+  }, [block.id, selectedSection])
 
   useEffect(() => {
     let active = true
@@ -799,7 +805,7 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
         <p className="mt-2 text-[10px] text-text-3">The original block is section 1. Additional sections can contain text and an image. Reducing the count keeps their contents for later.</p>
         {Array.from({ length: Math.min(4, Math.max(1, Number(block.props.sectionCount) || 1)) - 1 }, (_, i) => {
           const number = i + 2
-          return <div key={number} className="mt-3 border-t border-border-default pt-2">
+          return <div key={number} data-section-properties={number} className={`mt-3 border-t border-border-default pt-2 ${selectedSection === number ? 'outline outline-1 outline-[#0078d4] rounded' : ''}`}>
             <div className="mb-2 text-xs font-semibold">Section {number}</div>
             <PropertyField block={block} field={{ key: `section${number}Text`, label: `Section ${number} text`, type: 'textarea' }} />
             <PropertyField block={block} field={{ key: `section${number}Image`, label: `Section ${number} image`, type: 'image' }} />

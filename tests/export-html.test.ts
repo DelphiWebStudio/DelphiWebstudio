@@ -65,6 +65,8 @@ describe('exportSiteToHTML', () => {
     expect(html).toContain('alt="Church"')
     expect(html).toContain('Third section')
     expect(html).not.toContain('Hidden section')
+    expect(html).not.toContain('data-editor-section')
+    expect(html).not.toContain('>Section 2</span>')
     const expanded = exportSiteToHTML({ ...baseConfig, blocks: [{ ...block, props: { ...block.props, sectionCount: 4 } }] })
     expect(expanded).toContain('Hidden section')
   })

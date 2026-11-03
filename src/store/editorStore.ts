@@ -8,6 +8,7 @@ interface EditorState {
   selectedBlockId: string | null
   selectedImageIndex: number
   selectedTextKey: string
+  selectedSection: number
   viewport: Viewport
   customViewportWidth: number | null
   mode: EditorMode
@@ -26,6 +27,7 @@ interface EditorState {
   selectBlock: (id: string | null) => void
   selectImage: (index: number) => void
   selectText: (key: string) => void
+  selectSection: (section: number) => void
   setViewport: (vp: Viewport) => void
   setCustomViewportWidth: (width: number) => void
   setMode: (mode: EditorMode) => void
@@ -46,6 +48,7 @@ export const useEditorStore = create<EditorState>()((set) => ({
   selectedBlockId: null,
   selectedImageIndex: 0,
   selectedTextKey: '',
+  selectedSection: 0,
   viewport: 'desktop',
   customViewportWidth: null,
   mode: 'beginner',
@@ -60,9 +63,10 @@ export const useEditorStore = create<EditorState>()((set) => ({
   isGenerating: false,
   generationPrompt: null,
   generationError: null,
-  selectBlock: (id) => set(state => ({ selectedBlockId: id, ...(state.selectedBlockId !== id ? { selectedImageIndex: 0, selectedTextKey: '' } : {}) })),
+  selectBlock: (id) => set(state => ({ selectedBlockId: id, ...(state.selectedBlockId !== id ? { selectedImageIndex: 0, selectedTextKey: '', selectedSection: 0 } : {}) })),
   selectImage: (index) => set({ selectedImageIndex: Math.max(0, Math.floor(index)) }),
   selectText: (key) => set({ selectedTextKey: key }),
+  selectSection: (section) => set({ selectedSection: Math.max(1, Math.min(4, Math.floor(section))) }),
   setViewport: (vp) => set({ viewport: vp, customViewportWidth: null }),
   setCustomViewportWidth: (width) => set(Number.isFinite(width) ? { customViewportWidth: Math.max(320, Math.min(1920, Math.round(width))) } : {}),
   setMode: (mode) => set({ mode, jsonDrawerOpen: mode === 'professional' }),
