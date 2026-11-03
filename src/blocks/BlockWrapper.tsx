@@ -35,7 +35,8 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
   const imageLayout = block.type === 'image'
   const navbarLayout = block.type === 'navbar'
   const panelLayout = block.type === 'panel'
-  const resizableLayout = imageLayout || navbarLayout || panelLayout
+  const heroLayout = block.type === 'hero'
+  const resizableLayout = imageLayout || navbarLayout || panelLayout || heroLayout
   const widthValue = Number(block.props.layoutWidth)
   const leftValue = Number(block.props.layoutLeft)
   const topValue = Number(block.props.layoutTop)
@@ -47,7 +48,8 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
   const requestedHeight = Number(block.props.layoutHeight)
   const navbarHeight = navbarLayout && Number.isFinite(requestedHeight) && requestedHeight > 0 ? Math.max(40, Math.min(2000, requestedHeight)) : undefined
   const panelHeight = panelLayout && Number.isFinite(requestedHeight) && requestedHeight > 0 ? Math.max(40, Math.min(2000, requestedHeight)) : undefined
-  const layoutStyle = resizableLayout ? { position: 'relative' as const, width: `${width}%`, marginLeft: `${left}%`, marginTop: top, zIndex: layer, ...(navbarHeight ? { height: navbarHeight } : {}), ...(panelHeight ? { minHeight: panelHeight } : {}) } : undefined
+  const heroHeight = heroLayout && Number.isFinite(requestedHeight) && requestedHeight > 0 ? Math.max(40, Math.min(2000, requestedHeight)) : undefined
+  const layoutStyle = resizableLayout ? { position: 'relative' as const, width: `${width}%`, marginLeft: `${left}%`, marginTop: top, zIndex: layer, ...(navbarHeight || heroHeight ? { height: navbarHeight || heroHeight } : {}), ...(panelHeight ? { minHeight: panelHeight } : {}) } : undefined
 
   const index = blocks.findIndex((b) => b.id === block.id)
   const isFirst = index === 0
@@ -135,7 +137,8 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
     ].filter(Boolean).join(';')
     return declarations ? [`${selector} [data-ws-text-key="${key}"]{${declarations}}`] : []
   }).join('')
-  const customStyle = (backgroundColor ? `${selector},${backgroundTarget}{background-color:${backgroundColor}!important}` : '') + (textRules ? `${selector} :is(h1,h2,h3,h4,h5,h6,p,span,a,li,label){${textRules}}` : '') + individualTextRules + imageRules + (navbarHeight ? `${selector},${selector}>nav{height:100%}${selector}>nav{padding-block:4px}` : '') + (panelLayout ? `@container (max-width:600px){[data-ws-scope="${scope}"]{width:100%!important;margin-left:0!important;margin-top:0!important;z-index:auto!important}}` : '')
+  const heroHeightStyle = heroHeight ? `${selector}{height:100%}${Number(block.props.sectionCount) > 1 ? `${selector}>:first-child,${selector}>:first-child>:first-child{height:100%;min-height:0}` : ''}${backgroundTarget}{height:100%;box-sizing:border-box;overflow:auto}` : ''
+  const customStyle = (backgroundColor ? `${selector},${backgroundTarget}{background-color:${backgroundColor}!important}` : '') + (textRules ? `${selector} :is(h1,h2,h3,h4,h5,h6,p,span,a,li,label){${textRules}}` : '') + individualTextRules + imageRules + heroHeightStyle + (navbarHeight ? `${selector},${selector}>nav{height:100%}${selector}>nav{padding-block:4px}` : '') + (panelLayout ? `@container (max-width:600px){[data-ws-scope="${scope}"]{width:100%!important;margin-left:0!important;margin-top:0!important;z-index:auto!important}}` : '')
 
   if (previewMode) {
     return (
@@ -204,7 +207,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       element.style.marginLeft = `${nextLeft}%`
       element.style.marginTop = `${nextTop}px`
       element.style.width = `${nextWidth}%`
-      if (navbarLayout) element.style.height = `${nextHeight}px`
+      if (navbarLayout || heroLayout) element.style.height = `${nextHeight}px`
       else if (panelLayout) element.style.minHeight = `${nextHeight}px`
       else {
         const image = element.querySelector('img')
@@ -272,7 +275,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
           element.style.width = `${width}%`
           element.style.marginLeft = `${left}%`
           element.style.marginTop = `${top}px`
-          if (navbarLayout) element.style.height = navbarHeight ? `${navbarHeight}px` : ''
+          if (navbarLayout || heroLayout) element.style.height = navbarHeight || heroHeight ? `${navbarHeight || heroHeight}px` : ''
           if (panelLayout) element.style.minHeight = panelHeight ? `${panelHeight}px` : ''
           const image = element.querySelector('img')
           const height = Number(block.props.layoutHeight)
@@ -364,7 +367,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         ['se', 'bottom-0 right-0 cursor-nwse-resize'], ['s', 'bottom-0 left-1/2 -translate-x-1/2 cursor-ns-resize'],
         ['sw', 'bottom-0 left-0 cursor-nesw-resize'], ['w', 'top-1/2 left-0 -translate-y-1/2 cursor-ew-resize'],
       ] as const).map(([direction, position]) => <button
-        key={direction} type="button" aria-label={`Resize ${imageLayout ? 'image' : panelLayout ? 'panel' : 'navbar'} ${direction}`} title={`Drag to resize ${imageLayout ? 'image' : panelLayout ? 'panel' : 'navbar'}`}
+        key={direction} type="button" aria-label={`Resize ${imageLayout ? 'image' : panelLayout ? 'panel' : heroLayout ? 'hero' : 'navbar'} ${direction}`} title={`Drag to resize ${imageLayout ? 'image' : panelLayout ? 'panel' : heroLayout ? 'hero' : 'navbar'}`}
         className={`absolute z-20 h-3 w-3 border border-black bg-white touch-none ${position}`}
         onClick={event => event.stopPropagation()}
         onPointerDown={event => startImageDrag(event, 'resize', direction)}

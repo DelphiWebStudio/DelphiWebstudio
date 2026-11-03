@@ -13,6 +13,12 @@ const fivePages = {
 }
 
 describe('portable project files', () => {
+  it('preserves Hero dimensions and section count when saving and reopening', () => {
+    const props = { headline: 'Welcome', sectionCount: 2, layoutWidth: 75, layoutHeight: 260, layoutLeft: 10 }
+    const config = validateProjectConfig({ name: 'Site', blocks: [{ id: 'hero', type: 'hero', variant: 'centered', props }] })
+    const reopened = parseProjectFile(serializeProjectFile(createProjectFile(config, 'project'))).project.config
+    expect(reopened.blocks[0].props).toEqual(props)
+  })
   it('preserves collage layers and panel placement across save and reopen', () => {
     const blocks = [
       { id: 'collage', type: 'collage', variant: 'default', props: { images: [{ src: 'assets/a.png', alt: 'Photo', x: '20', y: '30', width: '35', height: '40', layer: '2' }] } },

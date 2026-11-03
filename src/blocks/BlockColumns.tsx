@@ -7,8 +7,8 @@ export function BlockColumns({ block, children, editable = false, selectedSectio
   if (count === 1) return <>{children}</>
   const layouts = ['', '', '@md:grid-cols-2', '@md:grid-cols-3', '@md:grid-cols-4']
   return <div className={`grid grid-cols-1 ${layouts[count]} gap-4`}>
-    <div className="min-w-0 relative" data-editor-section={editable ? '1' : undefined} role={editable ? 'group' : undefined} aria-label={editable ? 'Section 1' : undefined} tabIndex={editable ? 0 : undefined} onClick={editable ? () => onSelectSection?.(1) : undefined} onKeyDown={editable ? event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); event.stopPropagation(); onSelectSection?.(1) } } : undefined} style={editable && selectedSection === 1 ? { outline: '1px solid #c3c7cb', outlineOffset: '-1px' } : undefined}>
-      {editable && <span aria-hidden="true" className="absolute top-1 left-1 z-20 rounded bg-[#005a9e] px-2 py-1 text-xs text-white pointer-events-none">Section 1</span>}
+    <div className="min-w-0 relative" data-editor-section={editable ? '1' : undefined} role={editable ? 'group' : undefined} aria-label={editable ? 'Section 1' : undefined} tabIndex={editable ? 0 : undefined} onClick={editable ? () => onSelectSection?.(1) : undefined} onKeyDown={editable ? event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); event.stopPropagation(); onSelectSection?.(1) } } : undefined}>
+      {editable && <span aria-hidden="true" className="absolute top-1 left-1 z-20 rounded bg-[#005a9e] px-2 py-1 text-xs text-white pointer-events-none" style={{ opacity: selectedSection === 1 ? 1 : 0.7 }}>Section 1</span>}
       {children}
     </div>
     {Array.from({ length: count - 1 }, (_, i) => {
@@ -18,8 +18,8 @@ export function BlockColumns({ block, children, editable = false, selectedSectio
       const text = typeof block.props[`section${number}Text`] === 'string' ? block.props[`section${number}Text`] as string : ''
       const panel = block.props[`section${number}Panel`] === true
       const color = typeof block.props[`section${number}Color`] === 'string' && /^#[0-9a-f]{6}$/i.test(block.props[`section${number}Color`] as string) ? block.props[`section${number}Color`] as string : '#b9aeb6'
-      return <div key={number} className="min-w-0 p-4 relative" data-editor-section={editable ? String(number) : undefined} role={editable ? 'group' : undefined} aria-label={editable ? `Section ${number}` : undefined} tabIndex={editable ? 0 : undefined} onClick={editable ? () => onSelectSection?.(number) : undefined} onKeyDown={editable ? event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); event.stopPropagation(); onSelectSection?.(number) } } : undefined} style={{ ...(panel ? { backgroundColor: color, borderRadius: '1rem' } : {}), ...(editable ? { minHeight: '80px', borderLeft: '1px solid #c3c7cb', ...(selectedSection === number ? { outline: '1px solid #c3c7cb', outlineOffset: '-1px' } : {}) } : {}) }}>
-        {editable && <span aria-hidden="true" className="absolute top-1 left-2 z-20 rounded bg-[#005a9e] px-2 py-1 text-xs text-white pointer-events-none">Section {number}</span>}
+      return <div key={number} className="min-w-0 p-4 relative" data-editor-section={editable ? String(number) : undefined} role={editable ? 'group' : undefined} aria-label={editable ? `Section ${number}` : undefined} tabIndex={editable ? 0 : undefined} onClick={editable ? () => onSelectSection?.(number) : undefined} onKeyDown={editable ? event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); event.stopPropagation(); onSelectSection?.(number) } } : undefined} style={{ ...(panel ? { backgroundColor: color, borderRadius: '1rem' } : {}), ...(editable ? { minHeight: '80px', borderLeft: '1px solid #c3c7cb' } : {}) }}>
+        {editable && <span aria-hidden="true" className="absolute top-1 left-2 z-20 rounded bg-[#005a9e] px-2 py-1 text-xs text-white pointer-events-none" style={{ opacity: selectedSection === number ? 1 : 0.7 }}>Section {number}</span>}
         {image && <img src={image} alt={alt} className="max-w-full h-auto" />}
         {renderMarkdown(text)}
       </div>

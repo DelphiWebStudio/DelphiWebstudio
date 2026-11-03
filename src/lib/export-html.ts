@@ -1269,7 +1269,10 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
       ].filter(Boolean).join(';')
       return declarations ? [`${selector} [data-ws-text-key="${key}"]{${declarations}}`] : []
     }).join('')
-    const customStyle = (backgroundColor ? `${selector},${backgroundTarget}{background-color:${backgroundColor}!important}` : '') + (textRules ? `${selector} :is(h1,h2,h3,h4,h5,h6,p,span,a,li,label){${textRules}}` : '') + individualTextRules + imageRules + (block.type === 'panel' ? `@container (max-width:600px){[data-ws-scope="${scope}"]{width:100%!important;margin-left:0!important;margin-top:0!important;z-index:auto!important}}` : '')
+    const requestedHeroHeight = Number(block.props.layoutHeight)
+    const heroHeight = block.type === 'hero' && Number.isFinite(requestedHeroHeight) && requestedHeroHeight > 0 ? Math.max(40, Math.min(2000, requestedHeroHeight)) : undefined
+    const heroHeightStyle = heroHeight ? `${selector}{height:100%}${Number(block.props.sectionCount) > 1 ? `${selector}>:first-child,${selector}>:first-child>:first-child,${selector}>:first-child>:first-child>:first-child{height:100%;min-height:0}` : ''}${backgroundTarget}{height:100%;box-sizing:border-box;overflow:auto}` : ''
+    const customStyle = (backgroundColor ? `${selector},${backgroundTarget}{background-color:${backgroundColor}!important}` : '') + (textRules ? `${selector} :is(h1,h2,h3,h4,h5,h6,p,span,a,li,label){${textRules}}` : '') + individualTextRules + imageRules + heroHeightStyle + (block.type === 'panel' ? `@container (max-width:600px){[data-ws-scope="${scope}"]{width:100%!important;margin-left:0!important;margin-top:0!important;z-index:auto!important}}` : '')
     if (imageRules) {
       let imageIndex = 0
       html = html.replace(/<img\b/g, () => `<img data-ws-image-index="${imageIndex++}"`)
@@ -1283,7 +1286,7 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
       })
     }
     const content = customStyle ? `<style>${customStyle}</style><div data-ws-content>${html}</div>` : html
-    if (block.type === 'image' || block.type === 'panel') {
+    if (block.type === 'image' || block.type === 'panel' || (block.type === 'hero' && (Number(block.props.layoutWidth) > 0 || heroHeight))) {
       const widthValue = Number(block.props.layoutWidth)
       const leftValue = Number(block.props.layoutLeft)
       const topValue = Number(block.props.layoutTop)
@@ -1294,7 +1297,7 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
       const layer = Number.isFinite(layerValue) && layerValue > 0 ? Math.max(1, Math.min(100, Math.round(layerValue))) : 1
       const panelHeight = Number(block.props.layoutHeight)
       const minimumHeight = block.type === 'panel' && Number.isFinite(panelHeight) && panelHeight > 0 ? `;min-height:${Math.max(40, Math.min(2000, panelHeight))}px` : ''
-      return `<div data-ws-scope="${scope}"${classes.length ? ` class="${classes.join(' ')}"` : ''} style="position:relative;width:${width}%;margin-left:${left}%;margin-top:${top}px;z-index:${layer}${minimumHeight}">${content}</div>`
+      return `<div data-ws-scope="${scope}"${classes.length ? ` class="${classes.join(' ')}"` : ''} style="position:relative;width:${width}%;margin-left:${left}%;margin-top:${top}px;z-index:${layer}${minimumHeight}${heroHeight ? `;height:${heroHeight}px` : ''}">${content}</div>`
     }
     if (customStyle) return `<div data-ws-scope="${scope}"${classes.length ? ` class="${classes.join(' ')}"` : ''}>${content}</div>`
     return classes.length ? `<div class="${classes.join(' ')}">${html}</div>` : html
