@@ -13,6 +13,19 @@ beforeEach(() => {
 })
 
 describe('page history', () => {
+  it('moves placed media between blocks as one undoable change', () => {
+    const media = { id: 'photo', src: 'assets/photo.png', assetId: 'a', mime: 'image/png', name: 'Photo', x: 5, y: 10, width: 20 }
+    useConfigStore.getState().addBlock({ id: 'first', type: 'hero', variant: 'centered', props: { placedMedia: [media] } })
+    useConfigStore.getState().addBlock({ id: 'second', type: 'content', variant: 'prose', props: {} })
+    useConfigStore.getState().movePlacedMedia('first', 'second', 'photo', 30, 40, 15)
+    let blocks = useConfigStore.getState().getActivePageBlocks()
+    expect(blocks[0].props.placedMedia).toEqual([])
+    expect(blocks[1].props.placedMedia).toEqual([{ ...media, x: 30, y: 40, width: 15 }])
+    useConfigStore.getState().undo()
+    blocks = useConfigStore.getState().getActivePageBlocks()
+    expect(blocks[0].props.placedMedia).toEqual([media])
+    expect(blocks[1].props.placedMedia).toBeUndefined()
+  })
   it('adds a Navbar at the top, preserves other blocks, and still allows the user to move it', () => {
     const store = useConfigStore.getState()
     store.addBlock({ id: 'hero', type: 'hero', variant: 'centered', props: {} })

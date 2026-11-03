@@ -10,7 +10,7 @@ export function PlacedMedia({ block, editable = false }: { block: BlockConfig; e
   const items = Array.isArray(block.props.placedMedia) ? block.props.placedMedia as Item[] : []
   const [selected, setSelected] = useState<string | null>(null)
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null)
-  const drag = useRef<{ id: string; resize: boolean; startX: number; startY: number; x: number; y: number; width: number; parentWidth: number; parentHeight: number } | null>(null)
+  const drag = useRef<{ id: string; resize: boolean; startX: number; startY: number; grabX: number; grabY: number; x: number; y: number; width: number; parentWidth: number; parentHeight: number } | null>(null)
   const number = (value: unknown, fallback: number, min: number, max: number) => {
     const result = Number(value)
     return Number.isFinite(result) ? Math.max(min, Math.min(max, result)) : fallback
@@ -22,7 +22,8 @@ export function PlacedMedia({ block, editable = false }: { block: BlockConfig; e
     const rect = parent.getBoundingClientRect()
     if (!rect.width || !rect.height) return
     const x = number(item.x, 0, 0, 99), y = number(item.y, 0, 0, 99)
-    drag.current = { id: item.id, resize, startX: event.clientX, startY: event.clientY, x, y, width: number(item.width, 25, 1, 100 - x), parentWidth: rect.width, parentHeight: rect.height }
+    const itemRect = event.currentTarget.getBoundingClientRect()
+    drag.current = { id: item.id, resize, startX: event.clientX, startY: event.clientY, grabX: event.clientX - itemRect.left, grabY: event.clientY - itemRect.top, x, y, width: number(item.width, 25, 1, 100 - x), parentWidth: rect.width, parentHeight: rect.height }
     setSelected(item.id)
     useEditorStore.getState().selectBlock(block.id)
     event.preventDefault(); event.stopPropagation()
@@ -37,10 +38,28 @@ export function PlacedMedia({ block, editable = false }: { block: BlockConfig; e
     const y = state.resize ? state.y : Math.max(0, Math.min(99, state.y + dy))
     const width = state.resize ? Math.max(1, Math.min(100 - x, state.width + dx)) : state.width
     const element = event.currentTarget.closest<HTMLElement>('[data-placed-media]')
-    if (element) Object.assign(element.style, { left: `${x}%`, top: `${y}%`, width: `${width}%` })
+    if (element) Object.assign(element.style, { left: `${!finish && !state.resize ? state.x + dx : x}%`, top: `${!finish && !state.resize ? state.y + dy : y}%`, width: `${width}%` })
     event.stopPropagation()
     if (finish) {
       drag.current = null
+      if (!state.resize && element) {
+        const previous = element.style.pointerEvents
+        element.style.pointerEvents = 'none'
+        const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('[data-webstudio-block-id]')
+        element.style.pointerEvents = previous
+        const targetId = target?.getAttribute('data-webstudio-block-id')
+        if (target && targetId && targetId !== block.id) {
+          const rect = target.getBoundingClientRect()
+          if (rect.width && rect.height) {
+            const nextX = Math.max(0, Math.min(99, (event.clientX - state.grabX - rect.left) / rect.width * 100))
+            const nextY = Math.max(0, Math.min(99, (event.clientY - state.grabY - rect.top) / rect.height * 100))
+            const nextWidth = Math.max(1, Math.min(100 - nextX, state.width * state.parentWidth / rect.width))
+            useConfigStore.getState().movePlacedMedia(block.id, targetId, state.id, Math.round(nextX * 10) / 10, Math.round(nextY * 10) / 10, Math.round(nextWidth * 10) / 10)
+            useEditorStore.getState().selectBlock(targetId)
+            return
+          }
+        }
+      }
       const original = useConfigStore.getState().getActivePageBlocks().find(candidate => candidate.id === block.id)
       const saved = Array.isArray(original?.props.placedMedia) ? original.props.placedMedia as Item[] : []
       if (saved.some(item => item.id === state.id)) useConfigStore.getState().updateBlockProps(block.id, { placedMedia: saved.map(item => item.id === state.id ? { ...item, x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, width: Math.round(width * 10) / 10 } : item) })
