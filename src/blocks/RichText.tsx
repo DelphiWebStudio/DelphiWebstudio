@@ -6,7 +6,7 @@ import { renderMarkdown } from '@/lib/markdown'
 import { chooseWindowsFont } from '@/desktop/native-bridge'
 import { WindowsColorInput } from '@/editor/WindowsColorInput'
 
-type Run = { text: string; font?: string; size?: number; color?: string; bold?: boolean; italic?: boolean; underline?: boolean; href?: string }
+type Run = { text: string; font?: string; size?: number; color?: string; bold?: boolean; italic?: boolean; underline?: boolean; href?: string; align?: 'left' | 'center' | 'right' | 'justify' }
 type Props = { blockId: string; field: string; text: string; value: unknown; editable?: boolean; multiline?: boolean; markdown?: boolean; position?: { x: number; y: number }; fill?: boolean; alignment?: unknown }
 let draggedText: { element: HTMLElement; range: Range } | null = null
 
@@ -34,6 +34,7 @@ export function RichText({ blockId, field, text, value, editable = false, multil
       if (!(node instanceof HTMLElement)) return
       if (node.tagName === 'BR') { output.push({ text: '\n', ...style }); return }
       const next = { ...style }
+      if (node.style.textAlign === 'left' || node.style.textAlign === 'center' || node.style.textAlign === 'right' || node.style.textAlign === 'justify') next.align = node.style.textAlign
       const font = node.style.fontFamily.replace(/["']/g, '').trim()
       if (font && /^[\p{L}\p{N} ,._-]{1,100}$/u.test(font)) next.font = font
       const size = Number.parseFloat(node.style.fontSize)
@@ -66,7 +67,7 @@ export function RichText({ blockId, field, text, value, editable = false, multil
     Object.assign(span.style, style)
     span.setAttribute('data-rich-run', '')
     const fragment = range.extractContents()
-    fragment.querySelectorAll<HTMLElement>('*').forEach(element => Object.assign(element.style, style))
+    if (!style.textAlign) fragment.querySelectorAll<HTMLElement>('*').forEach(element => Object.assign(element.style, style))
     span.appendChild(fragment)
     range.insertNode(span)
     dirty.current = true
@@ -134,14 +135,22 @@ export function RichText({ blockId, field, text, value, editable = false, multil
     return () => { document.removeEventListener('keydown', onKey); document.removeEventListener('pointerdown', outside) }
   }, [menu]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const content: ReactNode = runs ? runs.map((run, index) => createElement(typeof run.href === 'string' && !!run.href && !/[\\\p{Cc}]/u.test(run.href) && !run.href.startsWith('//') && (!/^[a-z][a-z\d+.-]*:/i.test(run.href) || /^(https?:|mailto:|tel:)/i.test(run.href)) ? 'a' : 'span', {
+  const formattedRuns = runs?.map((run, index) => createElement(typeof run.href === 'string' && !!run.href && !/[\\\p{Cc}]/u.test(run.href) && !run.href.startsWith('//') && (!/^[a-z][a-z\d+.-]*:/i.test(run.href) || /^(https?:|mailto:|tel:)/i.test(run.href)) ? 'a' : 'span', {
     key: index, 'data-rich-run': '', style: {
       ...(typeof run.font === 'string' && /^[\p{L}\p{N} ,._-]{1,100}$/u.test(run.font) ? { fontFamily: run.font } : {}),
       ...(typeof run.size === 'number' && Number.isFinite(run.size) && run.size >= 6 && run.size <= 200 ? { fontSize: `${run.size}px` } : {}),
       ...(typeof run.color === 'string' && (/^#[0-9a-f]{6}$/i.test(run.color) || /^rgba?\(\s*[\d.,%\s]+\)$/i.test(run.color)) ? { color: run.color } : {}),
       ...(typeof run.bold === 'boolean' ? { fontWeight: run.bold ? 'bold' : 'normal' } : {}), ...(typeof run.italic === 'boolean' ? { fontStyle: run.italic ? 'italic' : 'normal' } : {}), ...(typeof run.underline === 'boolean' ? { textDecoration: run.underline ? 'underline' : 'none' } : {}),
     }, ...(typeof run.href === 'string' && !!run.href && !/[\\\p{Cc}]/u.test(run.href) && !run.href.startsWith('//') && (!/^[a-z][a-z\d+.-]*:/i.test(run.href) || /^(https?:|mailto:|tel:)/i.test(run.href)) ? { href: run.href } : {}),
-  }, run.text)) : markdown ? renderMarkdown(text) : text
+  }, run.text))
+  const groups = runs?.reduce<{ align?: Run['align']; children: ReactNode[] }[]>((result, run, index) => {
+    const align = run.align === 'left' || run.align === 'center' || run.align === 'right' || run.align === 'justify' ? run.align : undefined
+    const last = result[result.length - 1]
+    if (last && last.align === align) last.children.push(formattedRuns![index])
+    else result.push({ align, children: [formattedRuns![index]] })
+    return result
+  }, [])
+  const content: ReactNode = groups ? groups.map((group, index) => group.align ? createElement('span', { key: index, style: { display: 'block', textAlign: group.align } }, group.children) : createElement('span', { key: index }, group.children)) : markdown ? renderMarkdown(text) : text
   // React escapes text and renders only the supported formatting above; never store or render pasted HTML directly.
   const markup = renderToStaticMarkup(createElement('div', null, content)).slice(5, -6)
   useEffect(() => {
@@ -280,8 +289,8 @@ export function RichText({ blockId, field, text, value, editable = false, multil
       </div>
       {clipboardError && <p role="status" className="mb-2 text-xs">{clipboardError}</p>}
       <div className="mb-2 flex flex-wrap gap-1 border-b border-gray-300 pb-2" aria-label="Paragraph alignment">
-        {(['left', 'center', 'right', 'justify'] as const).map(align => <button key={align} type="button" aria-label={`Align ${align}`} aria-pressed={textAlign === align} className="rounded border border-gray-400 px-2 py-1 capitalize" onMouseDown={event => event.preventDefault()} onClick={() => {
-          save(); useConfigStore.getState().updateBlockProps(blockId, { [`${field}Align`]: align }); close()
+        {(['left', 'center', 'right', 'justify'] as const).map(align => <button key={align} type="button" aria-label={`Align ${align}`} disabled={!savedRange.current || savedRange.current.collapsed} className="rounded border border-gray-400 px-2 py-1 capitalize disabled:opacity-40" onMouseDown={event => event.preventDefault()} onClick={() => {
+          apply({ textAlign: align, display: 'block' }); close()
         }}>{align}</button>)}
       </div>
       {!savedRange.current || savedRange.current.collapsed ? <p className="mb-2 text-xs">Select text to format it.</p> : <>
