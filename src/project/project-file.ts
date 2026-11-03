@@ -52,7 +52,7 @@ function inspectContent(value: unknown, depth = 0): void {
     if (['__proto__', 'constructor', 'prototype'].includes(key)) {
       throw new Error(`Unsafe project property: ${key}.`)
     }
-    if (typeof child === 'string' && /(?:url|href|src|avatar|logoImage|heroImage)$/i.test(key)) {
+    if (typeof child === 'string' && /(?:url|href|src|avatar|logoImage|heroImage|section[2-4]Image)$/i.test(key)) {
       const url = child.trim()
       if (/^[a-z][a-z\d+.-]*:/i.test(url) && !/^(https?:|mailto:|tel:)/i.test(url)) {
         throw new Error(`Unsupported URL protocol in ${key}.`)
@@ -202,7 +202,7 @@ export function validateProjectMedia(config: SiteConfig, assets: unknown[]): voi
     portablePaths.add(path.toLowerCase())
     pathsById.set(id, path)
   }
-  const knownTypes = new Set(['navbar', 'hero', 'features', 'pricing', 'cta', 'footer', 'testimonials', 'stats', 'faq', 'team', 'contact', 'newsletter', 'logocloud', 'divider', 'banner', 'content', 'image', 'video', 'gallery', 'pdfViewer', 'document', 'documentLibrary', 'audio', 'mediaVideo'])
+  const knownTypes = new Set(['navbar', 'hero', 'features', 'pricing', 'cta', 'footer', 'testimonials', 'stats', 'faq', 'team', 'contact', 'newsletter', 'logocloud', 'divider', 'banner', 'content', 'image', 'video', 'gallery', 'collage', 'panel', 'pdfViewer', 'document', 'documentLibrary', 'audio', 'mediaVideo'])
   const blocks = [...(config.pages ? config.pages.flatMap(page => page.blocks) : config.blocks), ...(config.webstudioReusableSections ?? []).map(section => section.block)]
   for (const block of blocks) {
     if (!knownTypes.has(block.type)) continue
@@ -211,7 +211,7 @@ export function validateProjectMedia(config: SiteConfig, assets: unknown[]): voi
         if (!assetPaths.has(match[1])) throw new Error(`Missing project media file: ${match[1]}.`)
       }
     }
-    if (['image', 'pdfViewer', 'document', 'audio', 'mediaVideo'].includes(block.type) && typeof block.props.assetId === 'string' && pathsById.has(block.props.assetId) && block.props.src !== pathsById.get(block.props.assetId)) {
+    if (['image', 'panel', 'pdfViewer', 'document', 'audio', 'mediaVideo'].includes(block.type) && typeof block.props.assetId === 'string' && pathsById.has(block.props.assetId) && block.props.src !== pathsById.get(block.props.assetId)) {
       throw new Error(`Media ID and path do not match: ${block.props.assetId}.`)
     }
     const pending: unknown[] = [block.props]
@@ -232,7 +232,7 @@ export function validateProjectMedia(config: SiteConfig, assets: unknown[]): voi
       }
       for (const [key, child] of Object.entries(value)) {
         if (key === 'assetId' && typeof child === 'string' && child && !assetIds.has(child)) throw new Error(`Missing project media ID: ${child}.`)
-        if (/^(src|href|url|image|logoImage|heroImage|avatar)$/i.test(key) && typeof child === 'string' && child.startsWith('assets/') && !assetPaths.has(child)) {
+        if (/^(src|href|url|image|logoImage|heroImage|avatar|section[2-4]Image)$/i.test(key) && typeof child === 'string' && child.startsWith('assets/') && !assetPaths.has(child)) {
           throw new Error(`Missing project media file: ${child}.`)
         }
         if (child && typeof child === 'object') pending.push(child)

@@ -33,7 +33,8 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
 
   const imageLayout = block.type === 'image'
   const navbarLayout = block.type === 'navbar'
-  const resizableLayout = imageLayout || navbarLayout
+  const panelLayout = block.type === 'panel'
+  const resizableLayout = imageLayout || navbarLayout || panelLayout
   const widthValue = Number(block.props.layoutWidth)
   const leftValue = Number(block.props.layoutLeft)
   const topValue = Number(block.props.layoutTop)
@@ -44,7 +45,8 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
   const layer = Number.isFinite(layerValue) && layerValue > 0 ? Math.max(1, Math.min(100, Math.round(layerValue))) : 1
   const requestedHeight = Number(block.props.layoutHeight)
   const navbarHeight = navbarLayout && Number.isFinite(requestedHeight) && requestedHeight > 0 ? Math.max(40, Math.min(2000, requestedHeight)) : undefined
-  const layoutStyle = resizableLayout ? { position: 'relative' as const, width: `${width}%`, marginLeft: `${left}%`, marginTop: top, zIndex: layer, ...(navbarHeight ? { height: navbarHeight } : {}) } : undefined
+  const panelHeight = panelLayout && Number.isFinite(requestedHeight) && requestedHeight > 0 ? Math.max(40, Math.min(2000, requestedHeight)) : undefined
+  const layoutStyle = resizableLayout ? { position: 'relative' as const, width: `${width}%`, marginLeft: `${left}%`, marginTop: top, zIndex: layer, ...(navbarHeight ? { height: navbarHeight } : {}), ...(panelHeight ? { minHeight: panelHeight } : {}) } : undefined
 
   const index = blocks.findIndex((b) => b.id === block.id)
   const isFirst = index === 0
@@ -132,7 +134,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
     ].filter(Boolean).join(';')
     return declarations ? [`${selector} [data-ws-text-key="${key}"]{${declarations}}`] : []
   }).join('')
-  const customStyle = (backgroundColor ? `${selector},${backgroundTarget}{background-color:${backgroundColor}!important}` : '') + (textRules ? `${selector} :is(h1,h2,h3,h4,h5,h6,p,span,a,li,label){${textRules}}` : '') + individualTextRules + imageRules + (navbarHeight ? `${selector},${selector}>nav{height:100%}${selector}>nav{padding-block:4px}` : '')
+  const customStyle = (backgroundColor ? `${selector},${backgroundTarget}{background-color:${backgroundColor}!important}` : '') + (textRules ? `${selector} :is(h1,h2,h3,h4,h5,h6,p,span,a,li,label){${textRules}}` : '') + individualTextRules + imageRules + (navbarHeight ? `${selector},${selector}>nav{height:100%}${selector}>nav{padding-block:4px}` : '') + (panelLayout ? `@container (max-width:600px){[data-ws-scope="${scope}"]{width:100%!important;margin-left:0!important;margin-top:0!important;z-index:auto!important}}` : '')
 
   if (previewMode) {
     return (
@@ -202,6 +204,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       element.style.marginTop = `${nextTop}px`
       element.style.width = `${nextWidth}%`
       if (navbarLayout) element.style.height = `${nextHeight}px`
+      else if (panelLayout) element.style.minHeight = `${nextHeight}px`
       else {
         const image = element.querySelector('img')
         if (image) image.style.height = `${nextHeight}px`
@@ -256,7 +259,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         setContextMenu({ x: event.clientX, y: event.clientY })
       }}
       onPointerDown={event => {
-        if (imageLayout && isSelected && event.target instanceof HTMLImageElement) startImageDrag(event, 'move')
+        if (isSelected && ((imageLayout && event.target instanceof HTMLImageElement) || (panelLayout && event.target instanceof Element && !event.target.closest('button,a,input,textarea,select')))) startImageDrag(event, 'move')
       }}
       onPointerMove={event => moveImageDrag(event)}
       onPointerUp={event => moveImageDrag(event, true)}
@@ -269,9 +272,10 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
           element.style.marginLeft = `${left}%`
           element.style.marginTop = `${top}px`
           if (navbarLayout) element.style.height = navbarHeight ? `${navbarHeight}px` : ''
+          if (panelLayout) element.style.minHeight = panelHeight ? `${panelHeight}px` : ''
           const image = element.querySelector('img')
           const height = Number(block.props.layoutHeight)
-          if (image) image.style.height = Number.isFinite(height) && height > 0 ? `${Math.max(40, Math.min(2000, height))}px` : ''
+          if (imageLayout && image) image.style.height = Number.isFinite(height) && height > 0 ? `${Math.max(40, Math.min(2000, height))}px` : ''
         }
       }}
       onClick={(e) => {
@@ -289,7 +293,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       className={`scroll-revealed relative cursor-pointer border-b border-border-subtle group transition-[opacity,transform] duration-500 ${
         isRevealed ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
       } ${
-        resizableLayout ? (isSelected ? 'outline outline-1 outline-white -outline-offset-1' : '') : isSelected
+        (resizableLayout || block.type === 'collage') ? (isSelected ? 'outline outline-1 outline-white -outline-offset-1' : '') : isSelected
           ? 'bg-green-glow2 outline outline-2 outline-green -outline-offset-2 rounded animate-select-pulse'
           : 'hover:bg-green-glow2'
       }`}
@@ -359,7 +363,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         ['se', 'bottom-0 right-0 cursor-nwse-resize'], ['s', 'bottom-0 left-1/2 -translate-x-1/2 cursor-ns-resize'],
         ['sw', 'bottom-0 left-0 cursor-nesw-resize'], ['w', 'top-1/2 left-0 -translate-y-1/2 cursor-ew-resize'],
       ] as const).map(([direction, position]) => <button
-        key={direction} type="button" aria-label={`Resize ${imageLayout ? 'image' : 'navbar'} ${direction}`} title={`Drag to resize ${imageLayout ? 'image' : 'navbar'}`}
+        key={direction} type="button" aria-label={`Resize ${imageLayout ? 'image' : panelLayout ? 'panel' : 'navbar'} ${direction}`} title={`Drag to resize ${imageLayout ? 'image' : panelLayout ? 'panel' : 'navbar'}`}
         className={`absolute z-20 h-3 w-3 border border-black bg-white touch-none ${position}`}
         onClick={event => event.stopPropagation()}
         onPointerDown={event => startImageDrag(event, 'resize', direction)}

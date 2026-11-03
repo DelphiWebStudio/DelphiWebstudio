@@ -13,7 +13,9 @@ export function BlockColumns({ block, children }: { block: BlockConfig; children
       const image = typeof block.props[`section${number}Image`] === 'string' ? block.props[`section${number}Image`] as string : ''
       const alt = typeof block.props[`section${number}Alt`] === 'string' ? block.props[`section${number}Alt`] as string : ''
       const text = typeof block.props[`section${number}Text`] === 'string' ? block.props[`section${number}Text`] as string : ''
-      return <div key={number} className="min-w-0 p-4">
+      const panel = block.props[`section${number}Panel`] === true
+      const color = typeof block.props[`section${number}Color`] === 'string' && /^#[0-9a-f]{6}$/i.test(block.props[`section${number}Color`] as string) ? block.props[`section${number}Color`] as string : '#b9aeb6'
+      return <div key={number} className="min-w-0 p-4" style={panel ? { backgroundColor: color, borderRadius: '1rem' } : undefined}>
         {image && <img src={image} alt={alt} className="max-w-full h-auto" />}
         {renderMarkdown(text)}
       </div>

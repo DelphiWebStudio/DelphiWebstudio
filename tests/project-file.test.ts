@@ -13,6 +13,17 @@ const fivePages = {
 }
 
 describe('portable project files', () => {
+  it('preserves collage layers and panel placement across save and reopen', () => {
+    const blocks = [
+      { id: 'collage', type: 'collage', variant: 'default', props: { images: [{ src: 'assets/a.png', alt: 'Photo', x: '20', y: '30', width: '35', height: '40', layer: '2' }] } },
+      { id: 'panel', type: 'panel', variant: 'default', props: { title: 'Title', body: 'Text', src: 'assets/p.png', layoutWidth: 35, layoutLeft: 50, layoutTop: -100, layoutLayer: 3, blockBackgroundColor: '#123456' } },
+    ]
+    const config = validateProjectConfig({ name: 'Site', blocks })
+    const reopened = parseProjectFile(serializeProjectFile(createProjectFile(config, 'project'))).project.config
+    expect(reopened.blocks).toEqual(blocks)
+    expect(() => validateProjectMedia(reopened, [])).toThrow('Missing project media')
+    expect(() => validateProjectMedia(reopened, [{ id: 'a', path: 'assets/a.png' }, { id: 'p', path: 'assets/p.png' }])).not.toThrow()
+  })
   it('preserves individual image and text styling across project save and reopen', () => {
     const props = { title: 'Gallery', images: [{ src: 'https://example.test/a.png', alt: 'A' }, { src: 'https://example.test/b.png', alt: 'B' }], imageAdjustments: { '1': { width: '140', left: '-25' } }, textAdjustments: { 'h2-0': { size: '34', color: '#123456' } }, textSize: '20', textColor: '#654321' }
     const config = validateProjectConfig({ name: 'Site', blocks: [{ id: 'gallery', type: 'gallery', variant: 'grid', props }] })

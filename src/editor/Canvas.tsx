@@ -104,7 +104,7 @@ export function Canvas() {
           hiddenOnCurrentWidth={hiddenOnCurrentWidth}
           onSelect={() => selectBlock(block.id)}
         >
-          <RenderBlock block={{ ...block, props }} />
+          <RenderBlock block={{ ...block, props }} editable={!previewMode} />
         </BlockWrapper>
         )
       })}

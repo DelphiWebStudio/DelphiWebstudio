@@ -16,6 +16,15 @@ interface FieldDef {
 }
 
 const blockFields: Partial<Record<BlockType, { sections: { title: string; fields: FieldDef[] }[] }>> = {
+  collage: { sections: [{ title: 'Collage photos', fields: [{ key: 'images', label: 'Photos and image layers', type: 'array-items' }] }] },
+  panel: { sections: [{ title: 'Panel content', fields: [
+    { key: 'title', label: 'Title', type: 'text' }, { key: 'body', label: 'Text', type: 'textarea' },
+    { key: 'src', label: 'Image', type: 'image' }, { key: 'alt', label: 'Image description', type: 'text' },
+  ] }, { title: 'Panel position', fields: [
+    { key: 'layoutWidth', label: 'Width (% of page)', type: 'text' }, { key: 'layoutHeight', label: 'Height (px)', type: 'text' },
+    { key: 'layoutLeft', label: 'Left (% of page)', type: 'text' }, { key: 'layoutTop', label: 'Vertical offset (px)', type: 'text' },
+    { key: 'layoutLayer', label: 'Layer order', type: 'text' },
+  ] }] },
   document: { sections: [{ title: 'Document', fields: [{ key: 'title', label: 'Title', type: 'text' }] }] },
   documentLibrary: { sections: [{ title: 'Document library', fields: [{ key: 'title', label: 'Title', type: 'text' }, { key: 'items', label: 'Documents', type: 'array-items' }] }] },
   audio: { sections: [{ title: 'Audio', fields: [{ key: 'title', label: 'Title', type: 'text' }] }] },
@@ -381,7 +390,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
   const siteSearchEnabled = useProjectsStore((s) => s.projects.find(project => project.id === projectId)?.settings?.siteSearch === 'on')
   const mediaRevision = useProjectsStore((s) => s.projects.find(project => project.id === projectId)?.mediaRevision ?? 0)
   const [media, setMedia] = useState<{ projectId: string; revision: number; images: MediaAsset[] } | null>(null)
-  const imageItems = field.type === 'array-items' && ((field.key === 'images' && (block.type === 'gallery' || block.type === 'image')) || (field.key === 'items' && block.type === 'features') || (field.key === 'members' && block.type === 'team'))
+  const imageItems = field.type === 'array-items' && ((field.key === 'images' && (block.type === 'gallery' || block.type === 'image' || block.type === 'collage')) || (field.key === 'items' && block.type === 'features') || (field.key === 'members' && block.type === 'team'))
   const documentItems = field.type === 'array-items' && block.type === 'documentLibrary' && field.key === 'items'
   const mediaItems = imageItems || documentItems
   const imageKey = block.type === 'features' ? 'image' : block.type === 'team' ? 'avatar' : 'src'
@@ -617,6 +626,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
           features: { items: { title: '', description: '' } },
           image: { images: { src: '', alt: '' } },
           gallery: { images: { src: '', alt: '', caption: '' } },
+          collage: { images: { src: '', alt: '', x: '', y: '', width: '', height: '', layer: '' } },
           documentLibrary: { items: { title: '', description: '', src: '' } },
         }
         return blockTemplates[block.type]?.[field.key] || { title: '', description: '' }
@@ -625,6 +635,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
       return (
         <div className="mb-2.5">
           <label className="block text-[11.5px] text-text-2 mb-1 font-medium">{field.label}</label>
+          {block.type === 'collage' && <p className="mb-1 text-[10px] text-text-3">Select an image on the collage and drag it to move; drag its white corner to resize. Set layer order here; larger numbers appear in front. Positions and sizes are percentages.</p>}
           {block.type === 'navbar' && field.key === 'navItems' && <p className="mb-1 text-[10px] text-text-3">Drag links on the Navbar to change their order.</p>}
           {imageItems && block.type === 'features' && <p className="mb-1 text-[10px] text-text-3">Feature images appear in the alternating layout.</p>}
           {items.map((item, i) => (
@@ -638,9 +649,18 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
                   Remove
                 </button>
               </div>
+              {block.type === 'collage' && <div className="mb-2 flex gap-1">
+                {(['Send to back', 'Bring to front'] as const).map(direction => <button key={direction} type="button" className="rounded border border-border-default px-2 py-1 text-[10px]" onClick={() => {
+                  const order = items.map((value, index) => ({ index, layer: Math.max(1, Math.min(1000, Number(value.layer) || index + 1)) })).sort((a, b) => a.layer - b.layer || a.index - b.index).filter(entry => entry.index !== i)
+                  if (direction === 'Bring to front') order.push({ index: i, layer: 0 })
+                  else order.unshift({ index: i, layer: 0 })
+                  const updated = items.map((value, index) => ({ ...value, layer: String(order.findIndex(entry => entry.index === index) + 1) }))
+                  onChange(updated)
+                }}>{direction}</button>)}
+              </div>}
               {Object.entries(mediaItems && !(imageKey in item) ? { ...item, [imageKey]: '' } : item).filter(([key]) => !(mediaItems && key === 'assetId')).map(([key, val]) => (
                 <div key={key} className="mb-1">
-                  <label className="block text-[10px] text-text-3 mb-0.5">{key}</label>
+                  <label className="block text-[10px] text-text-3 mb-0.5">{block.type === 'collage' ? ({ src: 'Image', alt: 'Image description', x: 'Left (%)', y: 'Top (%)', width: 'Width (%)', height: 'Height (%)', layer: 'Layer order' } as Record<string, string>)[key] ?? key : key}</label>
                   <input
                     type="text"
                     aria-label={`${field.label} item ${i + 1} ${key}`}
@@ -784,6 +804,8 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
             <PropertyField block={block} field={{ key: `section${number}Text`, label: `Section ${number} text`, type: 'textarea' }} />
             <PropertyField block={block} field={{ key: `section${number}Image`, label: `Section ${number} image`, type: 'image' }} />
             <PropertyField block={block} field={{ key: `section${number}Alt`, label: `Section ${number} image description`, type: 'text' }} />
+            <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={block.props[`section${number}Panel`] === true} onChange={event => updateBlockProps(block.id, { [`section${number}Panel`]: event.target.checked })} /> Show this section as a panel</label>
+            {block.props[`section${number}Panel`] === true && <label className="mt-2 block text-xs">Panel color <input type="color" aria-label={`Section ${number} panel color`} value={typeof block.props[`section${number}Color`] === 'string' && /^#[0-9a-f]{6}$/i.test(block.props[`section${number}Color`] as string) ? block.props[`section${number}Color`] as string : '#b9aeb6'} onChange={event => updateBlockProps(block.id, { [`section${number}Color`]: event.target.value })} className="mt-1 block h-9 w-full rounded border border-border-default bg-bg-2 p-1" /></label>}
           </div>
         })}
       </Section>

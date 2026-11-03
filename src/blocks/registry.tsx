@@ -23,6 +23,8 @@ import { GalleryBlock } from './gallery/GalleryBlock'
 import { PdfBlock } from './pdf/PdfBlock'
 import { MediaBlock } from './media/MediaBlock'
 import { DocumentLibraryBlock } from './media/DocumentLibraryBlock'
+import { CollageBlock } from './collage/CollageBlock'
+import { PanelBlock } from './panel/PanelBlock'
 
 // Error boundary for individual blocks
 class BlockErrorBoundary extends Component<
@@ -86,13 +88,15 @@ const blockRenderers: Record<string, React.ComponentType<{ block: BlockConfig }>
   documentLibrary: DocumentLibraryBlock,
   audio: MediaBlock,
   mediaVideo: MediaBlock,
+  collage: CollageBlock,
+  panel: PanelBlock,
 }
 
-export function RenderBlock({ block }: { block: BlockConfig }): ReactNode {
+export function RenderBlock({ block, editable = false }: { block: BlockConfig; editable?: boolean }): ReactNode {
   const Renderer = Object.hasOwn(blockRenderers, block.type) ? blockRenderers[block.type] : PlaceholderBlock
   return (
     <BlockErrorBoundary blockType={block.type}>
-      <Renderer block={block} />
+      {block.type === 'collage' ? <CollageBlock block={block} editable={editable} /> : <Renderer block={block} />}
     </BlockErrorBoundary>
   )
 }
