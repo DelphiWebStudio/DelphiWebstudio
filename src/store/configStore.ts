@@ -36,6 +36,7 @@ interface ConfigState {
   getActivePageBlocks: () => BlockConfig[]
   updateBlock: (id: string, updates: Partial<BlockConfig>) => void
   updateBlockProps: (id: string, props: Record<string, unknown>) => void
+  movePlacedMedia: (fromId: string, toId: string, itemId: string, x: number, y: number, width: number) => void
   addBlock: (block: BlockConfig, index?: number) => void
   removeBlock: (id: string) => void
   duplicateBlock: (id: string) => void
@@ -161,6 +162,33 @@ export const useConfigStore = create<ConfigState>()(
             draft.blocks = (draft.pages!.find(p => p.path === '/') ?? draft.pages![0]).blocks
           }),
         })),
+
+      movePlacedMedia: (fromId, toId, itemId, x, y, width) => set(state => {
+        const page = ensurePages(state.config).find(p => p.id === state.activePageId)
+        const source = page?.blocks.find(b => b.id === fromId)
+        const target = page?.blocks.find(b => b.id === toId)
+        const items = Array.isArray(source?.props.placedMedia) ? source.props.placedMedia : []
+        const item = items.find(value => value && typeof value === 'object' && (value as { id?: unknown }).id === itemId)
+        if (!source || !target || !item || fromId === toId) return state
+        return {
+          ...pushUndo(state, 'Move media'),
+          config: produce(withPages(state.config), draft => {
+            const active = draft.pages!.find(p => p.id === state.activePageId)!
+            const from = active.blocks.find(b => b.id === fromId)!
+            const to = active.blocks.find(b => b.id === toId)!
+            for (const block of draft.pages!.flatMap(p => p.blocks)) {
+              if (block === from || (from.webstudioSharedSectionId && block.webstudioSharedSectionId === from.webstudioSharedSectionId)) {
+                block.props.placedMedia = (Array.isArray(block.props.placedMedia) ? block.props.placedMedia : []).filter(value => !value || typeof value !== 'object' || (value as { id?: unknown }).id !== itemId)
+              }
+              if (block === to || (to.webstudioSharedSectionId && block.webstudioSharedSectionId === to.webstudioSharedSectionId)) {
+                const existing = Array.isArray(block.props.placedMedia) ? block.props.placedMedia : []
+                block.props.placedMedia = [...existing, { ...structuredClone(item as Record<string, unknown>), x, y, width }]
+              }
+            }
+            draft.blocks = (draft.pages!.find(p => p.path === '/') ?? draft.pages![0]).blocks
+          }),
+        }
+      }),
 
       addBlock: (block, index) =>
         set((state) => ({
