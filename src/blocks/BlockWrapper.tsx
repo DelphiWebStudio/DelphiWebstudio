@@ -25,6 +25,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
   })
   const { duplicateBlock, removeBlock, moveBlock, shareSectionAcrossPages, unshareSection } = useConfigStore()
   const { selectedBlockId, selectBlock } = useEditorStore()
+  const selectedSection = useEditorStore(state => state.selectedSection)
   const previewMode = useEditorStore((s) => s.previewMode)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -356,7 +357,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       </div>, document.body)}
 
       {customStyle && <style>{customStyle}</style>}
-      <div data-ws-content><BlockColumns block={block}>{children}</BlockColumns></div>
+      <div data-ws-content><BlockColumns block={block} editable selectedSection={isSelected ? selectedSection : 0} onSelectSection={section => { selectBlock(block.id); useEditorStore.getState().selectSection(section) }}>{children}</BlockColumns></div>
       {resizableLayout && isSelected && ([
         ['nw', 'top-0 left-0 cursor-nwse-resize'], ['n', 'top-0 left-1/2 -translate-x-1/2 cursor-ns-resize'],
         ['ne', 'top-0 right-0 cursor-nesw-resize'], ['e', 'top-1/2 right-0 -translate-y-1/2 cursor-ew-resize'],
