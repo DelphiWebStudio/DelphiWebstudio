@@ -36,6 +36,7 @@ interface ConfigState {
   getActivePageBlocks: () => BlockConfig[]
   updateBlock: (id: string, updates: Partial<BlockConfig>) => void
   updateBlockProps: (id: string, props: Record<string, unknown>) => void
+  editBlockItems: (id: string, field: string, from: number, to: number, operation?: 'move' | 'remove' | 'duplicate') => void
   movePlacedMedia: (fromId: string, toId: string, itemId: string, x: number, y: number, width: number) => void
   addBlock: (block: BlockConfig, index?: number) => void
   removeBlock: (id: string) => void
@@ -162,6 +163,43 @@ export const useConfigStore = create<ConfigState>()(
             draft.blocks = (draft.pages!.find(p => p.path === '/') ?? draft.pages![0]).blocks
           }),
         })),
+
+      editBlockItems: (id, field, from, to, operation = 'move') => {
+        const block = get().getActivePageBlocks().find(item => item.id === id)
+        const items = block?.props[field]
+        if (!block || !Array.isArray(items) || !Number.isInteger(from) || from < 0 || from >= items.length) return
+        if (operation === 'move' && (!Number.isInteger(to) || to < 0 || to >= items.length || from === to)) return
+        const updated = [...items]
+        if (operation === 'remove') updated.splice(from, 1)
+        else if (operation === 'duplicate') updated.splice(from + 1, 0, structuredClone(updated[from]))
+        else { const [moved] = updated.splice(from, 1); updated.splice(to, 0, moved) }
+        const changes: Record<string, unknown> = { [field]: updated }
+        const text = block.props.textAdjustments && typeof block.props.textAdjustments === 'object' && !Array.isArray(block.props.textAdjustments) ? block.props.textAdjustments as Record<string, unknown> : {}
+        const images = block.props.imageAdjustments && typeof block.props.imageAdjustments === 'object' && !Array.isArray(block.props.imageAdjustments) ? block.props.imageAdjustments as Record<string, unknown> : {}
+        if (Object.keys(text).length || Object.keys(images).length) {
+          const wrapper = typeof document === 'undefined' ? undefined : Array.from(document.querySelectorAll('[data-webstudio-block-id]')).find(element => element.getAttribute('data-webstudio-block-id') === id)
+          const clone = wrapper?.cloneNode(true) as HTMLElement | undefined
+          const cards = Array.from(clone?.querySelectorAll<HTMLElement>('[data-ws-item-field][data-ws-item-index]') ?? []).filter(element => element.dataset.wsItemField === field)
+          const source = cards.find(element => Number(element.dataset.wsItemIndex) === from), target = cards.find(element => Number(element.dataset.wsItemIndex) === to)
+          if (cards.length !== items.length || !source || (operation === 'move' && (!target || source.parentElement !== target.parentElement))) throw new Error('This layout cannot yet change items with individual formatting; no data was changed.')
+          const removedText = operation === 'remove' ? Array.from(source.querySelectorAll<HTMLElement>('[data-ws-text-key]')).map(element => element.dataset.wsTextKey ?? '') : []
+          const removedImages = operation === 'remove' ? Array.from(source.querySelectorAll<HTMLElement>('img[data-ws-image-index]')).map(element => element.dataset.wsImageIndex ?? '') : []
+          if (operation === 'remove' && source.dataset.wsTextKey !== undefined) removedText.push(source.dataset.wsTextKey)
+          if (operation === 'remove') source.remove()
+          else if (operation === 'duplicate') source.parentElement!.insertBefore(source.cloneNode(true), source.nextSibling)
+          else target!.parentElement!.insertBefore(source, from < to ? target!.nextSibling : target!)
+          const textMap: Record<string, string[]> = {}, imageMap: Record<string, string[]> = {}, counts: Record<string, number> = {}
+          clone!.querySelectorAll<HTMLElement>('[data-ws-content] [data-ws-text-key]').forEach(element => {
+            const tag = element.tagName.toLowerCase(), oldKey = element.dataset.wsTextKey ?? '', index = counts[tag] ?? 0
+            counts[tag] = index + 1; (textMap[oldKey] ??= []).push(`${tag}-${index}`)
+          })
+          clone!.querySelectorAll<HTMLElement>('[data-ws-content] img').forEach((element, index) => { if (element.dataset.wsImageIndex !== undefined) (imageMap[element.dataset.wsImageIndex] ??= []).push(String(index)) })
+          if (Object.keys(text).some(key => textMap[key] === undefined && !removedText.includes(key)) || Object.keys(images).some(key => imageMap[key] === undefined && !removedImages.includes(key))) throw new Error('Some adjusted items are not visible in this layout; no data was changed.')
+          if (Object.keys(text).length) changes.textAdjustments = Object.fromEntries(Object.entries(text).flatMap(([key, value]) => (textMap[key] ?? []).map(next => [next, value])))
+          if (Object.keys(images).length) changes.imageAdjustments = Object.fromEntries(Object.entries(images).flatMap(([key, value]) => (imageMap[key] ?? []).map(next => [next, value])))
+        }
+        get().updateBlockProps(id, changes)
+      },
 
       movePlacedMedia: (fromId, toId, itemId, x, y, width) => set(state => {
         const page = ensurePages(state.config).find(p => p.id === state.activePageId)

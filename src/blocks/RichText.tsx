@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { useConfigStore } from '@/store/configStore'
 import { renderMarkdown } from '@/lib/markdown'
 import { chooseWindowsFont } from '@/desktop/native-bridge'
+import { WindowsColorInput } from '@/editor/WindowsColorInput'
 
 type Run = { text: string; font?: string; size?: number; color?: string; bold?: boolean; italic?: boolean; underline?: boolean; href?: string }
 type Props = { blockId: string; field: string; text: string; value: unknown; editable?: boolean; multiline?: boolean; markdown?: boolean; position?: { x: number; y: number }; fill?: boolean }
@@ -137,6 +138,10 @@ export function RichText({ blockId, field, text, value, editable = false, multil
   const Outer = multiline ? 'div' : 'span'
   const x = Number.isFinite(position?.x) ? Math.max(-2000, Math.min(2000, position!.x)) : 0
   const y = Number.isFinite(position?.y) ? Math.max(-2000, Math.min(2000, position!.y)) : 0
+  const colorNode = menu ? savedRange.current?.startContainer : null
+  const colorElement = colorNode ? (colorNode instanceof Element ? colorNode : colorNode.parentElement) : null
+  const colorParts = colorElement ? getComputedStyle(colorElement).color.match(/\d+/g)?.slice(0, 3) : null
+  const selectedColor = colorParts?.length === 3 ? `#${colorParts.map(value => Math.min(255, Number(value)).toString(16).padStart(2, '0')).join('')}` : '#000000'
   const updatePosition = (nextX: number, nextY: number) => useConfigStore.getState().updateBlockProps(blockId, { [`${field}OffsetX`]: Math.round(Math.max(-2000, Math.min(2000, nextX))), [`${field}OffsetY`]: Math.round(Math.max(-2000, Math.min(2000, nextY))) })
   return <>
     <Outer data-text-position={position ? field : undefined} className={position && editable ? 'group/text relative inline-block' : undefined} style={position ? { display: 'inline-block', position: 'relative', transform: `translate(${x}px, ${y}px)` } : fill && editable ? { display: 'flex', flex: '1 1 auto' } : undefined}>
@@ -257,7 +262,7 @@ export function RichText({ blockId, field, text, value, editable = false, multil
         }}>Font...</button>}
         <label className="mb-2 block text-xs">Font<select aria-label="Text font" defaultValue="" className="mt-1 w-full rounded border border-gray-400 p-1" onChange={event => { if (event.target.value) apply({ fontFamily: event.target.value }) }}><option value="">Choose font</option>{['Arial', 'Calibri', 'Georgia', 'Tahoma', 'Times New Roman', 'Verdana'].map(font => <option key={font}>{font}</option>)}</select></label>
         <label className="mb-2 block text-xs">Font size (px)<input aria-label="Text font size" type="number" min="6" max="200" className="mt-1 w-full rounded border border-gray-400 p-1" onChange={event => { const size = Number(event.target.value); if (size >= 6 && size <= 200) apply({ fontSize: `${size}px` }) }} /></label>
-        <label className="mb-2 flex items-center justify-between text-xs">Text color<input aria-label="Text color" type="color" defaultValue="#000000" onChange={event => apply({ color: event.target.value })} /></label>
+        <div className="mb-2 flex items-center justify-between text-xs">Text color<WindowsColorInput label="Text color" value={selectedColor} onChange={value => { apply({ color: value }); setMenu({ ...menu }) }} className="h-7 w-10 rounded border border-gray-400" /></div>
         <div className="flex gap-2"><button type="button" className="rounded border border-gray-400 px-2 py-1 font-bold" onMouseDown={event => event.preventDefault()} onClick={() => apply({ fontWeight: 'bold' })}>Bold</button><button type="button" className="rounded border border-gray-400 px-2 py-1 italic" onMouseDown={event => event.preventDefault()} onClick={() => apply({ fontStyle: 'italic' })}>Italic</button><button type="button" className="rounded border border-gray-400 px-2 py-1 underline" onMouseDown={event => event.preventDefault()} onClick={() => apply({ textDecoration: 'underline' })}>Underline</button></div>
       </>}
       <button type="button" className="mt-2 rounded border border-gray-400 px-2 py-1" onClick={close}>Done</button>

@@ -69,6 +69,11 @@ object MainForm: TMainForm
     Left = 920
     Top = 48
   end
+  object EditorColorDialog: TColorDialog
+    Options = [cdFullOpen]
+    Left = 984
+    Top = 48
+  end
   object RecoveryOpenDialog: TOpenDialog
     Filter = 'WebStudio staged files|.webstudio-download-*.tmp'
     Options = [ofHideReadOnly, ofNoChangeDir, ofFileMustExist, ofPathMustExist, ofEnableSizing]

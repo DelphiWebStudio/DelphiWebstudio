@@ -7,6 +7,26 @@ type NativeWebView = {
   removeEventListener(type: 'message', listener: (event: MessageEvent) => void): void
 }
 
+export async function chooseWindowsColor(color: string): Promise<string | null> {
+  const webview = (window as unknown as { chrome?: { webview?: NativeWebView } }).chrome?.webview
+  if (window.location.origin !== 'https://webstudio.local' || !webview || !/^#[0-9a-f]{6}$/i.test(color)) throw new Error('The Windows color dialog is unavailable.')
+  const requestId = crypto.randomUUID()
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => { webview.removeEventListener('message', receive); reject(new Error('The Windows color dialog did not respond.')) }, 600000)
+    function receive(event: MessageEvent) {
+      const reply = event.data as NativeMessage | null
+      if (!reply || reply.version !== 1 || reply.kind !== 'ui.color' || reply.requestId !== requestId) return
+      window.clearTimeout(timer); webview!.removeEventListener('message', receive)
+      if (reply.accepted === false) resolve(null)
+      else if (reply.accepted === true && typeof reply.color === 'string' && /^#[0-9a-f]{6}$/i.test(reply.color)) resolve(reply.color)
+      else reject(new Error('The Windows color dialog returned invalid values.'))
+    }
+    webview.addEventListener('message', receive)
+    try { webview.postMessage({ version: 1, kind: 'ui.color', requestId, color }) }
+    catch { window.clearTimeout(timer); webview.removeEventListener('message', receive); reject(new Error('The Windows color dialog could not be opened.')) }
+  })
+}
+
 export async function chooseWindowsFont(font: { font: string; size: number; color: string; bold: boolean; italic: boolean; underline: boolean }): Promise<typeof font | null> {
   const webview = (window as unknown as { chrome?: { webview?: NativeWebView } }).chrome?.webview
   if (window.location.origin !== 'https://webstudio.local' || !webview) throw new Error('The Windows font dialog is unavailable.')

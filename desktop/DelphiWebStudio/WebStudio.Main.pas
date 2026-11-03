@@ -16,6 +16,7 @@ type
     EditorBrowser: TEdgeBrowser;
     SaveDownloadDialog: TSaveDialog;
     TextFontDialog: TFontDialog;
+    EditorColorDialog: TColorDialog;
     ProjectSaveDialog: TSaveDialog;
     RecoveryOpenDialog: TOpenDialog;
     RecoverySaveDialog: TSaveDialog;
@@ -416,6 +417,26 @@ begin
       if not (Parsed is TJSONObject) then Exit;
       Obj := TJSONObject(Parsed);
       if Obj.TryGetValue<string>('kind', Kind) then begin
+        if Kind = 'ui.color' then begin
+          if not ((SourceText = 'https://webstudio.local/index.html') or SourceText.StartsWith('https://webstudio.local/index.html#/')) or
+             (Obj.Count <> 4) or not (Obj.GetValue('version') is TJSONNumber) or (Obj.GetValue('version').Value <> '1') or
+             not (Obj.GetValue('requestId') is TJSONString) or not Obj.TryGetValue<string>('requestId', RequestId) or
+             not TRegEx.IsMatch(RequestId, '^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$') or
+             not (Obj.GetValue('color') is TJSONString) or not Obj.TryGetValue<string>('color', ColorText) or
+             not TRegEx.IsMatch(ColorText, '^#[0-9a-fA-F]{6}$') then Exit;
+          EditorColorDialog.Color := RGB(StrToInt('$' + Copy(ColorText, 2, 2)), StrToInt('$' + Copy(ColorText, 4, 2)), StrToInt('$' + Copy(ColorText, 6, 2)));
+          Reply := TJSONObject.Create;
+          try
+            Reply.AddPair('version', TJSONNumber.Create(1)); Reply.AddPair('kind', Kind); Reply.AddPair('requestId', RequestId);
+            if EditorColorDialog.Execute then begin
+              ColorValue := ColorToRGB(EditorColorDialog.Color);
+              Reply.AddPair('accepted', TJSONBool.Create(True));
+              Reply.AddPair('color', Format('#%.2x%.2x%.2x', [GetRValue(ColorValue), GetGValue(ColorValue), GetBValue(ColorValue)]));
+            end else Reply.AddPair('accepted', TJSONBool.Create(False));
+            Sender.DefaultInterface.PostWebMessageAsJson(PWideChar(Reply.ToJSON));
+          finally Reply.Free end;
+          Exit;
+        end;
         if Kind = 'ui.font' then begin
           if not ((SourceText = 'https://webstudio.local/index.html') or SourceText.StartsWith('https://webstudio.local/index.html#/')) or
              (Obj.Count <> 9) or not (Obj.GetValue('version') is TJSONNumber) or (Obj.GetValue('version').Value <> '1') or

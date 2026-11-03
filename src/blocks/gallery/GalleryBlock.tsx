@@ -42,7 +42,7 @@ export function GalleryBlock({ block }: { block: BlockConfig }) {
         {title && <h2 className="reveal-fade-up reveal-d1 text-2xl font-display font-semibold mb-6 text-center">{title}</h2>}
         <div className="grid grid-cols-2 @lg:grid-cols-3 auto-rows-[160px] gap-3">
           {images.map((img, i) => (
-            <div key={i} className={`reveal-scale reveal-d${Math.min(i + 2, 8)}`}>
+            <div key={i} data-ws-item-field="images" data-ws-item-index={i} className={`reveal-scale reveal-d${Math.min(i + 2, 8)}`}>
               <ImageCard image={img} tall={i % 3 === 0} />
             </div>
           ))}
@@ -57,7 +57,7 @@ export function GalleryBlock({ block }: { block: BlockConfig }) {
       {title && <h2 className="reveal-fade-up reveal-d1 text-2xl font-display font-semibold mb-6 text-center">{title}</h2>}
       <div className="grid grid-cols-2 @lg:grid-cols-3 gap-3">
         {images.map((img, i) => (
-          <div key={i} className={`reveal-scale reveal-d${Math.min(i + 2, 8)}`}>
+          <div key={i} data-ws-item-field="images" data-ws-item-index={i} className={`reveal-scale reveal-d${Math.min(i + 2, 8)}`}>
             <ImageCard image={img} />
           </div>
         ))}

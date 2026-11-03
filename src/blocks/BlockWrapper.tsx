@@ -28,7 +28,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
   const { selectedBlockId, selectBlock } = useEditorStore()
   const selectedSection = useEditorStore(state => state.selectedSection)
   const previewMode = useEditorStore((s) => s.previewMode)
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item?: { field: string; index: number } } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<{ kind: 'move' | 'resize'; direction: string; x: number; y: number; width: number; left: number; top: number; height: number; pageWidth: number; minTop: number } | null>(null)
   const imageDragRef = useRef<{ index: string; x: number; y: number; left: number; top: number; originalStyle: string; element: HTMLImageElement } | null>(null)
@@ -95,6 +95,11 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
     revealRef.current?.querySelectorAll('[data-ws-content] img').forEach((image, imageIndex) => {
       image.setAttribute('data-ws-image-index', String(imageIndex))
     })
+    if (!previewMode) revealRef.current?.querySelectorAll<HTMLElement>('[data-ws-item-field][data-ws-item-index]').forEach(element => {
+      const field = element.dataset.wsItemField ?? ''
+      const index = Number(element.dataset.wsItemIndex)
+      if (Array.isArray(block.props[field]) && Number.isInteger(index) && index >= 0 && index < (block.props[field] as unknown[]).length) { element.draggable = true; element.title = 'Drag to reorder; right-click for item actions' }
+    })
     const counts: Record<string, number> = {}
     revealRef.current?.querySelectorAll('[data-ws-content] :is(h1,h2,h3,h4,h5,h6,p,span,a,li,label)').forEach(element => {
       const tag = element.tagName.toLowerCase()
@@ -102,7 +107,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       counts[tag] = ordinal + 1
       element.setAttribute('data-ws-text-key', `${tag}-${ordinal}`)
     })
-  }, [children, revealRef])
+  }, [children, revealRef, block.props, previewMode])
 
   const scope = `ws-${index}`
   const selector = `[data-ws-scope="${scope}"] [data-ws-content]`
@@ -133,9 +138,14 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
     if (!/^(h[1-6]|p|span|a|li|label)-\d{1,4}$/.test(key) || !value || typeof value !== 'object' || Array.isArray(value)) return []
     const size = Number(value.size)
     const color = typeof value.color === 'string' && /^#[0-9a-f]{6}$/i.test(value.color) ? value.color : ''
+    const font = typeof value.font === 'string' && /^[\p{L}\p{N} ,._-]{1,100}$/u.test(value.font) ? value.font : ''
     const declarations = [
-      Number.isFinite(size) && size >= 8 && size <= 200 ? `font-size:${size}px!important` : '',
+      Number.isFinite(size) && size >= 6 && size <= 200 ? `font-size:${size}px!important` : '',
       color ? `color:${color}!important` : '',
+      font ? `font-family:"${font}"!important` : '',
+      typeof value.bold === 'boolean' ? `font-weight:${value.bold ? 'bold' : 'normal'}!important` : '',
+      typeof value.italic === 'boolean' ? `font-style:${value.italic ? 'italic' : 'normal'}!important` : '',
+      typeof value.underline === 'boolean' ? `text-decoration:${value.underline ? 'underline' : 'none'}!important` : '',
     ].filter(Boolean).join(';')
     return declarations ? [`${selector} [data-ws-text-key="${key}"]{${declarations}}`] : []
   }).join('')
@@ -232,6 +242,13 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
           onSelect()
           return
         }
+        if (event.target instanceof Element) {
+          const item = event.target.closest<HTMLElement>('[data-ws-item-field][data-ws-item-index]')
+          if (item?.draggable && event.currentTarget.contains(item)) {
+            event.dataTransfer.setData('application/x-webstudio-composite-item', JSON.stringify({ block: block.id, field: item.dataset.wsItemField, index: Number(item.dataset.wsItemIndex) }))
+            event.dataTransfer.effectAllowed = 'move'; event.stopPropagation(); onSelect(); return
+          }
+        }
         if (block.type !== 'navbar' || !(event.target instanceof Element)) return
         const link = event.target.closest('[data-ws-nav-index]')
         if (!link || !event.currentTarget.contains(link)) return
@@ -241,12 +258,25 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         onSelect()
       }}
       onDragOver={event => {
+        if (event.dataTransfer.types.includes('application/x-webstudio-composite-item') && event.target instanceof Element && event.target.closest('[data-ws-item-field][data-ws-item-index]')) { event.preventDefault(); event.stopPropagation(); event.dataTransfer.dropEffect = 'move'; return }
         if (block.type !== 'navbar' || !event.dataTransfer.types.includes('application/x-webstudio-navbar-link')) return
         event.preventDefault()
         event.stopPropagation()
         event.dataTransfer.dropEffect = 'move'
       }}
       onDrop={event => {
+        if (event.dataTransfer.types.includes('application/x-webstudio-composite-item') && event.target instanceof Element) {
+          const target = event.target.closest<HTMLElement>('[data-ws-item-field][data-ws-item-index]')
+          if (!target || !event.currentTarget.contains(target)) return
+          event.preventDefault(); event.stopPropagation()
+          try {
+            const source = JSON.parse(event.dataTransfer.getData('application/x-webstudio-composite-item')) as { block: string; field: string; index: number }
+            const to = Number(target.dataset.wsItemIndex), field = target.dataset.wsItemField ?? '', items = block.props[field]
+            if (source.block !== block.id || source.field !== field || !Array.isArray(items) || !Number.isInteger(source.index) || source.index < 0 || source.index >= items.length || !Number.isInteger(to) || to < 0 || to >= items.length || source.index === to) return
+            useConfigStore.getState().editBlockItems(block.id, field, source.index, to)
+          } catch (error) { toast.error(error instanceof Error ? error.message : 'The item could not be moved.') }
+          return
+        }
         if (block.type !== 'navbar' || !event.dataTransfer.types.includes('application/x-webstudio-navbar-link') || !(event.target instanceof Element)) return
         event.preventDefault()
         event.stopPropagation()
@@ -270,7 +300,10 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         event.preventDefault()
         event.stopPropagation()
         onSelect()
-        setContextMenu({ x: event.clientX, y: event.clientY })
+        const element = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-ws-item-field][data-ws-item-index]') : null
+        const field = element?.dataset.wsItemField ?? '', itemIndex = Number(element?.dataset.wsItemIndex), items = block.props[field]
+        const item = element && Array.isArray(items) && Number.isInteger(itemIndex) && itemIndex >= 0 && itemIndex < items.length ? { field, index: itemIndex } : undefined
+        setContextMenu({ x: event.clientX, y: event.clientY, item })
       }}
       onPointerDown={event => {
         if (!imageLayout && block.type !== 'collage' && event.button === 0 && event.target instanceof HTMLImageElement && event.target.closest('[data-ws-content]')) {
@@ -391,6 +424,25 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         style={{ left: contextMenu.x, top: contextMenu.y }}
         onClick={event => event.stopPropagation()} onContextMenu={event => event.preventDefault()}
       >
+        {contextMenu.item && <>
+          <div className="px-3 pt-1 text-xs font-semibold">Item</div>
+          {([-1, 1] as const).map(delta => <button key={delta} type="button" role="menuitem" disabled={contextMenu.item!.index + delta < 0 || contextMenu.item!.index + delta >= (block.props[contextMenu.item!.field] as unknown[]).length} className="flex w-full rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100 disabled:opacity-40" onClick={() => {
+            const item = contextMenu.item!; setContextMenu(null)
+            try { useConfigStore.getState().editBlockItems(block.id, item.field, item.index, item.index + delta) }
+            catch (error) { toast.error(error instanceof Error ? error.message : 'The item could not be moved.') }
+          }}>Move item {delta < 0 ? 'up' : 'down'}</button>)}
+          <button type="button" role="menuitem" className="flex w-full rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100" onClick={() => {
+            const item = contextMenu.item!; setContextMenu(null)
+            try { useConfigStore.getState().editBlockItems(block.id, item.field, item.index, item.index, 'duplicate') }
+            catch (error) { toast.error(error instanceof Error ? error.message : 'The item could not be duplicated.') }
+          }}>Duplicate item</button>
+          <button type="button" role="menuitem" className="flex w-full rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100" onClick={() => {
+            const item = contextMenu.item!; setContextMenu(null)
+            try { useConfigStore.getState().editBlockItems(block.id, item.field, item.index, item.index, 'remove') }
+            catch (error) { toast.error(error instanceof Error ? error.message : 'The item could not be removed.') }
+          }}>Remove item</button>
+          <div className="mt-1 border-t border-gray-300 px-3 pt-1 text-xs font-semibold">Block</div>
+        </>}
         <button type="button" role="menuitem" disabled={isFirst} className="flex w-full items-center gap-2 rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100 disabled:opacity-40" onClick={() => { setContextMenu(null); moveBlock(index, index - 1) }}><ChevronUp size={15} />Move up</button>
         <button type="button" role="menuitem" disabled={isLast} className="flex w-full items-center gap-2 rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100 disabled:opacity-40" onClick={() => { setContextMenu(null); moveBlock(index, index + 1) }}><ChevronDown size={15} />Move down</button>
         <button type="button" role="menuitem" className="flex w-full items-center gap-2 rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100" onClick={() => { setContextMenu(null); duplicateBlock(block.id) }}><Copy size={15} />Duplicate</button>

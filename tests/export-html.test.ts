@@ -19,6 +19,17 @@ const baseConfig: SiteConfig = {
 }
 
 describe('exportSiteToHTML', () => {
+  it('exports safe font choices for individual composite text', () => {
+    const block = { id: 'features', type: 'features' as const, variant: 'grid', props: { title: 'Features', items: [{ title: 'Alpha', description: 'Details' }], textAdjustments: { 'h3-0': { font: 'Arial', size: 22, color: '#123456', bold: false, italic: true, underline: true } } } }
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
+    expect(html).toContain('font-family:"Arial"!important')
+    expect(html).toContain('font-size:22px!important')
+    expect(html).toContain('font-weight:normal!important')
+    expect(html).toContain('font-style:italic!important')
+    expect(html).toContain('text-decoration:underline!important')
+    const unsafe = exportSiteToHTML({ ...baseConfig, blocks: [{ ...block, props: { ...block.props, textAdjustments: { 'h3-0': { font: 'Arial;display:none' } } } }] })
+    expect(unsafe).not.toContain('font-family:"Arial;display:none"')
+  })
   it('preserves explicit regular text styles inside a bold Hero heading', () => {
     const block = { id: 'hero', type: 'hero' as const, variant: 'centered', props: { headline: 'Regular', headlineRich: [{ text: 'Regular', bold: false, italic: false, underline: false }] } }
     const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
