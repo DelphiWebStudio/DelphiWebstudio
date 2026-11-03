@@ -19,6 +19,14 @@ const baseConfig: SiteConfig = {
 }
 
 describe('exportSiteToHTML', () => {
+  it('exports the selected paragraph alignment for section and Hero text', () => {
+    const block = { id: 'hero', type: 'hero' as const, variant: 'centered', props: { headline: 'Welcome', headlineAlign: 'right', sectionCount: 2, section2Text: 'Second section', section2TextAlign: 'center' } }
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
+    expect(html).toContain('text-align:right')
+    expect(html).toContain('text-align:center')
+    const unsafe = exportSiteToHTML({ ...baseConfig, blocks: [{ ...block, props: { ...block.props, section2TextAlign: 'left;display:none' } }] })
+    expect(unsafe).not.toContain('left;display:none')
+  })
   it('exports safe font choices for individual composite text', () => {
     const block = { id: 'features', type: 'features' as const, variant: 'grid', props: { title: 'Features', items: [{ title: 'Alpha', description: 'Details' }], textAdjustments: { 'h3-0': { font: 'Arial', size: 22, color: '#123456', bold: false, italic: true, underline: true } } } }
     const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })

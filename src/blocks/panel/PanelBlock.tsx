@@ -10,7 +10,7 @@ export function PanelBlock({ block, editable = false }: { block: BlockConfig; ed
   const height = Number(props.layoutHeight)
   return <section className="rounded-2xl p-4" style={{ minHeight: Number.isFinite(height) && height > 0 ? Math.max(40, Math.min(2000, height)) : undefined }}>
     {src && <img src={src} alt={alt} draggable={false} className="mx-auto max-w-full h-auto mb-3" />}
-    {(title || editable) && <h2 className="text-xl font-semibold mb-3"><RichText blockId={block.id} field="title" text={title} value={props.titleRich} editable={editable} /></h2>}
-    <RichText blockId={block.id} field="body" text={body} value={props.bodyRich} editable={editable} multiline markdown />
+    {(title || editable) && <h2 className="text-xl font-semibold mb-3"><RichText blockId={block.id} field="title" text={title} value={props.titleRich} alignment={props.titleAlign} editable={editable} /></h2>}
+    <RichText blockId={block.id} field="body" text={body} value={props.bodyRich} alignment={props.bodyAlign} editable={editable} multiline markdown />
   </section>
 }

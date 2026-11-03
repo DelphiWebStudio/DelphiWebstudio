@@ -1,4 +1,4 @@
-import { createElement, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createElement, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { useConfigStore } from '@/store/configStore'
@@ -7,14 +7,15 @@ import { chooseWindowsFont } from '@/desktop/native-bridge'
 import { WindowsColorInput } from '@/editor/WindowsColorInput'
 
 type Run = { text: string; font?: string; size?: number; color?: string; bold?: boolean; italic?: boolean; underline?: boolean; href?: string }
-type Props = { blockId: string; field: string; text: string; value: unknown; editable?: boolean; multiline?: boolean; markdown?: boolean; position?: { x: number; y: number }; fill?: boolean }
+type Props = { blockId: string; field: string; text: string; value: unknown; editable?: boolean; multiline?: boolean; markdown?: boolean; position?: { x: number; y: number }; fill?: boolean; alignment?: unknown }
 let draggedText: { element: HTMLElement; range: Range } | null = null
 
-export function RichText({ blockId, field, text, value, editable = false, multiline = false, markdown = false, position, fill = false }: Props) {
+export function RichText({ blockId, field, text, value, editable = false, multiline = false, markdown = false, position, fill = false, alignment }: Props) {
   const root = useRef<HTMLElement>(null)
   const dirty = useRef(false)
   const savedRange = useRef<Range | null>(null)
   const menuActive = useRef(false)
+  const menuElement = useRef<HTMLDivElement>(null)
   const moveRef = useRef<{ startX: number; startY: number; x: number; y: number } | null>(null)
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const [clipboardError, setClipboardError] = useState('')
@@ -62,7 +63,10 @@ export function RichText({ blockId, field, text, value, editable = false, multil
     if (!range || range.collapsed || !root.current?.contains(range.commonAncestorContainer)) return
     const span = document.createElement('span')
     Object.assign(span.style, style)
-    span.appendChild(range.extractContents())
+    span.setAttribute('data-rich-run', '')
+    const fragment = range.extractContents()
+    fragment.querySelectorAll<HTMLElement>('*').forEach(element => Object.assign(element.style, style))
+    span.appendChild(fragment)
     range.insertNode(span)
     dirty.current = true
     const next = document.createRange()
@@ -111,6 +115,15 @@ export function RichText({ blockId, field, text, value, editable = false, multil
     setMenu(null)
     save()
   }
+  useLayoutEffect(() => {
+    const element = menuElement.current
+    if (!menu || !element) return
+    const bounds = element.getBoundingClientRect()
+    element.style.left = `${Math.max(0, Math.min(menu.x, window.innerWidth - bounds.width))}px`
+    element.style.top = `${Math.max(0, Math.min(menu.y, window.innerHeight - bounds.height))}px`
+    element.style.maxHeight = `${window.innerHeight}px`
+    element.style.overflowY = 'auto'
+  }, [menu])
   useEffect(() => {
     if (!menu) return
     const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') close() }
@@ -136,6 +149,7 @@ export function RichText({ blockId, field, text, value, editable = false, multil
 
   const Tag = multiline ? 'div' : 'span'
   const Outer = multiline ? 'div' : 'span'
+  const textAlign = alignment === 'left' || alignment === 'center' || alignment === 'right' || alignment === 'justify' ? alignment : undefined
   const x = Number.isFinite(position?.x) ? Math.max(-2000, Math.min(2000, position!.x)) : 0
   const y = Number.isFinite(position?.y) ? Math.max(-2000, Math.min(2000, position!.y)) : 0
   const colorNode = menu ? savedRange.current?.startContainer : null
@@ -144,7 +158,7 @@ export function RichText({ blockId, field, text, value, editable = false, multil
   const selectedColor = colorParts?.length === 3 ? `#${colorParts.map(value => Math.min(255, Number(value)).toString(16).padStart(2, '0')).join('')}` : '#000000'
   const updatePosition = (nextX: number, nextY: number) => useConfigStore.getState().updateBlockProps(blockId, { [`${field}OffsetX`]: Math.round(Math.max(-2000, Math.min(2000, nextX))), [`${field}OffsetY`]: Math.round(Math.max(-2000, Math.min(2000, nextY))) })
   return <>
-    <Outer data-text-position={position ? field : undefined} className={position && editable ? 'group/text relative inline-block' : undefined} style={position ? { display: 'inline-block', position: 'relative', transform: `translate(${x}px, ${y}px)` } : fill && editable ? { display: 'flex', flex: '1 1 auto' } : undefined}>
+    <Outer data-text-position={position ? field : undefined} className={position && editable ? 'group/text relative inline-block' : undefined} style={position ? { display: 'inline-block', position: 'relative', transform: `translate(${x}px, ${y}px)`, ...(textAlign ? { width: '100%', textAlign } : {}) } : { ...(fill && editable ? { display: 'flex', flex: '1 1 auto' } : {}), ...(textAlign ? { display: fill && editable ? 'flex' : 'block', width: '100%', textAlign } : {}) }}>
     <Tag ref={(element: HTMLElement | null) => { root.current = element }} data-rich-editor={editable ? field : undefined} role={editable ? 'textbox' : undefined} aria-label={editable ? `Edit ${field}` : undefined} aria-multiline={editable && multiline ? true : undefined} contentEditable={editable || undefined} suppressContentEditableWarning style={{ whiteSpace: 'pre-wrap', ...(editable && multiline ? { display: 'block', minHeight: '3em', cursor: 'text', ...(fill ? { flex: 1 } : {}) } : {}) }}
       onBlur={() => { if (!menuActive.current && !draggedText) save() }}
       onInput={() => { dirty.current = true }}
@@ -222,7 +236,7 @@ export function RichText({ blockId, field, text, value, editable = false, multil
       onPointerUp={event => { const move = moveRef.current; if (move) { moveRef.current = null; updatePosition(move.x + event.clientX - move.startX, move.y + event.clientY - move.startY) } }}
       onKeyDown={event => { const delta = event.shiftKey ? 10 : 1; const dx = event.key === 'ArrowLeft' ? -delta : event.key === 'ArrowRight' ? delta : 0; const dy = event.key === 'ArrowUp' ? -delta : event.key === 'ArrowDown' ? delta : 0; if (dx || dy) { event.preventDefault(); event.stopPropagation(); updatePosition(x + dx, y + dy) } }}>Move</button>}
     </Outer>
-    {menu && createPortal(<div data-rich-menu role="menu" aria-label="Text formatting" className="fixed z-[10001] w-56 rounded border border-gray-400 bg-white p-2 text-sm text-black shadow-lg" style={{ left: menu.x, top: menu.y }} onContextMenu={event => event.preventDefault()} onClick={event => event.stopPropagation()}>
+    {menu && createPortal(<div ref={menuElement} data-rich-menu role="menu" aria-label="Text formatting" className="fixed z-[10001] w-56 rounded border border-gray-400 bg-white p-2 text-sm text-black shadow-lg" style={{ left: menu.x, top: menu.y }} onContextMenu={event => event.preventDefault()} onClick={event => event.stopPropagation()}>
       <div className="mb-2 flex flex-wrap gap-1 border-b border-gray-300 pb-2">
         <button type="button" className="rounded border border-gray-400 px-2 py-1" onMouseDown={event => event.preventDefault()} onClick={() => {
           if (!root.current) return
@@ -248,6 +262,11 @@ export function RichText({ blockId, field, text, value, editable = false, multil
         }}>Paste</button>
       </div>
       {clipboardError && <p role="status" className="mb-2 text-xs">{clipboardError}</p>}
+      <div className="mb-2 flex flex-wrap gap-1 border-b border-gray-300 pb-2" aria-label="Paragraph alignment">
+        {(['left', 'center', 'right', 'justify'] as const).map(align => <button key={align} type="button" aria-label={`Align ${align}`} aria-pressed={textAlign === align} className="rounded border border-gray-400 px-2 py-1 capitalize" onMouseDown={event => event.preventDefault()} onClick={() => {
+          save(); useConfigStore.getState().updateBlockProps(blockId, { [`${field}Align`]: align }); close()
+        }}>{align}</button>)}
+      </div>
       {!savedRange.current || savedRange.current.collapsed ? <p className="mb-2 text-xs">Select text to format it.</p> : <>
         {window.location.origin === 'https://webstudio.local' && <button type="button" className="mb-2 w-full rounded border border-gray-400 px-2 py-1 text-left" onMouseDown={event => event.preventDefault()} onClick={async () => {
           const node = savedRange.current?.startContainer

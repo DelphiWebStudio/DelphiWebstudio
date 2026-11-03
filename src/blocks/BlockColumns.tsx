@@ -21,7 +21,7 @@ export function BlockColumns({ block, children, editable = false, selectedSectio
       return <div key={number} className={`min-w-0 p-4 relative ${editable ? 'flex flex-col' : ''}`} data-editor-section={editable ? String(number) : undefined} role={editable ? 'group' : undefined} aria-label={editable ? `Section ${number}` : undefined} tabIndex={editable ? 0 : undefined} onClick={editable ? () => onSelectSection?.(number) : undefined} onKeyDown={editable ? event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); event.stopPropagation(); onSelectSection?.(number) } } : undefined} style={{ ...(panel ? { backgroundColor: color, borderRadius: '1rem' } : {}), ...(editable ? { minHeight: '80px', paddingTop: '2rem', borderLeft: '1px solid #c3c7cb' } : {}) }}>
         {editable && <span aria-hidden="true" className="absolute top-1 left-2 z-20 rounded bg-[#005a9e] px-2 py-1 text-xs text-white pointer-events-none" style={{ opacity: selectedSection === number ? 1 : 0.7 }}>Section {number}</span>}
         {image && <img src={image} alt={alt} className="max-w-full h-auto" />}
-        <RichText blockId={block.id} field={`section${number}Text`} text={text} value={block.props[`section${number}TextRich`]} editable={editable} multiline markdown fill />
+        <RichText blockId={block.id} field={`section${number}Text`} text={text} value={block.props[`section${number}TextRich`]} alignment={block.props[`section${number}TextAlign`]} editable={editable} multiline markdown fill />
       </div>
     })}
   </div>
