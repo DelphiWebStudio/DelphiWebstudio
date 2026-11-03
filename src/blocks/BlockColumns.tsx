@@ -2,6 +2,7 @@ import { useRef, useState, type CSSProperties, type PointerEvent, type ReactNode
 import { useConfigStore } from '@/store/configStore'
 import type { BlockConfig } from './types'
 import { RichText } from './RichText'
+import { SectionObjects } from './SectionObjects'
 
 export function BlockColumns({ block, children, editable = false, selectedSection = 0, onSelectSection }: { block: BlockConfig; children?: ReactNode; editable?: boolean; selectedSection?: number; onSelectSection?: (section: number) => void }) {
   const count = Math.min(4, Math.max(1, Math.floor(Number(block.props.sectionCount) || 1)))
@@ -33,10 +34,11 @@ export function BlockColumns({ block, children, editable = false, selectedSectio
     const url = typeof item.url === 'string' && /^(https?:\/\/|\/(?!\/)|#)/i.test(item.url) ? item.url : undefined
     const image = typeof item.src === 'string' && item.src ? <img src={item.src} alt={typeof item.alt === 'string' ? item.alt : ''} className="max-w-full h-auto" /> : null
     return <div key={index} className="my-2">{url && image ? <a href={url} onClick={editable ? event => event.preventDefault() : undefined}>{image}</a> : image}{typeof item.text === 'string' && item.text && <p className="whitespace-pre-wrap">{url ? <a href={url} onClick={editable ? event => event.preventDefault() : undefined}>{item.text}</a> : item.text}</p>}</div>
-  })}</>
+  })}<SectionObjects block={block} section={1} editable={editable} /></>
   return <div className="ws-block-columns grid grid-cols-1" style={{ '--ws-section-widths': widths.map(value => `${value}fr`).join(' ') } as CSSProperties}>
     <div className="min-w-0 relative" data-editor-section={editable ? '1' : undefined} role={editable ? 'group' : undefined} aria-label={editable ? 'Section 1' : undefined} tabIndex={editable ? 0 : undefined} onClick={editable ? () => onSelectSection?.(1) : undefined} onKeyDown={editable ? event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); event.stopPropagation(); onSelectSection?.(1) } } : undefined}>
       {children}
+      <SectionObjects block={block} section={1} editable={editable} />
       {Array.isArray(block.props.section1Items) && block.props.section1Items.map((value, index) => {
         if (!value || typeof value !== 'object') return null
         const item = value as Record<string, unknown>
@@ -79,6 +81,7 @@ export function BlockColumns({ block, children, editable = false, selectedSectio
         {!textFirst && sectionImage}
         <RichText blockId={block.id} field={`section${number}Text`} text={text} value={block.props[`section${number}TextRich`]} alignment={block.props[`section${number}TextAlign`]} editable={editable} multiline markdown fill />
         {textFirst && sectionImage}
+        <SectionObjects block={block} section={number} editable={editable} />
         {Array.isArray(block.props[`section${number}Items`]) && (block.props[`section${number}Items`] as unknown[]).map((value, index) => {
           if (!value || typeof value !== 'object') return null
           const item = value as Record<string, unknown>

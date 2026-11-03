@@ -19,6 +19,16 @@ const baseConfig: SiteConfig = {
 }
 
 describe('exportSiteToHTML', () => {
+  it('exports independently positioned section objects', () => {
+    const block = { id: 'objects', type: 'content' as const, variant: 'prose', props: { body: 'Existing content', sectionCount: 2, section2Objects: [
+      { id: 'text-1', type: 'text', text: 'Independent text', x: 5, y: 10, width: 35, height: 40, layer: 1 },
+      { id: 'image-1', type: 'image', src: 'assets/photo.png', alt: 'Church', x: 45, y: 20, width: 40, height: 90, layer: 2 },
+      { id: 'button-1', type: 'button', text: 'Visit', url: '/visit', x: 0, y: 120, width: 30, height: 40, layer: 3 },
+      { id: 'panel-1', type: 'panel', text: 'Notice', color: '#ddeeff', x: 20, y: 180, width: 50, height: 80, layer: 4 },
+    ] } }
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
+    for (const value of ['Independent text', 'assets/photo.png', 'alt="Church"', 'href="/visit"', 'Notice', '#ddeeff', 'data-section-object-area="2"']) expect(html).toContain(value)
+  })
   it('exports multiple linked section items and a resource footer without unsafe links', () => {
     const section = { id: 'section', type: 'content' as const, variant: 'prose', props: { body: 'Intro', sectionCount: 2, section1Items: [{ src: 'assets/one.png', alt: 'One', text: 'First', url: '/first' }, { src: 'assets/two.png', alt: 'Two', text: 'Second', url: 'javascript:alert(1)' }], section2Items: [{ text: 'Third', src: '', alt: '', url: '#third' }] } }
     const footer = { id: 'footer', type: 'footer' as const, variant: 'resources', props: { logo: 'Resources', resources: [{ src: 'assets/resource.png', alt: 'Resource', title: 'Giving', description: 'Support us', url: 'https://example.org' }], resourceButtons: [{ label: 'Contact', url: '/contact' }, { label: 'Unsafe', url: 'javascript:alert(1)' }] } }
