@@ -121,10 +121,13 @@ describe('exportSiteToHTML', () => {
   })
   it('exports the selected number of independent sections and preserves hidden section data', () => {
     const block = { id: 'content', type: 'content' as const, variant: 'prose', props: {
-      body: 'First section', sectionCount: 3, section2Text: 'Second section', section2Image: 'assets/church.png', section2Alt: 'Church', section3Text: 'Third section', section4Text: 'Hidden section',
+      body: 'First section', sectionCount: 3, sectionWidths: [50, 30, 20], section2Text: 'Second section', section2Image: 'assets/church.png', section2Alt: 'Church', section2ImageLink: 'https://example.org/', section2TextFirst: true, section3Text: 'Third section', section4Text: 'Hidden section',
     } }
     const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
-    expect(html).toContain('@md:grid-cols-3')
+    expect(html).toContain('--ws-section-widths:50fr 30fr 20fr')
+    expect(html).toContain('grid-template-columns: var(--ws-section-widths)')
+    expect(html).toContain('href="https://example.org/"')
+    expect(html.indexOf('Second section')).toBeLessThan(html.indexOf('alt="Church"'))
     expect(html).toContain('First section')
     expect(html).toContain('Second section')
     expect(html).toContain('src="assets/church.png"')
