@@ -7,16 +7,18 @@ import { useEditorStore } from '@/store/editorStore'
 import { useScrollReveal } from '@/lib/useScrollReveal'
 import type { BlockConfig } from './types'
 import { BlockColumns } from './BlockColumns'
+import { PlacedMedia } from './PlacedMedia'
 
 interface Props {
   block: BlockConfig
   isSelected: boolean
   hiddenOnCurrentWidth?: boolean
+  placement?: { x: number; y: number } | null
   onSelect: () => void
   children: ReactNode
 }
 
-export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect, children }: Props) {
+export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, placement, onSelect, children }: Props) {
   const blocks = useConfigStore((s) => {
     const pages = s.config.pages
     if (!pages || pages.length === 0) return s.config.blocks
@@ -145,11 +147,12 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       <div
         ref={revealRef}
         className={isRevealed ? 'scroll-revealed' : ''}
-        style={layoutStyle}
+        style={{ position: 'relative', ...layoutStyle }}
         data-ws-scope={scope}
       >
         {customStyle && <style>{customStyle}</style>}
         <div data-ws-content><BlockColumns block={block}>{children}</BlockColumns></div>
+        <PlacedMedia block={block} />
       </div>
     )
   }
@@ -361,6 +364,8 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
 
       {customStyle && <style>{customStyle}</style>}
       <div data-ws-content><BlockColumns block={block} editable selectedSection={isSelected ? selectedSection : 0} onSelectSection={section => { selectBlock(block.id); useEditorStore.getState().selectSection(section) }}>{children}</BlockColumns></div>
+      <PlacedMedia block={block} editable />
+      {placement && <span data-media-placement-marker aria-label="Media placement point" title="Media will be placed here" style={{ position: 'absolute', left: `${placement.x}%`, top: `${placement.y}%`, width: 12, height: 12, transform: 'translate(-50%, -50%)', border: '2px solid white', borderRadius: '50%', background: '#0078d4', pointerEvents: 'none', zIndex: 30 }} />}
       {resizableLayout && isSelected && ([
         ['nw', 'top-0 left-0 cursor-nwse-resize'], ['n', 'top-0 left-1/2 -translate-x-1/2 cursor-ns-resize'],
         ['ne', 'top-0 right-0 cursor-nesw-resize'], ['e', 'top-1/2 right-0 -translate-y-1/2 cursor-ew-resize'],

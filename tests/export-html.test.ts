@@ -19,6 +19,18 @@ const baseConfig: SiteConfig = {
 }
 
 describe('exportSiteToHTML', () => {
+  it('exports media placed at a chosen point without editor controls', () => {
+    const block = { id: 'hero', type: 'hero' as const, variant: 'centered', props: { headline: 'Welcome', placedMedia: [
+      { id: 'photo', assetId: 'a', src: 'assets/church.png', name: 'Church', mime: 'image/png', x: 55, y: 20, width: 25 },
+      { id: 'video', assetId: 'b', src: 'assets/movie.mp4', name: 'Movie', mime: 'video/mp4', x: 10, y: 60, width: 20 },
+    ] } }
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
+    expect(html).toContain('src="assets/church.png"')
+    expect(html).toContain('left:55%;top:20%;width:25%')
+    expect(html).toContain('src="assets/movie.mp4"')
+    expect(html).not.toContain('Media placement point')
+    expect(html).not.toContain('Resize Church')
+  })
   it('exports formatted Hero and section text without executing project text', () => {
     const block = { id: 'hero', type: 'hero' as const, variant: 'centered', props: { headline: 'Hello', headlineRich: [{ text: 'Hello', font: 'Arial', size: 24, color: '#123456', bold: true }], subheadline: '', primaryCta: '', sectionCount: 2, section2Text: 'Welcome', section2TextRich: [{ text: 'Welcome', italic: true, href: '/contact' }, { text: '<script>alert(1)</script>', href: 'javascript:alert(1)' }] } }
     const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
