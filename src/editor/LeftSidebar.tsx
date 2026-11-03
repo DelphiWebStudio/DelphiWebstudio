@@ -16,6 +16,7 @@ const blockIcons: Record<BlockType, typeof Layout> = {
   newsletter: Newspaper, logocloud: Image, divider: Minus, banner: Flag,
   content: FileText, image: ImageIcon, video: Play, gallery: GalleryHorizontalEnd, pdfViewer: FileText,
   document: FileText, documentLibrary: FileText, audio: Play, mediaVideo: Play,
+  collage: GalleryHorizontalEnd, panel: PanelBottom,
 }
 
 const noReusableSections: NonNullable<import('@/blocks/types').SiteConfig['webstudioReusableSections']> = []

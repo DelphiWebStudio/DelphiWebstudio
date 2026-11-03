@@ -1183,6 +1183,8 @@ function renderBlock(block: BlockConfig): string {
     case 'image':
     case 'video':
     case 'gallery':
+    case 'collage':
+    case 'panel':
     case 'document':
     case 'documentLibrary':
     case 'audio':
@@ -1267,7 +1269,7 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
       ].filter(Boolean).join(';')
       return declarations ? [`${selector} [data-ws-text-key="${key}"]{${declarations}}`] : []
     }).join('')
-    const customStyle = (backgroundColor ? `${selector},${backgroundTarget}{background-color:${backgroundColor}!important}` : '') + (textRules ? `${selector} :is(h1,h2,h3,h4,h5,h6,p,span,a,li,label){${textRules}}` : '') + individualTextRules + imageRules
+    const customStyle = (backgroundColor ? `${selector},${backgroundTarget}{background-color:${backgroundColor}!important}` : '') + (textRules ? `${selector} :is(h1,h2,h3,h4,h5,h6,p,span,a,li,label){${textRules}}` : '') + individualTextRules + imageRules + (block.type === 'panel' ? `@container (max-width:600px){[data-ws-scope="${scope}"]{width:100%!important;margin-left:0!important;margin-top:0!important;z-index:auto!important}}` : '')
     if (imageRules) {
       let imageIndex = 0
       html = html.replace(/<img\b/g, () => `<img data-ws-image-index="${imageIndex++}"`)
@@ -1281,7 +1283,7 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
       })
     }
     const content = customStyle ? `<style>${customStyle}</style><div data-ws-content>${html}</div>` : html
-    if (block.type === 'image') {
+    if (block.type === 'image' || block.type === 'panel') {
       const widthValue = Number(block.props.layoutWidth)
       const leftValue = Number(block.props.layoutLeft)
       const topValue = Number(block.props.layoutTop)
@@ -1290,7 +1292,9 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
       const left = Number.isFinite(leftValue) ? Math.max(0, Math.min(100 - width, leftValue)) : 0
       const top = Number.isFinite(topValue) ? Math.max(-2000, Math.min(2000, topValue)) : 0
       const layer = Number.isFinite(layerValue) && layerValue > 0 ? Math.max(1, Math.min(100, Math.round(layerValue))) : 1
-      return `<div data-ws-scope="${scope}"${classes.length ? ` class="${classes.join(' ')}"` : ''} style="position:relative;width:${width}%;margin-left:${left}%;margin-top:${top}px;z-index:${layer}">${content}</div>`
+      const panelHeight = Number(block.props.layoutHeight)
+      const minimumHeight = block.type === 'panel' && Number.isFinite(panelHeight) && panelHeight > 0 ? `;min-height:${Math.max(40, Math.min(2000, panelHeight))}px` : ''
+      return `<div data-ws-scope="${scope}"${classes.length ? ` class="${classes.join(' ')}"` : ''} style="position:relative;width:${width}%;margin-left:${left}%;margin-top:${top}px;z-index:${layer}${minimumHeight}">${content}</div>`
     }
     if (customStyle) return `<div data-ws-scope="${scope}"${classes.length ? ` class="${classes.join(' ')}"` : ''}>${content}</div>`
     return classes.length ? `<div class="${classes.join(' ')}">${html}</div>` : html
@@ -1492,7 +1496,7 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
   const allPages = validated.pages!
   const pages = allPages.filter(page => page.webstudioArticle?.status !== 'draft')
   const articles = pages.filter(page => page.webstudioArticle?.status === 'ready')
-  const knownTypes = new Set(['navbar', 'hero', 'features', 'pricing', 'cta', 'footer', 'testimonials', 'stats', 'faq', 'team', 'contact', 'newsletter', 'logocloud', 'divider', 'banner', 'content', 'image', 'video', 'gallery', 'pdfViewer', 'document', 'documentLibrary', 'audio', 'mediaVideo'])
+  const knownTypes = new Set(['navbar', 'hero', 'features', 'pricing', 'cta', 'footer', 'testimonials', 'stats', 'faq', 'team', 'contact', 'newsletter', 'logocloud', 'divider', 'banner', 'content', 'image', 'video', 'gallery', 'collage', 'panel', 'pdfViewer', 'document', 'documentLibrary', 'audio', 'mediaVideo'])
   for (const page of pages) {
     const unknown = page.blocks.find(block => !knownTypes.has(block.type))
     if (unknown) throw new Error(`Page ${page.name} contains unsupported block ${unknown.type}; it cannot be exported safely.`)

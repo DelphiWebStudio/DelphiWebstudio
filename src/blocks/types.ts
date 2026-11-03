@@ -18,6 +18,8 @@ export type BlockType =
   | 'image'
   | 'video'
   | 'gallery'
+  | 'collage'
+  | 'panel'
   | 'pdfViewer'
   | 'document'
   | 'documentLibrary'

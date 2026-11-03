@@ -19,6 +19,31 @@ const baseConfig: SiteConfig = {
 }
 
 describe('exportSiteToHTML', () => {
+  it('exports separate positioned collage layers and a movable colored panel', () => {
+    const collage = { id: 'collage', type: 'collage' as const, variant: 'default', props: { images: [
+      { src: 'assets/a.png', alt: 'First photo', x: '0', y: '0', width: '60', height: '50', layer: '1' },
+      { src: 'assets/b.png', alt: 'Logo', x: '40', y: '35', width: '20', height: '30', layer: '5' },
+    ] } }
+    const panel = { id: 'panel', type: 'panel' as const, variant: 'default', props: { title: 'Welcome', body: 'Panel text', src: 'assets/p.png', alt: 'Portrait', blockBackgroundColor: '#b9aeb6', layoutWidth: 40, layoutLeft: 30, layoutTop: -100, layoutLayer: 4 } }
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [collage, panel] })
+    expect(html).toContain('alt="First photo"')
+    expect(html).toContain('alt="Logo"')
+    expect(html).toContain('z-index:5')
+    expect(html).toContain('left:40%')
+    expect(html).toContain('Panel text')
+    expect(html).toContain('alt="Portrait"')
+    expect(html).toContain('background-color:#b9aeb6!important')
+    expect(html).toContain('margin-left:30%')
+    expect(html).toContain('margin-top:-100px')
+    expect(html).not.toContain('Resize collage image')
+  })
+  it('exports a colored panel inside an additional block section', () => {
+    const block = { id: 'section', type: 'content' as const, variant: 'prose', props: { body: 'First', sectionCount: 2, section2Panel: true, section2Color: '#b9aeb6', section2Text: 'Panel inside section', section2Image: 'assets/portrait.png', section2Alt: 'Portrait' } }
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
+    expect(html).toContain('background-color:#b9aeb6')
+    expect(html).toContain('Panel inside section')
+    expect(html).toContain('alt="Portrait"')
+  })
   it('exports a valid block background and ignores invalid CSS values', () => {
     const block = { id: 'content', type: 'content' as const, variant: 'prose', props: { body: 'Hello', blockBackgroundColor: '#aabbcc' } }
     const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
