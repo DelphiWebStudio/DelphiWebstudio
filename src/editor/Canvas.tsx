@@ -6,7 +6,7 @@ import { BlockWrapper } from '@/blocks/BlockWrapper'
 import { RenderBlock } from '@/blocks/registry'
 import { resolveTheme, themeToCSS } from '@/lib/theme-presets'
 import { useProjectsStore } from '@/store/projectsStore'
-import { ProjectMediaLibrary } from '@/media/media-library'
+import { ProjectMediaLibrary, type MediaAsset } from '@/media/media-library'
 import { toast } from 'sonner'
 import { blockMetadata } from '@/lib/block-metadata'
 
@@ -26,6 +26,8 @@ export function Canvas() {
   const revision = useProjectsStore(state => state.projects.find(project => project.id === activeProjectId)?.mediaRevision ?? 0)
   const webmasterEmail = useProjectsStore(state => state.projects.find(project => project.id === activeProjectId)?.settings?.webmasterEmail ?? '')
   const [assetUrls, setAssetUrls] = useState<Record<string, string>>({})
+  const [placement, setPlacement] = useState<{ blockId: string; x: number; y: number; pageId: string; projectId: string } | null>(null)
+  useEffect(() => { setPlacement(null) }, [activePageId, activeProjectId, previewMode])
   const referencedAssets = JSON.stringify([...new Set([
     ...blocks.map(block => typeof block.props.assetId === 'string' ? block.props.assetId : '').filter(Boolean),
     ...(JSON.stringify(blocks).match(/assets\/[a-zA-Z0-9._-]+/g) ?? []),
@@ -59,6 +61,16 @@ export function Canvas() {
     <div
       className="@container outline outline-1 rounded-xl min-h-[400px] relative z-[1] overflow-clip transition-all duration-300 mx-auto shrink-0"
       style={{ width: `${previewWidth}px`, ...cssVars, color: 'var(--color-text-0)', backgroundColor: 'var(--color-bg-1)', outlineColor: 'var(--color-border-default)', overflowWrap: 'anywhere' } as React.CSSProperties}
+      onClickCapture={event => {
+        if (previewMode || !activeProjectId || event.button !== 0 || event.detail === 0 || !(event.target instanceof Element)) return
+        if (event.target.closest('[data-placed-media],button,a,input,select,textarea') || !window.getSelection()?.isCollapsed) return
+        const target = event.target.closest('[data-webstudio-block-id]')
+        if (!target || !event.currentTarget.contains(target)) return
+        const blockId = target.getAttribute('data-webstudio-block-id')
+        const rect = target.getBoundingClientRect()
+        if (!blockId || !rect.width || !rect.height) return
+        setPlacement({ blockId, x: Math.max(0, Math.min(99, (event.clientX - rect.left) / rect.width * 100)), y: Math.max(0, Math.min(99, (event.clientY - rect.top) / rect.height * 100)), pageId: activePageId, projectId: activeProjectId })
+      }}
       onClick={(e) => {
         if (previewMode && !e.defaultPrevented && e.target instanceof Element) {
           const link = e.target.closest('a[href]')
@@ -102,6 +114,7 @@ export function Canvas() {
           block={{ ...block, props }}
           isSelected={selectedBlockId === block.id}
           hiddenOnCurrentWidth={hiddenOnCurrentWidth}
+          placement={placement?.blockId === block.id ? placement : null}
           onSelect={() => selectBlock(block.id)}
         >
           <RenderBlock block={{ ...block, props }} editable={!previewMode} />
@@ -113,7 +126,7 @@ export function Canvas() {
 
   return (
     <div className="flex-1 flex items-start justify-start p-6 overflow-auto relative bg-[#dce8f3]" onDragOver={event => {
-      if (!previewMode && (event.dataTransfer.types.includes('application/x-webstudio-asset') || event.dataTransfer.types.includes('application/x-webstudio-component'))) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy' }
+      if (!previewMode && (event.dataTransfer.types.includes('application/x-webstudio-asset') || event.dataTransfer.types.includes('application/x-webstudio-component') || event.dataTransfer.types.includes('Files'))) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy' }
     }} onDrop={event => {
       if (previewMode) return
       const componentType = event.dataTransfer.getData('application/x-webstudio-component')
@@ -132,17 +145,50 @@ export function Canvas() {
         return
       }
       const assetId = event.dataTransfer.getData('application/x-webstudio-asset')
-      if (!assetId || !activeProjectId) return
+      const files = Array.from(event.dataTransfer.files)
+      if ((!assetId && !files.length) || !activeProjectId) return
       event.preventDefault()
-      void new ProjectMediaLibrary().list(activeProjectId).then(assets => {
-        const asset = assets.find(item => item.id === assetId)
-        if (!asset || useEditorStore.getState().activeProjectId !== activeProjectId) throw new Error('The media file is no longer available.')
-        const id = `block-${crypto.randomUUID()}`
-        const type = asset.mime === 'application/pdf' ? 'pdfViewer' : asset.mime.startsWith('image/') ? 'image' : asset.mime.startsWith('audio/') ? 'audio' : asset.mime.startsWith('video/') ? 'mediaVideo' : 'document'
-        useConfigStore.getState().addBlock({ id, type, variant: type === 'image' ? 'hero-image' : 'default', props: type === 'image' ? { assetId: asset.id, src: asset.path, alt: asset.name, layoutWidth: 40 } : { assetId: asset.id, src: asset.path, title: asset.name, alt: asset.name } })
-        useEditorStore.getState().selectBlock(id)
-        toast('Added to page')
-      }).catch(error => toast.error(error instanceof Error ? error.message : 'Media could not be added.'))
+      const target = event.target instanceof Element ? event.target.closest('[data-webstudio-block-id]') : null
+      const rect = target?.getBoundingClientRect()
+      const blockId = target?.getAttribute('data-webstudio-block-id')
+      const dropped = blockId && rect?.width && rect.height ? { blockId, x: Math.max(0, Math.min(99, (event.clientX - rect.left) / rect.width * 100)), y: Math.max(0, Math.min(99, (event.clientY - rect.top) / rect.height * 100)), pageId: activePageId, projectId: activeProjectId } : null
+      const destination = placement && placement.pageId === activePageId && placement.projectId === activeProjectId ? placement : dropped
+      setPlacement(null)
+      const placeAsset = (asset: MediaAsset, offset: number) => {
+        if (useEditorStore.getState().activeProjectId !== activeProjectId || useConfigStore.getState().activePageId !== activePageId) throw new Error('The project or page changed; select the intended page and try again.')
+        if (destination) {
+          const block = useConfigStore.getState().getActivePageBlocks().find(item => item.id === destination.blockId)
+          if (!block) throw new Error('The selected block no longer exists.')
+          const x = Math.min(99, destination.x + offset * 2), y = Math.min(99, destination.y + offset * 2)
+          const existing = Array.isArray(block.props.placedMedia) ? block.props.placedMedia : []
+          useConfigStore.getState().updateBlockProps(block.id, { placedMedia: [...existing, { id: `placed-${crypto.randomUUID()}`, assetId: asset.id, src: asset.path, name: asset.name, mime: asset.mime, x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, width: Math.max(1, Math.min(25, 100 - x)) }] })
+          useEditorStore.getState().selectBlock(block.id)
+        } else {
+          const id = `block-${crypto.randomUUID()}`
+          const type = asset.mime === 'application/pdf' ? 'pdfViewer' : asset.mime.startsWith('image/') ? 'image' : asset.mime.startsWith('audio/') ? 'audio' : asset.mime.startsWith('video/') ? 'mediaVideo' : 'document'
+          useConfigStore.getState().addBlock({ id, type, variant: type === 'image' ? 'hero-image' : 'default', props: type === 'image' ? { assetId: asset.id, src: asset.path, alt: asset.name, layoutWidth: 40 } : { assetId: asset.id, src: asset.path, title: asset.name, alt: asset.name } })
+          useEditorStore.getState().selectBlock(id)
+        }
+      }
+      void (async () => {
+        const library = new ProjectMediaLibrary()
+        if (assetId) {
+          const asset = (await library.list(activeProjectId)).find(item => item.id === assetId)
+          if (!asset) throw new Error('The media file is no longer available.')
+          placeAsset(asset, 0)
+        } else {
+          if (useEditorStore.getState().mediaImporting) throw new Error('Wait for the current media import to finish.')
+          useEditorStore.getState().setMediaImporting(true)
+          try {
+            for (const [index, file] of files.entries()) {
+              const { asset } = await library.import(activeProjectId, file)
+              useProjectsStore.getState().mediaChanged(activeProjectId)
+              placeAsset(asset, index)
+            }
+          } finally { useEditorStore.getState().setMediaImporting(false) }
+        }
+        toast('Media added to page')
+      })().catch(error => toast.error(error instanceof Error ? error.message : 'Media could not be added.'))
     }}>
       {/* Dot grid background */}
       <div

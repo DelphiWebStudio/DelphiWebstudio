@@ -4,6 +4,7 @@ import { validateProjectConfig } from '@/project/project-file'
 import { RenderBlock } from '@/blocks/registry'
 import { BlockColumns } from '@/blocks/BlockColumns'
 import { RichText } from '@/blocks/RichText'
+import { PlacedMedia } from '@/blocks/PlacedMedia'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import JSZip from 'jszip'
@@ -1287,6 +1288,7 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
       })
     }
     const content = customStyle ? `<style>${customStyle}</style><div data-ws-content>${html}</div>` : html
+    const placed = Array.isArray(block.props.placedMedia) && block.props.placedMedia.length ? renderToStaticMarkup(createElement(PlacedMedia, { block })) : ''
     if (block.type === 'image' || block.type === 'panel' || (block.type === 'hero' && (Number(block.props.layoutWidth) > 0 || heroHeight))) {
       const widthValue = Number(block.props.layoutWidth)
       const leftValue = Number(block.props.layoutLeft)
@@ -1298,9 +1300,9 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
       const layer = Number.isFinite(layerValue) && layerValue > 0 ? Math.max(1, Math.min(100, Math.round(layerValue))) : 1
       const panelHeight = Number(block.props.layoutHeight)
       const minimumHeight = block.type === 'panel' && Number.isFinite(panelHeight) && panelHeight > 0 ? `;min-height:${Math.max(40, Math.min(2000, panelHeight))}px` : ''
-      return `<div data-ws-scope="${scope}"${classes.length ? ` class="${classes.join(' ')}"` : ''} style="position:relative;width:${width}%;margin-left:${left}%;margin-top:${top}px;z-index:${layer}${minimumHeight}${heroHeight ? `;height:${heroHeight}px` : ''}">${content}</div>`
+      return `<div data-ws-scope="${scope}"${classes.length ? ` class="${classes.join(' ')}"` : ''} style="position:relative;width:${width}%;margin-left:${left}%;margin-top:${top}px;z-index:${layer}${minimumHeight}${heroHeight ? `;height:${heroHeight}px` : ''}">${content}${placed}</div>`
     }
-    if (customStyle) return `<div data-ws-scope="${scope}"${classes.length ? ` class="${classes.join(' ')}"` : ''}>${content}</div>`
+    if (customStyle || placed) return `<div data-ws-scope="${scope}"${classes.length ? ` class="${classes.join(' ')}"` : ''}${placed ? ' style="position:relative"' : ''}>${content}${placed}</div>`
     return classes.length ? `<div class="${classes.join(' ')}">${html}</div>` : html
   }).join('\n\n')}</main>`
   const documentLibraryScript = config.blocks.some(block => block.type === 'documentLibrary') ? `<script>document.querySelectorAll('[data-document-library]').forEach(function(library){var search=library.querySelector('[data-library-search]');search.addEventListener('input',function(){var query=search.value.toLocaleLowerCase();library.querySelectorAll('[data-library-item]').forEach(function(item){item.style.display=item.textContent.toLocaleLowerCase().includes(query)?'':'none';});});});</script>` : ''

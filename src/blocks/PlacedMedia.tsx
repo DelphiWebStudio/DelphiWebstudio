@@ -1,0 +1,72 @@
+import { useRef, useState, type PointerEvent } from 'react'
+import { createPortal } from 'react-dom'
+import { useConfigStore } from '@/store/configStore'
+import { useEditorStore } from '@/store/editorStore'
+import type { BlockConfig } from './types'
+
+type Item = { id: string; assetId: string; src: string; name: string; mime: string; x: number; y: number; width: number }
+
+export function PlacedMedia({ block, editable = false }: { block: BlockConfig; editable?: boolean }) {
+  const items = Array.isArray(block.props.placedMedia) ? block.props.placedMedia as Item[] : []
+  const [selected, setSelected] = useState<string | null>(null)
+  const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null)
+  const drag = useRef<{ id: string; resize: boolean; startX: number; startY: number; x: number; y: number; width: number; parentWidth: number; parentHeight: number } | null>(null)
+  const number = (value: unknown, fallback: number, min: number, max: number) => {
+    const result = Number(value)
+    return Number.isFinite(result) ? Math.max(min, Math.min(max, result)) : fallback
+  }
+  function begin(event: PointerEvent<HTMLElement>, item: Item, resize: boolean) {
+    if (!editable || event.button !== 0 || (!resize && event.target instanceof Element && event.target.closest('audio,video,a,button'))) return
+    const parent = event.currentTarget.closest('[data-webstudio-block-id]')
+    if (!parent) return
+    const rect = parent.getBoundingClientRect()
+    if (!rect.width || !rect.height) return
+    const x = number(item.x, 0, 0, 99), y = number(item.y, 0, 0, 99)
+    drag.current = { id: item.id, resize, startX: event.clientX, startY: event.clientY, x, y, width: number(item.width, 25, 1, 100 - x), parentWidth: rect.width, parentHeight: rect.height }
+    setSelected(item.id)
+    useEditorStore.getState().selectBlock(block.id)
+    event.preventDefault(); event.stopPropagation()
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+  function move(event: PointerEvent<HTMLElement>, finish = false) {
+    const state = drag.current
+    if (!state) return
+    const dx = (event.clientX - state.startX) / state.parentWidth * 100
+    const dy = (event.clientY - state.startY) / state.parentHeight * 100
+    const x = state.resize ? state.x : Math.max(0, Math.min(100 - state.width, state.x + dx))
+    const y = state.resize ? state.y : Math.max(0, Math.min(99, state.y + dy))
+    const width = state.resize ? Math.max(1, Math.min(100 - x, state.width + dx)) : state.width
+    const element = event.currentTarget.closest<HTMLElement>('[data-placed-media]')
+    if (element) Object.assign(element.style, { left: `${x}%`, top: `${y}%`, width: `${width}%` })
+    event.stopPropagation()
+    if (finish) {
+      drag.current = null
+      const original = useConfigStore.getState().getActivePageBlocks().find(candidate => candidate.id === block.id)
+      const saved = Array.isArray(original?.props.placedMedia) ? original.props.placedMedia as Item[] : []
+      if (saved.some(item => item.id === state.id)) useConfigStore.getState().updateBlockProps(block.id, { placedMedia: saved.map(item => item.id === state.id ? { ...item, x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, width: Math.round(width * 10) / 10 } : item) })
+    }
+  }
+  return <>
+    {items.filter(item => item && typeof item.id === 'string' && typeof item.src === 'string' && typeof item.mime === 'string').map(item => {
+      const x = number(item.x, 0, 0, 99), y = number(item.y, 0, 0, 99), width = number(item.width, 25, 1, 100 - x)
+      return <div key={item.id} data-placed-media={item.id} style={{ position: 'absolute', left: `${x}%`, top: `${y}%`, width: `${width}%`, zIndex: 10, ...(editable && selected === item.id ? { outline: '1px solid white' } : {}), ...(editable ? { cursor: 'move', touchAction: 'none' } : {}) }}
+        onPointerDown={event => begin(event, item, false)} onPointerMove={event => move(event)} onPointerUp={event => move(event, true)} onPointerCancel={() => { drag.current = null }}
+        onClick={event => { if (editable) { event.preventDefault(); event.stopPropagation(); setSelected(item.id); useEditorStore.getState().selectBlock(block.id) } }}
+        onContextMenu={event => { if (editable) { event.preventDefault(); event.stopPropagation(); setSelected(item.id); setMenu({ id: item.id, x: event.clientX, y: event.clientY }) } }}>
+        {item.mime.startsWith('image/') ? <img src={item.src} alt={item.name || ''} draggable={false} loading="lazy" style={{ display: 'block', width: '100%', height: 'auto' }} />
+          : item.mime.startsWith('audio/') ? <audio controls src={item.src} aria-label={item.name} style={{ width: '100%' }} />
+            : item.mime.startsWith('video/') ? <video controls src={item.src} aria-label={item.name} style={{ width: '100%', height: 'auto' }} />
+              : <a href={item.src} download>{item.name || 'Open document'}</a>}
+        {editable && selected === item.id && <button type="button" aria-label={`Resize ${item.name || 'media'}`} title="Drag to resize" style={{ position: 'absolute', right: 0, bottom: 0, width: 12, height: 12, background: 'white', border: '1px solid black', cursor: 'nwse-resize', touchAction: 'none' }} onPointerDown={event => begin(event, item, true)} onPointerMove={event => move(event)} onPointerUp={event => move(event, true)} onClick={event => event.stopPropagation()} />}
+      </div>
+    })}
+    {editable && menu && createPortal(<div role="menu" aria-label="Media actions" style={{ position: 'fixed', left: Math.max(0, Math.min(menu.x, window.innerWidth - 150)), top: Math.max(0, Math.min(menu.y, window.innerHeight - 50)), zIndex: 10001 }} className="rounded border border-gray-400 bg-white p-1 text-sm text-black shadow-lg" onClick={event => event.stopPropagation()} onMouseLeave={() => setMenu(null)}>
+      <button type="button" role="menuitem" className="rounded px-3 py-1 hover:bg-blue-100" onClick={() => {
+        const original = useConfigStore.getState().getActivePageBlocks().find(candidate => candidate.id === block.id)
+        const saved = Array.isArray(original?.props.placedMedia) ? original.props.placedMedia as Item[] : []
+        useConfigStore.getState().updateBlockProps(block.id, { placedMedia: saved.filter(item => item.id !== menu.id) })
+        setMenu(null); setSelected(null)
+      }}>Remove from page</button>
+    </div>, document.body)}
+  </>
+}
