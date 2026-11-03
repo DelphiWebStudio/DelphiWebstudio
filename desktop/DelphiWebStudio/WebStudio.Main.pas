@@ -15,6 +15,7 @@ type
     RecoverStageButton: TButton;
     EditorBrowser: TEdgeBrowser;
     SaveDownloadDialog: TSaveDialog;
+    TextFontDialog: TFontDialog;
     ProjectSaveDialog: TSaveDialog;
     RecoveryOpenDialog: TOpenDialog;
     RecoverySaveDialog: TSaveDialog;
@@ -63,6 +64,7 @@ var MainForm: TMainForm;
 implementation
 
 uses Winapi.ActiveX, System.IOUtils, System.Zip, System.JSON, System.UITypes, System.RegularExpressions,
+  Vcl.Graphics,
   WebStudio.ProjectSave, WebStudio.LocalAIForm, WebStudio.LocalAIHost, WebStudio.SftpForm,
   WebStudio.Credentials;
 
@@ -392,12 +394,14 @@ end;
 procedure TMainForm.EditorBrowserWebMessageReceived(Sender: TCustomEdgeBrowser; Args: TWebMessageReceivedEventArgs);
 var
   Source, Raw: PWideChar;
-  SourceText, RequestId, ProjectId, Kind, CapabilityName, Secret: string;
+  SourceText, RequestId, ProjectId, Kind, CapabilityName, Secret, FontName, ColorText: string;
   Parsed: TJSONValue;
   Obj, Reply: TJSONObject;
   Request: TDesktopRequest;
   Capability: TDesktopCapability;
   Index: Integer;
+  FontSize, ColorValue: Integer;
+  FontBold, FontItalic, FontUnderline: Boolean;
 begin
   Source := nil; Raw := nil;
   try
@@ -412,6 +416,43 @@ begin
       if not (Parsed is TJSONObject) then Exit;
       Obj := TJSONObject(Parsed);
       if Obj.TryGetValue<string>('kind', Kind) then begin
+        if Kind = 'ui.font' then begin
+          if not ((SourceText = 'https://webstudio.local/index.html') or SourceText.StartsWith('https://webstudio.local/index.html#/')) or
+             (Obj.Count <> 9) or not (Obj.GetValue('version') is TJSONNumber) or (Obj.GetValue('version').Value <> '1') or
+             not (Obj.GetValue('requestId') is TJSONString) or not Obj.TryGetValue<string>('requestId', RequestId) or not TRegEx.IsMatch(RequestId, '^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$') or
+             not (Obj.GetValue('font') is TJSONString) or not Obj.TryGetValue<string>('font', FontName) or (Length(FontName) > 100) or
+             not TRegEx.IsMatch(FontName, '^[\p{L}\p{N} ,._-]{1,100}$') or
+             not (Obj.GetValue('size') is TJSONNumber) or not Obj.TryGetValue<Integer>('size', FontSize) or (FontSize < 6) or (FontSize > 200) or
+             not (Obj.GetValue('color') is TJSONString) or not Obj.TryGetValue<string>('color', ColorText) or not TRegEx.IsMatch(ColorText, '^#[0-9a-fA-F]{6}$') or
+             not (Obj.GetValue('bold') is TJSONBool) or not (Obj.GetValue('italic') is TJSONBool) or
+             not (Obj.GetValue('underline') is TJSONBool) then Exit;
+          FontBold := Obj.GetValue('bold').Value = 'true';
+          FontItalic := Obj.GetValue('italic').Value = 'true';
+          FontUnderline := Obj.GetValue('underline').Value = 'true';
+          if Screen.Fonts.IndexOf(FontName) >= 0 then TextFontDialog.Font.Name := FontName
+          else TextFontDialog.Font.Name := 'Arial';
+          TextFontDialog.Font.Size := Round(FontSize * 72 / 96);
+          TextFontDialog.Font.Style := [];
+          if FontBold then TextFontDialog.Font.Style := TextFontDialog.Font.Style + [fsBold];
+          if FontItalic then TextFontDialog.Font.Style := TextFontDialog.Font.Style + [fsItalic];
+          if FontUnderline then TextFontDialog.Font.Style := TextFontDialog.Font.Style + [fsUnderline];
+          TextFontDialog.Font.Color := RGB(StrToInt('$' + Copy(ColorText, 2, 2)), StrToInt('$' + Copy(ColorText, 4, 2)), StrToInt('$' + Copy(ColorText, 6, 2)));
+          Reply := TJSONObject.Create;
+          try
+            Reply.AddPair('version', TJSONNumber.Create(1)); Reply.AddPair('kind', Kind); Reply.AddPair('requestId', RequestId);
+            if TextFontDialog.Execute then begin
+              ColorValue := ColorToRGB(TextFontDialog.Font.Color);
+              Reply.AddPair('accepted', TJSONBool.Create(True)); Reply.AddPair('font', TextFontDialog.Font.Name);
+              Reply.AddPair('size', TJSONNumber.Create(Round(TextFontDialog.Font.Size * 96 / 72)));
+              Reply.AddPair('color', Format('#%.2x%.2x%.2x', [GetRValue(ColorValue), GetGValue(ColorValue), GetBValue(ColorValue)]));
+              Reply.AddPair('bold', TJSONBool.Create(fsBold in TextFontDialog.Font.Style));
+              Reply.AddPair('italic', TJSONBool.Create(fsItalic in TextFontDialog.Font.Style));
+              Reply.AddPair('underline', TJSONBool.Create(fsUnderline in TextFontDialog.Font.Style));
+            end else Reply.AddPair('accepted', TJSONBool.Create(False));
+            Sender.DefaultInterface.PostWebMessageAsJson(PWideChar(Reply.ToJSON));
+          finally Reply.Free end;
+          Exit;
+        end;
         if (Kind = 'gemini.read') or (Kind = 'gemini.write') or (Kind = 'gemini.delete') then begin
           if not ((SourceText = 'https://webstudio.local/index.html') or
               SourceText.StartsWith('https://webstudio.local/index.html#/')) or

@@ -31,6 +31,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<{ kind: 'move' | 'resize'; direction: string; x: number; y: number; width: number; left: number; top: number; height: number; pageWidth: number; minTop: number } | null>(null)
+  const imageDragRef = useRef<{ index: string; x: number; y: number; left: number; top: number; originalStyle: string; element: HTMLImageElement } | null>(null)
   const { ref: revealRef, isRevealed } = useScrollReveal(!previewMode)
 
   const imageLayout = block.type === 'image'
@@ -224,6 +225,13 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       data-webstudio-block-id={block.id}
       data-ws-scope={scope}
       onDragStart={event => {
+        if (event.target instanceof Element && event.target.closest('[data-webstudio-block-drag-handle]')) {
+          event.dataTransfer.setData('application/x-webstudio-block', block.id)
+          event.dataTransfer.effectAllowed = 'move'
+          event.stopPropagation()
+          onSelect()
+          return
+        }
         if (block.type !== 'navbar' || !(event.target instanceof Element)) return
         const link = event.target.closest('[data-ws-nav-index]')
         if (!link || !event.currentTarget.contains(link)) return
@@ -265,11 +273,49 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         setContextMenu({ x: event.clientX, y: event.clientY })
       }}
       onPointerDown={event => {
+        if (!imageLayout && block.type !== 'collage' && event.button === 0 && event.target instanceof HTMLImageElement && event.target.closest('[data-ws-content]')) {
+          const image = event.target
+          const imageIndex = image.getAttribute('data-ws-image-index')
+          if (imageIndex !== null) {
+            const adjustment = adjustments[imageIndex] ?? {}
+            imageDragRef.current = { index: imageIndex, x: event.clientX, y: event.clientY, left: Number(adjustment.left) || 0, top: Number(adjustment.top) || 0, originalStyle: image.style.cssText, element: image }
+            onSelect(); useEditorStore.getState().selectImage(Number(imageIndex))
+            event.preventDefault(); event.stopPropagation(); event.currentTarget.setPointerCapture(event.pointerId)
+            return
+          }
+        }
         if (isSelected && ((imageLayout && event.target instanceof HTMLImageElement) || (panelLayout && event.target instanceof Element && !event.target.closest('button,a,input,textarea,select,[contenteditable="true"]')))) startImageDrag(event, 'move')
       }}
-      onPointerMove={event => moveImageDrag(event)}
-      onPointerUp={event => moveImageDrag(event, true)}
+      onPointerMove={event => {
+        const drag = imageDragRef.current
+        if (drag) {
+          drag.element.style.setProperty('position', 'relative', 'important')
+          drag.element.style.setProperty('left', `${drag.left + event.clientX - drag.x}px`, 'important')
+          drag.element.style.setProperty('top', `${drag.top + event.clientY - drag.y}px`, 'important')
+          event.stopPropagation()
+        } else moveImageDrag(event)
+      }}
+      onPointerUp={event => {
+        const drag = imageDragRef.current
+        if (drag) {
+          imageDragRef.current = null
+          const left = Math.max(-2000, Math.min(2000, Math.round(drag.left + event.clientX - drag.x)))
+          const top = Math.max(-2000, Math.min(2000, Math.round(drag.top + event.clientY - drag.y)))
+          drag.element.style.cssText = drag.originalStyle
+          if (left !== drag.left || top !== drag.top) {
+            const current = useConfigStore.getState().getActivePageBlocks().find(item => item.id === block.id)
+            const existing = current?.props.imageAdjustments && typeof current.props.imageAdjustments === 'object' && !Array.isArray(current.props.imageAdjustments) ? current.props.imageAdjustments as Record<string, Record<string, unknown>> : {}
+            useConfigStore.getState().updateBlockProps(block.id, { imageAdjustments: { ...existing, [drag.index]: { ...existing[drag.index], left, top } } })
+          }
+          event.stopPropagation()
+        } else moveImageDrag(event, true)
+      }}
       onPointerCancel={() => {
+        if (imageDragRef.current) {
+          const drag = imageDragRef.current; imageDragRef.current = null
+          drag.element.style.cssText = drag.originalStyle
+          return
+        }
         if (!dragRef.current) return
         dragRef.current = null
         const element = revealRef.current
@@ -323,6 +369,12 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       }}
       style={{ ...layoutStyle, transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}
     >
+      {isSelected && <button type="button" draggable data-webstudio-block-drag-handle aria-label={`Move ${block.type} block`} title="Drag to reorder this block; Alt+Up or Alt+Down also moves it" className="absolute top-1 left-1 z-30 rounded border border-gray-400 bg-white px-1.5 py-0.5 text-xs text-black cursor-grab active:cursor-grabbing" onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()} onKeyDown={event => {
+        if (!event.altKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return
+        event.preventDefault(); event.stopPropagation()
+        const next = index + (event.key === 'ArrowUp' ? -1 : 1)
+        if (next >= 0 && next < blocks.length) moveBlock(index, next)
+      }}>Move</button>}
       {/* Block type tag */}
       {hiddenOnCurrentWidth && <span className="absolute top-8 left-1.5 text-[10px] bg-bg-2 border border-border-default rounded px-1.5 py-0.5 z-10">Hidden at this width in preview and export</span>}
       {!resizableLayout && <span

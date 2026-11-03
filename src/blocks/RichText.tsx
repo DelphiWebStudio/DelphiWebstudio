@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { useConfigStore } from '@/store/configStore'
 import { renderMarkdown } from '@/lib/markdown'
+import { chooseWindowsFont } from '@/desktop/native-bridge'
 
 type Run = { text: string; font?: string; size?: number; color?: string; bold?: boolean; italic?: boolean; underline?: boolean; href?: string }
 type Props = { blockId: string; field: string; text: string; value: unknown; editable?: boolean; multiline?: boolean; markdown?: boolean; position?: { x: number; y: number }; fill?: boolean }
@@ -31,14 +32,17 @@ export function RichText({ blockId, field, text, value, editable = false, multil
       if (node.tagName === 'BR') { output.push({ text: '\n', ...style }); return }
       const next = { ...style }
       const font = node.style.fontFamily.replace(/["']/g, '').trim()
-      if (font && /^[\w ,.-]{1,100}$/.test(font)) next.font = font
+      if (font && /^[\p{L}\p{N} ,._-]{1,100}$/u.test(font)) next.font = font
       const size = Number.parseFloat(node.style.fontSize)
       if (Number.isFinite(size) && size >= 6 && size <= 200 && node.style.fontSize.endsWith('px')) next.size = size
       const color = node.style.color
       if (/^#[0-9a-f]{6}$/i.test(color) || /^rgba?\(\s*[\d.,%\s]+\)$/i.test(color)) next.color = color
       if (node.tagName === 'B' || node.tagName === 'STRONG' || node.style.fontWeight === 'bold' || Number(node.style.fontWeight) >= 600) next.bold = true
+      else if (node.style.fontWeight === 'normal' || (node.style.fontWeight && Number(node.style.fontWeight) > 0 && Number(node.style.fontWeight) < 600)) next.bold = false
       if (node.tagName === 'I' || node.tagName === 'EM' || node.style.fontStyle === 'italic') next.italic = true
+      else if (node.style.fontStyle === 'normal') next.italic = false
       if (node.tagName === 'U' || node.style.textDecorationLine.includes('underline')) next.underline = true
+      else if (node.style.textDecorationLine === 'none') next.underline = false
       const href = node.tagName === 'A' ? node.getAttribute('href') : null
       if (href && !/[\\\p{Cc}]/u.test(href) && !href.startsWith('//') && (!/^[a-z][a-z\d+.-]*:/i.test(href) || /^(https?:|mailto:|tel:)/i.test(href))) next.href = href
       if ((node.tagName === 'P' || node.tagName === 'DIV') && output.length && !output[output.length - 1].text.endsWith('\n')) output.push({ text: '\n' })
@@ -80,13 +84,16 @@ export function RichText({ blockId, field, text, value, editable = false, multil
       if (!allowed) { node.childNodes.forEach(child => copy(child, parent)); return }
       const clean = document.createElement(tag)
       const font = node.style.fontFamily.replace(/["']/g, '').trim()
-      if (font && /^[\w ,.-]{1,100}$/.test(font)) clean.style.fontFamily = font
+      if (font && /^[\p{L}\p{N} ,._-]{1,100}$/u.test(font)) clean.style.fontFamily = font
       const size = Number.parseFloat(node.style.fontSize)
       if (Number.isFinite(size) && size >= 6 && size <= 200 && node.style.fontSize.endsWith('px')) clean.style.fontSize = `${size}px`
       if (/^#[0-9a-f]{6}$/i.test(node.style.color) || /^rgba?\(\s*[\d.,%\s]+\)$/i.test(node.style.color)) clean.style.color = node.style.color
       if (node.style.fontWeight === 'bold' || Number(node.style.fontWeight) >= 600) clean.style.fontWeight = 'bold'
+      else if (node.style.fontWeight === 'normal' || (node.style.fontWeight && Number(node.style.fontWeight) > 0 && Number(node.style.fontWeight) < 600)) clean.style.fontWeight = 'normal'
       if (node.style.fontStyle === 'italic') clean.style.fontStyle = 'italic'
+      else if (node.style.fontStyle === 'normal') clean.style.fontStyle = 'normal'
       if (node.style.textDecorationLine.includes('underline')) clean.style.textDecoration = 'underline'
+      else if (node.style.textDecorationLine === 'none') clean.style.textDecoration = 'none'
       const href = tag === 'a' ? node.getAttribute('href') : null
       if (href && !/[\\\p{Cc}]/u.test(href) && !href.startsWith('//') && (!/^[a-z][a-z\d+.-]*:/i.test(href) || /^(https?:|mailto:|tel:)/i.test(href))) clean.setAttribute('href', href)
       node.childNodes.forEach(child => copy(child, clean))
@@ -114,10 +121,10 @@ export function RichText({ blockId, field, text, value, editable = false, multil
 
   const content: ReactNode = runs ? runs.map((run, index) => createElement(typeof run.href === 'string' && !!run.href && !/[\\\p{Cc}]/u.test(run.href) && !run.href.startsWith('//') && (!/^[a-z][a-z\d+.-]*:/i.test(run.href) || /^(https?:|mailto:|tel:)/i.test(run.href)) ? 'a' : 'span', {
     key: index, 'data-rich-run': '', style: {
-      ...(typeof run.font === 'string' && /^[\w ,.-]{1,100}$/.test(run.font) ? { fontFamily: run.font } : {}),
+      ...(typeof run.font === 'string' && /^[\p{L}\p{N} ,._-]{1,100}$/u.test(run.font) ? { fontFamily: run.font } : {}),
       ...(typeof run.size === 'number' && Number.isFinite(run.size) && run.size >= 6 && run.size <= 200 ? { fontSize: `${run.size}px` } : {}),
       ...(typeof run.color === 'string' && (/^#[0-9a-f]{6}$/i.test(run.color) || /^rgba?\(\s*[\d.,%\s]+\)$/i.test(run.color)) ? { color: run.color } : {}),
-      ...(run.bold ? { fontWeight: 'bold' } : {}), ...(run.italic ? { fontStyle: 'italic' } : {}), ...(run.underline ? { textDecoration: 'underline' } : {}),
+      ...(typeof run.bold === 'boolean' ? { fontWeight: run.bold ? 'bold' : 'normal' } : {}), ...(typeof run.italic === 'boolean' ? { fontStyle: run.italic ? 'italic' : 'normal' } : {}), ...(typeof run.underline === 'boolean' ? { textDecoration: run.underline ? 'underline' : 'none' } : {}),
     }, ...(typeof run.href === 'string' && !!run.href && !/[\\\p{Cc}]/u.test(run.href) && !run.href.startsWith('//') && (!/^[a-z][a-z\d+.-]*:/i.test(run.href) || /^(https?:|mailto:|tel:)/i.test(run.href)) ? { href: run.href } : {}),
   }, run.text)) : markdown ? renderMarkdown(text) : text
   // React escapes text and renders only the supported formatting above; never store or render pasted HTML directly.
@@ -237,6 +244,17 @@ export function RichText({ blockId, field, text, value, editable = false, multil
       </div>
       {clipboardError && <p role="status" className="mb-2 text-xs">{clipboardError}</p>}
       {!savedRange.current || savedRange.current.collapsed ? <p className="mb-2 text-xs">Select text to format it.</p> : <>
+        {window.location.origin === 'https://webstudio.local' && <button type="button" className="mb-2 w-full rounded border border-gray-400 px-2 py-1 text-left" onMouseDown={event => event.preventDefault()} onClick={async () => {
+          const node = savedRange.current?.startContainer
+          const element = node instanceof Element ? node : node?.parentElement
+          if (!element) return
+          const style = getComputedStyle(element)
+          const rgb = style.color.match(/\d+/g)?.slice(0, 3).map(value => Math.min(255, Number(value)).toString(16).padStart(2, '0')).join('')
+          try {
+            const result = await chooseWindowsFont({ font: style.fontFamily.split(',')[0].replace(/["']/g, '').trim().replace(/[^\p{L}\p{N} ,._-]/gu, '') || 'Arial', size: Math.max(6, Math.min(200, Math.round(parseFloat(style.fontSize) || 16))), color: rgb?.length === 6 ? `#${rgb}` : '#000000', bold: style.fontWeight === 'bold' || Number(style.fontWeight) >= 600, italic: style.fontStyle === 'italic', underline: style.textDecorationLine.includes('underline') })
+            if (result) apply({ fontFamily: result.font, fontSize: `${result.size}px`, color: result.color, fontWeight: result.bold ? 'bold' : 'normal', fontStyle: result.italic ? 'italic' : 'normal', textDecoration: result.underline ? 'underline' : 'none' })
+          } catch { setClipboardError('The Windows font dialog could not be opened.') }
+        }}>Font...</button>}
         <label className="mb-2 block text-xs">Font<select aria-label="Text font" defaultValue="" className="mt-1 w-full rounded border border-gray-400 p-1" onChange={event => { if (event.target.value) apply({ fontFamily: event.target.value }) }}><option value="">Choose font</option>{['Arial', 'Calibri', 'Georgia', 'Tahoma', 'Times New Roman', 'Verdana'].map(font => <option key={font}>{font}</option>)}</select></label>
         <label className="mb-2 block text-xs">Font size (px)<input aria-label="Text font size" type="number" min="6" max="200" className="mt-1 w-full rounded border border-gray-400 p-1" onChange={event => { const size = Number(event.target.value); if (size >= 6 && size <= 200) apply({ fontSize: `${size}px` }) }} /></label>
         <label className="mb-2 flex items-center justify-between text-xs">Text color<input aria-label="Text color" type="color" defaultValue="#000000" onChange={event => apply({ color: event.target.value })} /></label>
