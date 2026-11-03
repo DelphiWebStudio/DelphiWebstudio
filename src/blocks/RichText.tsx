@@ -15,6 +15,7 @@ export function RichText({ blockId, field, text, value, editable = false, multil
   const menuActive = useRef(false)
   const moveRef = useRef<{ startX: number; startY: number; x: number; y: number } | null>(null)
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
+  const [clipboardError, setClipboardError] = useState('')
   const runs = Array.isArray(value) ? value.filter((item): item is Run => !!item && typeof item === 'object' && typeof item.text === 'string') : null
 
   function save() {
@@ -138,7 +139,8 @@ export function RichText({ blockId, field, text, value, editable = false, multil
       onCopy={event => {
         const selection = window.getSelection()
         if (!selection || selection.isCollapsed || !root.current?.contains(selection.getRangeAt(0).commonAncestorContainer)) return
-        const style = getComputedStyle(root.current)
+        const node = selection.getRangeAt(0).startContainer
+        const style = getComputedStyle(node instanceof Element ? node : node.parentElement || root.current)
         const span = document.createElement('span')
         span.style.fontFamily = style.fontFamily; span.style.fontSize = style.fontSize; span.style.color = style.color
         span.style.fontWeight = style.fontWeight; span.style.fontStyle = style.fontStyle
@@ -162,13 +164,15 @@ export function RichText({ blockId, field, text, value, editable = false, multil
         const range = selection?.rangeCount ? selection.getRangeAt(0) : null
         savedRange.current = range && root.current?.contains(range.commonAncestorContainer) ? range.cloneRange() : null
         menuActive.current = true
+        setClipboardError('')
         setMenu({ x: Math.max(0, Math.min(event.clientX, window.innerWidth - 240)), y: Math.max(0, Math.min(event.clientY, window.innerHeight - 200)) })
       }}
       onDragStart={event => {
         if (!editable) return
         const selection = window.getSelection()
         if (!selection || selection.isCollapsed || !root.current?.contains(selection.getRangeAt(0).commonAncestorContainer)) return
-        const style = getComputedStyle(root.current)
+        const node = selection.getRangeAt(0).startContainer
+        const style = getComputedStyle(node instanceof Element ? node : node.parentElement || root.current)
         const span = document.createElement('span')
         span.style.fontFamily = style.fontFamily
         span.style.fontSize = style.fontSize
@@ -207,6 +211,31 @@ export function RichText({ blockId, field, text, value, editable = false, multil
       onKeyDown={event => { const delta = event.shiftKey ? 10 : 1; const dx = event.key === 'ArrowLeft' ? -delta : event.key === 'ArrowRight' ? delta : 0; const dy = event.key === 'ArrowUp' ? -delta : event.key === 'ArrowDown' ? delta : 0; if (dx || dy) { event.preventDefault(); event.stopPropagation(); updatePosition(x + dx, y + dy) } }}>Move</button>}
     </Outer>
     {menu && createPortal(<div data-rich-menu role="menu" aria-label="Text formatting" className="fixed z-[10001] w-56 rounded border border-gray-400 bg-white p-2 text-sm text-black shadow-lg" style={{ left: menu.x, top: menu.y }} onContextMenu={event => event.preventDefault()} onClick={event => event.stopPropagation()}>
+      <div className="mb-2 flex flex-wrap gap-1 border-b border-gray-300 pb-2">
+        <button type="button" className="rounded border border-gray-400 px-2 py-1" onMouseDown={event => event.preventDefault()} onClick={() => {
+          if (!root.current) return
+          root.current.focus(); const range = document.createRange(); range.selectNodeContents(root.current)
+          const selection = window.getSelection(); selection?.removeAllRanges(); selection?.addRange(range); savedRange.current = range.cloneRange(); setMenu({ ...menu })
+        }}>Select all</button>
+        {(['cut', 'copy', 'delete'] as const).map(command => <button key={command} type="button" disabled={!savedRange.current || savedRange.current.collapsed} className="rounded border border-gray-400 px-2 py-1 capitalize disabled:opacity-40" onMouseDown={event => event.preventDefault()} onClick={() => {
+          if (!root.current || !savedRange.current || savedRange.current.collapsed) return
+          root.current.focus(); const selection = window.getSelection(); selection?.removeAllRanges(); selection?.addRange(savedRange.current)
+          if (document.execCommand(command)) { if (command !== 'copy') dirty.current = true; close() }
+        }}>{command}</button>)}
+        <button type="button" className="rounded border border-gray-400 px-2 py-1" onMouseDown={event => event.preventDefault()} onClick={async () => {
+          try {
+            const entries = await navigator.clipboard.read()
+            const entry = entries[0]
+            if (!entry || !root.current) throw new Error('Clipboard is empty')
+            const html = entry.types.includes('text/html') ? await (await entry.getType('text/html')).text() : ''
+            const plain = entry.types.includes('text/plain') ? await (await entry.getType('text/plain')).text() : ''
+            root.current.focus(); const selection = window.getSelection()
+            if (savedRange.current && root.current.contains(savedRange.current.commonAncestorContainer)) { selection?.removeAllRanges(); selection?.addRange(savedRange.current) }
+            insertPastedHtml(html, plain); dirty.current = true; close()
+          } catch { setClipboardError('Paste unavailable here. Click in the text and press Ctrl+V.') }
+        }}>Paste</button>
+      </div>
+      {clipboardError && <p role="status" className="mb-2 text-xs">{clipboardError}</p>}
       {!savedRange.current || savedRange.current.collapsed ? <p className="mb-2 text-xs">Select text to format it.</p> : <>
         <label className="mb-2 block text-xs">Font<select aria-label="Text font" defaultValue="" className="mt-1 w-full rounded border border-gray-400 p-1" onChange={event => { if (event.target.value) apply({ fontFamily: event.target.value }) }}><option value="">Choose font</option>{['Arial', 'Calibri', 'Georgia', 'Tahoma', 'Times New Roman', 'Verdana'].map(font => <option key={font}>{font}</option>)}</select></label>
         <label className="mb-2 block text-xs">Font size (px)<input aria-label="Text font size" type="number" min="6" max="200" className="mt-1 w-full rounded border border-gray-400 p-1" onChange={event => { const size = Number(event.target.value); if (size >= 6 && size <= 200) apply({ fontSize: `${size}px` }) }} /></label>
