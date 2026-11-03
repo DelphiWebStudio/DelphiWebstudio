@@ -3,6 +3,7 @@ import { resolveTheme } from '@/lib/theme-presets'
 import { validateProjectConfig } from '@/project/project-file'
 import { RenderBlock } from '@/blocks/registry'
 import { BlockColumns } from '@/blocks/BlockColumns'
+import { RichText } from '@/blocks/RichText'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import JSZip from 'jszip'
@@ -198,8 +199,8 @@ ${navLinks.join('\n')}
 
 function renderHeroCentered(block: BlockConfig): string {
   const badge = prop<string>(block.props, 'badge', '')
-  const headline = escapeHtml(prop(block.props, 'headline', ''))
-  const subheadline = escapeHtml(prop(block.props, 'subheadline', ''))
+  const headline = Array.isArray(block.props.headlineRich) ? renderToStaticMarkup(createElement(RichText, { blockId: block.id, field: 'headline', text: prop(block.props, 'headline', ''), value: block.props.headlineRich })) : escapeHtml(prop(block.props, 'headline', ''))
+  const subheadline = Array.isArray(block.props.subheadlineRich) ? renderToStaticMarkup(createElement(RichText, { blockId: block.id, field: 'subheadline', text: prop(block.props, 'subheadline', ''), value: block.props.subheadlineRich })) : escapeHtml(prop(block.props, 'subheadline', ''))
   const primaryCta = prop<string>(block.props, 'primaryCta', '')
   const primaryCtaUrl = prop<string>(block.props, 'primaryCtaUrl', '')
   const secondaryCta = prop<string>(block.props, 'secondaryCta', '')
@@ -229,8 +230,8 @@ ${secondaryHtml}
 
 function renderHeroSplit(block: BlockConfig): string {
   const badge = prop<string>(block.props, 'badge', '')
-  const headline = escapeHtml(prop(block.props, 'headline', ''))
-  const subheadline = escapeHtml(prop(block.props, 'subheadline', ''))
+  const headline = Array.isArray(block.props.headlineRich) ? renderToStaticMarkup(createElement(RichText, { blockId: block.id, field: 'headline', text: prop(block.props, 'headline', ''), value: block.props.headlineRich })) : escapeHtml(prop(block.props, 'headline', ''))
+  const subheadline = Array.isArray(block.props.subheadlineRich) ? renderToStaticMarkup(createElement(RichText, { blockId: block.id, field: 'subheadline', text: prop(block.props, 'subheadline', ''), value: block.props.subheadlineRich })) : escapeHtml(prop(block.props, 'subheadline', ''))
   const primaryCta = prop<string>(block.props, 'primaryCta', '')
   const primaryCtaUrl = prop<string>(block.props, 'primaryCtaUrl', '')
   const secondaryCta = prop<string>(block.props, 'secondaryCta', '')
@@ -273,8 +274,8 @@ ${imageHtml}
 
 function renderHeroGradient(block: BlockConfig): string {
   const badge = prop<string>(block.props, 'badge', '')
-  const headline = escapeHtml(prop(block.props, 'headline', ''))
-  const subheadline = escapeHtml(prop(block.props, 'subheadline', ''))
+  const headline = Array.isArray(block.props.headlineRich) ? renderToStaticMarkup(createElement(RichText, { blockId: block.id, field: 'headline', text: prop(block.props, 'headline', ''), value: block.props.headlineRich })) : escapeHtml(prop(block.props, 'headline', ''))
+  const subheadline = Array.isArray(block.props.subheadlineRich) ? renderToStaticMarkup(createElement(RichText, { blockId: block.id, field: 'subheadline', text: prop(block.props, 'subheadline', ''), value: block.props.subheadlineRich })) : escapeHtml(prop(block.props, 'subheadline', ''))
   const primaryCta = prop<string>(block.props, 'primaryCta', '')
   const primaryCtaUrl = prop<string>(block.props, 'primaryCtaUrl', '')
   const secondaryCta = prop<string>(block.props, 'secondaryCta', '')
@@ -313,8 +314,8 @@ function renderHero(block: BlockConfig): string {
     case 'gradient':
       return renderHeroGradient(block)
     case 'minimal': {
-      const headline = escapeHtml(prop(block.props, 'headline', ''))
-      const subheadline = escapeHtml(prop(block.props, 'subheadline', ''))
+      const headline = Array.isArray(block.props.headlineRich) ? renderToStaticMarkup(createElement(RichText, { blockId: block.id, field: 'headline', text: prop(block.props, 'headline', ''), value: block.props.headlineRich })) : escapeHtml(prop(block.props, 'headline', ''))
+      const subheadline = Array.isArray(block.props.subheadlineRich) ? renderToStaticMarkup(createElement(RichText, { blockId: block.id, field: 'subheadline', text: prop(block.props, 'subheadline', ''), value: block.props.subheadlineRich })) : escapeHtml(prop(block.props, 'subheadline', ''))
       const primaryCta = prop<string>(block.props, 'primaryCta', '')
       const primaryCtaUrl = prop<string>(block.props, 'primaryCtaUrl', '')
       const action = primaryCta ? `<div>${renderLink(primaryCta, primaryCtaUrl, 'px-8 py-4 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all inline-flex items-center gap-2 mx-auto')}</div>` : ''
@@ -1272,7 +1273,7 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
     const requestedHeroHeight = Number(block.props.layoutHeight)
     const heroHeight = block.type === 'hero' && Number.isFinite(requestedHeroHeight) && requestedHeroHeight > 0 ? Math.max(40, Math.min(2000, requestedHeroHeight)) : undefined
     const heroHeightStyle = heroHeight ? `${selector}{height:100%}${Number(block.props.sectionCount) > 1 ? `${selector}>:first-child,${selector}>:first-child>:first-child,${selector}>:first-child>:first-child>:first-child{height:100%;min-height:0}` : ''}${backgroundTarget}{height:100%;box-sizing:border-box;overflow:auto}` : ''
-    const customStyle = (backgroundColor ? `${selector},${backgroundTarget}{background-color:${backgroundColor}!important}` : '') + (textRules ? `${selector} :is(h1,h2,h3,h4,h5,h6,p,span,a,li,label){${textRules}}` : '') + individualTextRules + imageRules + heroHeightStyle + (block.type === 'panel' ? `@container (max-width:600px){[data-ws-scope="${scope}"]{width:100%!important;margin-left:0!important;margin-top:0!important;z-index:auto!important}}` : '')
+    const customStyle = (backgroundColor ? `${selector},${backgroundTarget}{background-color:${backgroundColor}!important}` : '') + (textRules ? `${selector} :is(h1,h2,h3,h4,h5,h6,p,span,a,li,label):not([data-rich-run]){${textRules}}` : '') + individualTextRules + imageRules + heroHeightStyle + (block.type === 'panel' ? `@container (max-width:600px){[data-ws-scope="${scope}"]{width:100%!important;margin-left:0!important;margin-top:0!important;z-index:auto!important}}` : '')
     if (imageRules) {
       let imageIndex = 0
       html = html.replace(/<img\b/g, () => `<img data-ws-image-index="${imageIndex++}"`)

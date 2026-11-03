@@ -138,7 +138,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
     return declarations ? [`${selector} [data-ws-text-key="${key}"]{${declarations}}`] : []
   }).join('')
   const heroHeightStyle = heroHeight ? `${selector}{height:100%}${Number(block.props.sectionCount) > 1 ? `${selector}>:first-child,${selector}>:first-child>:first-child{height:100%;min-height:0}` : ''}${backgroundTarget}{height:100%;box-sizing:border-box;overflow:auto}` : ''
-  const customStyle = (backgroundColor ? `${selector},${backgroundTarget}{background-color:${backgroundColor}!important}` : '') + (textRules ? `${selector} :is(h1,h2,h3,h4,h5,h6,p,span,a,li,label){${textRules}}` : '') + individualTextRules + imageRules + heroHeightStyle + (navbarHeight ? `${selector},${selector}>nav{height:100%}${selector}>nav{padding-block:4px}` : '') + (panelLayout ? `@container (max-width:600px){[data-ws-scope="${scope}"]{width:100%!important;margin-left:0!important;margin-top:0!important;z-index:auto!important}}` : '')
+  const customStyle = (backgroundColor ? `${selector},${backgroundTarget}{background-color:${backgroundColor}!important}` : '') + (textRules ? `${selector} :is(h1,h2,h3,h4,h5,h6,p,span,a,li,label):not([data-rich-run]){${textRules}}` : '') + individualTextRules + imageRules + heroHeightStyle + (navbarHeight ? `${selector},${selector}>nav{height:100%}${selector}>nav{padding-block:4px}` : '') + (panelLayout ? `@container (max-width:600px){[data-ws-scope="${scope}"]{width:100%!important;margin-left:0!important;margin-top:0!important;z-index:auto!important}}` : '')
 
   if (previewMode) {
     return (
@@ -263,7 +263,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         setContextMenu({ x: event.clientX, y: event.clientY })
       }}
       onPointerDown={event => {
-        if (isSelected && ((imageLayout && event.target instanceof HTMLImageElement) || (panelLayout && event.target instanceof Element && !event.target.closest('button,a,input,textarea,select')))) startImageDrag(event, 'move')
+        if (isSelected && ((imageLayout && event.target instanceof HTMLImageElement) || (panelLayout && event.target instanceof Element && !event.target.closest('button,a,input,textarea,select,[contenteditable="true"]')))) startImageDrag(event, 'move')
       }}
       onPointerMove={event => moveImageDrag(event)}
       onPointerUp={event => moveImageDrag(event, true)}

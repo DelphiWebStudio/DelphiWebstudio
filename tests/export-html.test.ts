@@ -19,6 +19,18 @@ const baseConfig: SiteConfig = {
 }
 
 describe('exportSiteToHTML', () => {
+  it('exports formatted Hero and section text without executing project text', () => {
+    const block = { id: 'hero', type: 'hero' as const, variant: 'centered', props: { headline: 'Hello', headlineRich: [{ text: 'Hello', font: 'Arial', size: 24, color: '#123456', bold: true }], subheadline: '', primaryCta: '', sectionCount: 2, section2Text: 'Welcome', section2TextRich: [{ text: 'Welcome', italic: true, href: '/contact' }, { text: '<script>alert(1)</script>', href: 'javascript:alert(1)' }] } }
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
+    expect(html).toContain('font-family:Arial')
+    expect(html).toContain('font-size:24px')
+    expect(html).toContain('color:#123456')
+    expect(html).toContain('font-style:italic')
+    expect(html).toContain('href="/contact"')
+    expect(html).not.toContain('href="javascript:')
+    expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
+    expect(html).not.toContain('<script>alert(1)</script>')
+  })
   it('preserves resized Hero dimensions in the exported page', () => {
     const hero = { id: 'hero', type: 'hero' as const, variant: 'centered', props: { headline: 'Welcome', subheadline: '', primaryCta: '', sectionCount: 2, layoutWidth: 75, layoutHeight: 260, layoutLeft: 10 } }
     const html = exportSiteToHTML({ ...baseConfig, blocks: [hero] })

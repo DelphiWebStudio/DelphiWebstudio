@@ -381,6 +381,14 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
   return (
     <div className="relative flex flex-wrap items-center gap-2 shrink-0">
       <input ref={inputRef} type="file" accept=".json,.zip,application/json,application/zip" className="hidden" aria-label="Choose project file" onChange={openProject} />
+      <button type="button" onClick={() => inputRef.current?.click()} disabled={opening || mediaImporting}
+        className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-text-1 hover:bg-bg-3 disabled:opacity-50">
+        <FolderOpen size={14} />{opening ? 'Opening…' : 'Open project'}
+      </button>
+      {project && <button type="button" disabled={mediaImporting} onClick={() => void saveProject()}
+        className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-text-1 hover:bg-bg-3 disabled:opacity-50">
+        <Save size={14} />{saving ? 'Preparing project…' : 'Save project'}
+      </button>}
       <input ref={staticInputRef} type="file" multiple {...{ webkitdirectory: '' }} className="hidden" aria-label="Choose static website folder" onChange={previewStaticHtml} />
       <button type="button" onClick={() => staticInputRef.current?.click()} disabled={opening || mediaImporting} className="rounded px-2 py-1 text-xs text-text-1 hover:bg-bg-3 disabled:opacity-50">Import HTML folder</button>
       {staticPreview && <div role="region" aria-label="HTML import report" className="basis-full rounded border border-border-default bg-bg-1 p-3 text-xs text-text-1">
@@ -422,14 +430,6 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
         }}>Create imported project</button>
         <button type="button" className="rounded px-2 py-1 hover:bg-bg-3" onClick={() => setWordpressPreview(null)}>Cancel</button>
       </div>}
-      <button type="button" onClick={() => inputRef.current?.click()} disabled={opening || mediaImporting}
-        className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-text-1 hover:bg-bg-3 disabled:opacity-50">
-        <FolderOpen size={14} />{opening ? 'Opening…' : 'Open project'}
-      </button>
-      {project && <button type="button" disabled={mediaImporting} onClick={() => void saveProject()}
-        className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-text-1 hover:bg-bg-3 disabled:opacity-50">
-        <Save size={14} />{saving ? 'Preparing project…' : 'Save project'}
-      </button>}
       {allRevisions && (projectDraftReadFailed || configDraftReadFailed) && <div className="basis-full text-xs text-text-2">
         <button type="button" disabled={savingRawDraft} onClick={() => void downloadRawDraft()} className="rounded px-2 py-1 text-text-1 hover:bg-bg-3 disabled:opacity-50">{savingRawDraft ? 'Preparing recovery data…' : 'Save unreadable draft data'}</button>
         <span>Raw data is not a project file, excludes media and may contain private settings or access keys.</span>
