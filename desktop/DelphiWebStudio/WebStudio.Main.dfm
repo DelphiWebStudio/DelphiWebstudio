@@ -96,6 +96,10 @@ object MainForm: TMainForm
         Caption = 'Restore project backup...'
         OnClick = RestoreBackupItemClick
       end
+      object ExitItem: TMenuItem
+        Caption = 'E&xit'
+        OnClick = ExitItemClick
+      end
     end
     object LocalAIItem: TMenuItem
       Caption = 'Local AI...'

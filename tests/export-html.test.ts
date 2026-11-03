@@ -19,6 +19,13 @@ const baseConfig: SiteConfig = {
 }
 
 describe('exportSiteToHTML', () => {
+  it('keeps moved Hero text in the same position in exported pages', () => {
+    const hero = { id: 'hero', type: 'hero' as const, variant: 'centered', props: { headline: 'Welcome', subheadline: 'Here', primaryCta: '', headlineOffsetX: 36, headlineOffsetY: 25, subheadlineOffsetX: -12, subheadlineOffsetY: 8 } }
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [hero] })
+    expect(html).toContain('translate(36px, 25px)')
+    expect(html).toContain('translate(-12px, 8px)')
+    expect(html).not.toContain('Move headline')
+  })
   it('exports media placed at a chosen point without editor controls', () => {
     const block = { id: 'hero', type: 'hero' as const, variant: 'centered', props: { headline: 'Welcome', placedMedia: [
       { id: 'photo', assetId: 'a', src: 'assets/church.png', name: 'Church', mime: 'image/png', x: 55, y: 20, width: 25 },
