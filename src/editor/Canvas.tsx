@@ -88,7 +88,7 @@ export function Canvas() {
         const hiddenOnCurrentWidth = block.webstudioHiddenOn?.[device] === true
         if (previewMode && hiddenOnCurrentWidth) return null
         const props = Object.fromEntries(Object.entries(block.props).map(([key, value]) => {
-          if (typeof value === 'string' && /^(src|image|logoImage|heroImage|avatar|url)$/i.test(key)) return [key, assetUrls[value] ?? value]
+          if (typeof value === 'string' && (/^(src|image|logoImage|heroImage|avatar|url)$/i.test(key) || /^section[2-4]Image$/.test(key))) return [key, assetUrls[value] ?? value]
           if (Array.isArray(value)) return [key, value.map(item => item && typeof item === 'object' && !Array.isArray(item)
             ? Object.fromEntries(Object.entries(item).map(([itemKey, itemValue]) => [itemKey, typeof itemValue === 'string' && /^(src|image|logoImage|heroImage|avatar|url)$/i.test(itemKey) ? assetUrls[itemValue] ?? itemValue : itemValue]))
             : item)]
@@ -99,7 +99,7 @@ export function Canvas() {
         return (
         <BlockWrapper
           key={block.id}
-          block={block}
+          block={{ ...block, props }}
           isSelected={selectedBlockId === block.id}
           hiddenOnCurrentWidth={hiddenOnCurrentWidth}
           onSelect={() => selectBlock(block.id)}

@@ -763,6 +763,23 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
       </div>
 
       {/* Property sections */}
+      <Section title="Sections across">
+        <label className="block text-xs text-text-2">Number of sections
+          <select aria-label="Number of sections" value={Math.min(4, Math.max(1, Number(block.props.sectionCount) || 1))} onChange={event => updateBlockProps(block.id, { sectionCount: Number(event.target.value) })} className="mt-1 w-full rounded border border-border-default bg-bg-2 p-1 text-xs">
+            {[1, 2, 3, 4].map(count => <option key={count} value={count}>{count}</option>)}
+          </select>
+        </label>
+        <p className="mt-2 text-[10px] text-text-3">The original block is section 1. Additional sections can contain text and an image. Reducing the count keeps their contents for later.</p>
+        {Array.from({ length: Math.min(4, Math.max(1, Number(block.props.sectionCount) || 1)) - 1 }, (_, i) => {
+          const number = i + 2
+          return <div key={number} className="mt-3 border-t border-border-default pt-2">
+            <div className="mb-2 text-xs font-semibold">Section {number}</div>
+            <PropertyField block={block} field={{ key: `section${number}Text`, label: `Section ${number} text`, type: 'textarea' }} />
+            <PropertyField block={block} field={{ key: `section${number}Image`, label: `Section ${number} image`, type: 'image' }} />
+            <PropertyField block={block} field={{ key: `section${number}Alt`, label: `Section ${number} image description`, type: 'text' }} />
+          </div>
+        })}
+      </Section>
       {schema?.sections.map((section) => (
         <Section key={section.title} title={section.title}>
           {section.fields.filter(field => !(block.type === 'footer' && ((block.variant === 'minimal' && ['logo', 'logoImage'].includes(field.key)) || (block.variant !== 'multi-column' && field.key === 'description')))).map((field) => (

@@ -2,6 +2,7 @@ import type { SiteConfig, BlockConfig } from '@/blocks/types'
 import { resolveTheme } from '@/lib/theme-presets'
 import { validateProjectConfig } from '@/project/project-file'
 import { RenderBlock } from '@/blocks/registry'
+import { BlockColumns } from '@/blocks/BlockColumns'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import JSZip from 'jszip'
@@ -1228,6 +1229,9 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
     const effectiveBlock = block.type === 'contact' && !(typeof block.props.recipientEmail === 'string' && block.props.recipientEmail.trim())
       ? { ...block, props: { ...block.props, recipientEmail: settings?.webmasterEmail ?? '' } } : block
     let html = renderBlock(effectiveBlock)
+    if (Number(block.props.sectionCount) > 1) {
+      html = renderToStaticMarkup(createElement(BlockColumns, { block }, createElement('div', { dangerouslySetInnerHTML: { __html: html } })))
+    }
     const scope = `ws-${index}`
     const selector = `[data-ws-scope="${scope}"] [data-ws-content]`
     const textSize = Number(block.props.textSize)
