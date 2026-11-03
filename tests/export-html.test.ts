@@ -19,6 +19,15 @@ const baseConfig: SiteConfig = {
 }
 
 describe('exportSiteToHTML', () => {
+  it('preserves resized Hero dimensions in the exported page', () => {
+    const hero = { id: 'hero', type: 'hero' as const, variant: 'centered', props: { headline: 'Welcome', subheadline: '', primaryCta: '', sectionCount: 2, layoutWidth: 75, layoutHeight: 260, layoutLeft: 10 } }
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [hero] })
+    expect(html).toContain('width:75%')
+    expect(html).toContain('margin-left:10%')
+    expect(html).toContain('height:260px')
+    expect(html).toContain('height:100%;box-sizing:border-box;overflow:auto')
+    expect(html).toContain('Welcome')
+  })
   it('exports separate positioned collage layers and a movable colored panel', () => {
     const collage = { id: 'collage', type: 'collage' as const, variant: 'default', props: { images: [
       { src: 'assets/a.png', alt: 'First photo', x: '0', y: '0', width: '60', height: '50', layer: '1' },

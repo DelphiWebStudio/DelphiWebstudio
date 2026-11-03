@@ -85,6 +85,8 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
         title: 'Style',
         fields: [
           { key: 'variant', label: 'Variant', type: 'select', options: ['centered', 'split', 'gradient', 'minimal'] },
+          { key: 'layoutWidth', label: 'Hero width (% of page)', type: 'text' },
+          { key: 'layoutHeight', label: 'Hero height (px)', type: 'text' },
         ],
       },
     ],
