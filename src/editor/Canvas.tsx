@@ -78,6 +78,7 @@ export function Canvas() {
       role="region"
       aria-label={`Site preview, ${blocks.length} blocks, ${viewport} viewport`}
     >
+      {!previewMode && viewport === 'desktop' && <div aria-hidden="true" className="absolute inset-y-0 left-1/2 z-30 pointer-events-none" style={{ width: 'min(1100px, calc(100% - 32px))', transform: 'translateX(-50%)', borderLeft: '1px dashed #8996a2', borderRight: '1px dashed #8996a2' }} />}
       {activeArticle && (activeArticle.author || activeArticle.summary || activeArticle.tags?.length) && <header className="px-6 py-3 text-text-1">
         {activeArticle.author && <p className="text-sm">By {activeArticle.author}</p>}
         {activeArticle.summary && <p className="text-sm">{activeArticle.summary}</p>}

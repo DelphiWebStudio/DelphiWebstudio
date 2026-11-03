@@ -253,3 +253,21 @@ textarea:focus-visible {
   top: 0;
   outline: none;
 }
+@container (min-width: 28rem) {
+  .ws-block-columns { grid-template-columns: var(--ws-section-widths); }
+  .ws-section-divider { display: block !important; }
+}
+
+.ws-section-divider {
+  display: none;
+  position: absolute;
+  left: -6px;
+  top: 0;
+  bottom: 0;
+  width: 12px;
+  z-index: 30;
+  cursor: col-resize;
+  touch-action: none;
+  background: transparent;
+  border: 0;
+}

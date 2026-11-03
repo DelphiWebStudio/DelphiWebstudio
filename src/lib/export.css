@@ -24,3 +24,6 @@
   --radius-lg: var(--radius-lg);
 }
 
+@container (min-width: 28rem) {
+  .ws-block-columns { grid-template-columns: var(--ws-section-widths); }
+}

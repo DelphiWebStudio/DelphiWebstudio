@@ -868,6 +868,7 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
           </select>
         </label>
         <p className="mt-2 text-[10px] text-text-3">The original block is section 1. Additional sections can contain text and an image. Reducing the count keeps their contents for later.</p>
+        <button type="button" onClick={() => updateBlockProps(block.id, { sectionWidths: [] })} className="mt-2 rounded border border-border-default px-2 py-1 text-xs">Reset section widths</button>
         {Array.from({ length: Math.min(4, Math.max(1, Number(block.props.sectionCount) || 1)) - 1 }, (_, i) => {
           const number = i + 2
           return <div key={number} data-section-properties={number} className={`mt-3 border-t border-border-default pt-2 ${selectedSection === number ? 'outline outline-1 outline-[#c3c7cb] rounded' : ''}`}>
@@ -875,6 +876,8 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
             <PropertyField block={block} field={{ key: `section${number}Text`, label: `Section ${number} text`, type: 'textarea' }} />
             <PropertyField block={block} field={{ key: `section${number}Image`, label: `Section ${number} image`, type: 'image' }} />
             <PropertyField block={block} field={{ key: `section${number}Alt`, label: `Section ${number} image description`, type: 'text' }} />
+            <PropertyField block={block} field={{ key: `section${number}ImageLink`, label: `Section ${number} image link`, type: 'text' }} />
+            <label className="mb-2 flex items-center gap-2 text-xs"><input type="checkbox" checked={block.props[`section${number}TextFirst`] === true} onChange={event => updateBlockProps(block.id, { [`section${number}TextFirst`]: event.target.checked })} /> Put text above image</label>
             <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={block.props[`section${number}Panel`] === true} onChange={event => updateBlockProps(block.id, { [`section${number}Panel`]: event.target.checked })} /> Show this section as a panel</label>
             {block.props[`section${number}Panel`] === true && <label className="mt-2 block text-xs">Panel color <WindowsColorInput label={`Section ${number} panel color`} value={typeof block.props[`section${number}Color`] === 'string' && /^#[0-9a-f]{6}$/i.test(block.props[`section${number}Color`] as string) ? block.props[`section${number}Color`] as string : '#b9aeb6'} onChange={value => updateBlockProps(block.id, { [`section${number}Color`]: value })} className="mt-1 block h-9 w-full rounded border border-border-default p-1" /></label>}
           </div>
