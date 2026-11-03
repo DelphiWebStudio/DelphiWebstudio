@@ -26,8 +26,6 @@ export function Canvas() {
   const revision = useProjectsStore(state => state.projects.find(project => project.id === activeProjectId)?.mediaRevision ?? 0)
   const webmasterEmail = useProjectsStore(state => state.projects.find(project => project.id === activeProjectId)?.settings?.webmasterEmail ?? '')
   const [assetUrls, setAssetUrls] = useState<Record<string, string>>({})
-  const [placement, setPlacement] = useState<{ blockId: string; x: number; y: number; pageId: string; projectId: string } | null>(null)
-  useEffect(() => { setPlacement(null) }, [activePageId, activeProjectId, previewMode])
   const referencedAssets = JSON.stringify([...new Set([
     ...blocks.map(block => typeof block.props.assetId === 'string' ? block.props.assetId : '').filter(Boolean),
     ...(JSON.stringify(blocks).match(/assets\/[a-zA-Z0-9._-]+/g) ?? []),
@@ -61,16 +59,6 @@ export function Canvas() {
     <div
       className="@container outline outline-1 rounded-xl min-h-[400px] relative z-[1] overflow-clip transition-all duration-300 mx-auto shrink-0"
       style={{ width: `${previewWidth}px`, ...cssVars, color: 'var(--color-text-0)', backgroundColor: 'var(--color-bg-1)', outlineColor: 'var(--color-border-default)', overflowWrap: 'anywhere' } as React.CSSProperties}
-      onClickCapture={event => {
-        if (previewMode || !activeProjectId || event.button !== 0 || event.detail === 0 || !(event.target instanceof Element)) return
-        if (event.target.closest('[data-placed-media],button,a,input,select,textarea') || !window.getSelection()?.isCollapsed) return
-        const target = event.target.closest('[data-webstudio-block-id]')
-        if (!target || !event.currentTarget.contains(target)) return
-        const blockId = target.getAttribute('data-webstudio-block-id')
-        const rect = target.getBoundingClientRect()
-        if (!blockId || !rect.width || !rect.height) return
-        setPlacement({ blockId, x: Math.max(0, Math.min(99, (event.clientX - rect.left) / rect.width * 100)), y: Math.max(0, Math.min(99, (event.clientY - rect.top) / rect.height * 100)), pageId: activePageId, projectId: activeProjectId })
-      }}
       onClick={(e) => {
         if (previewMode && !e.defaultPrevented && e.target instanceof Element) {
           const link = e.target.closest('a[href]')
@@ -114,7 +102,6 @@ export function Canvas() {
           block={{ ...block, props }}
           isSelected={selectedBlockId === block.id}
           hiddenOnCurrentWidth={hiddenOnCurrentWidth}
-          placement={placement?.blockId === block.id ? placement : null}
           onSelect={() => selectBlock(block.id)}
         >
           <RenderBlock block={{ ...block, props }} editable={!previewMode} />
@@ -152,8 +139,7 @@ export function Canvas() {
       const rect = target?.getBoundingClientRect()
       const blockId = target?.getAttribute('data-webstudio-block-id')
       const dropped = blockId && rect?.width && rect.height ? { blockId, x: Math.max(0, Math.min(99, (event.clientX - rect.left) / rect.width * 100)), y: Math.max(0, Math.min(99, (event.clientY - rect.top) / rect.height * 100)), pageId: activePageId, projectId: activeProjectId } : null
-      const destination = placement && placement.pageId === activePageId && placement.projectId === activeProjectId ? placement : dropped
-      setPlacement(null)
+      const destination = dropped
       const placeAsset = (asset: MediaAsset, offset: number) => {
         if (useEditorStore.getState().activeProjectId !== activeProjectId || useConfigStore.getState().activePageId !== activePageId) throw new Error('The project or page changed; select the intended page and try again.')
         if (destination) {
