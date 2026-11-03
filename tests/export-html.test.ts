@@ -19,6 +19,13 @@ const baseConfig: SiteConfig = {
 }
 
 describe('exportSiteToHTML', () => {
+  it('preserves explicit regular text styles inside a bold Hero heading', () => {
+    const block = { id: 'hero', type: 'hero' as const, variant: 'centered', props: { headline: 'Regular', headlineRich: [{ text: 'Regular', bold: false, italic: false, underline: false }] } }
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
+    expect(html).toContain('font-weight:normal')
+    expect(html).toContain('font-style:normal')
+    expect(html).toContain('text-decoration:none')
+  })
   it('keeps moved Hero text in the same position in exported pages', () => {
     const hero = { id: 'hero', type: 'hero' as const, variant: 'centered', props: { headline: 'Welcome', subheadline: 'Here', primaryCta: '', headlineOffsetX: 36, headlineOffsetY: 25, subheadlineOffsetX: -12, subheadlineOffsetY: 8 } }
     const html = exportSiteToHTML({ ...baseConfig, blocks: [hero] })

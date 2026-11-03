@@ -62,6 +62,13 @@ object MainForm: TMainForm
     Left = 296
     Top = 48
   end
+  object TextFontDialog: TFontDialog
+    MinFontSize = 5
+    MaxFontSize = 150
+    Options = [fdEffects, fdForceFontExist, fdLimitSize]
+    Left = 920
+    Top = 48
+  end
   object RecoveryOpenDialog: TOpenDialog
     Filter = 'WebStudio staged files|.webstudio-download-*.tmp'
     Options = [ofHideReadOnly, ofNoChangeDir, ofFileMustExist, ofPathMustExist, ofEnableSizing]

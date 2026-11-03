@@ -113,9 +113,22 @@ export function Canvas() {
 
   return (
     <div className="flex-1 flex items-start justify-start p-6 overflow-auto relative bg-[#dce8f3]" onDragOver={event => {
-      if (!previewMode && (event.dataTransfer.types.includes('application/x-webstudio-asset') || event.dataTransfer.types.includes('application/x-webstudio-component') || event.dataTransfer.types.includes('Files'))) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy' }
+      if (!previewMode && (event.dataTransfer.types.includes('application/x-webstudio-asset') || event.dataTransfer.types.includes('application/x-webstudio-component') || event.dataTransfer.types.includes('application/x-webstudio-block') || event.dataTransfer.types.includes('Files'))) { event.preventDefault(); event.dataTransfer.dropEffect = event.dataTransfer.types.includes('application/x-webstudio-block') ? 'move' : 'copy' }
     }} onDrop={event => {
       if (previewMode) return
+      const movingBlockId = event.dataTransfer.getData('application/x-webstudio-block')
+      if (movingBlockId) {
+        event.preventDefault()
+        const target = event.target instanceof Element ? event.target.closest('[data-webstudio-block-id]') : null
+        const from = blocks.findIndex(block => block.id === movingBlockId)
+        const targetIndex = blocks.findIndex(block => block.id === target?.getAttribute('data-webstudio-block-id'))
+        if (from < 0 || targetIndex < 0 || !target) return
+        let to = targetIndex + (event.clientY >= target.getBoundingClientRect().top + target.getBoundingClientRect().height / 2 ? 1 : 0)
+        if (from < to) to--
+        if (to !== from) useConfigStore.getState().moveBlock(from, to)
+        selectBlock(movingBlockId)
+        return
+      }
       const componentType = event.dataTransfer.getData('application/x-webstudio-component')
       if (componentType) {
         const meta = blockMetadata.find(item => item.type === componentType && item.type !== 'pricing')
