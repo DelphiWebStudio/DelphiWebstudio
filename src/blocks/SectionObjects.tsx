@@ -23,26 +23,31 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
     const direction = state.resize || ''
     const width = direction.includes('w') ? Math.max(5, Math.min(state.width + state.x, state.width - dx)) : direction.includes('e') ? Math.max(5, Math.min(100 - state.x, state.width + dx)) : state.width
     const height = direction.includes('n') ? Math.max(24, Math.min(state.height + state.y, state.height - dy)) : direction.includes('s') ? Math.max(24, state.height + dy) : state.height
-    const x = state.resize ? direction.includes('w') ? state.x + state.width - width : state.x : Math.max(0, Math.min(100 - state.width, state.x + dx))
-    const y = state.resize ? direction.includes('n') ? state.y + state.height - height : state.y : Math.max(0, state.y + dy)
+    let x = state.resize ? direction.includes('w') ? state.x + state.width - width : state.x : Math.max(0, Math.min(100 - state.width, state.x + dx))
+    let y = state.resize ? direction.includes('n') ? state.y + state.height - height : state.y : Math.max(0, state.y + dy)
     const element = event.currentTarget.closest<HTMLElement>('[data-section-object]')
     if (element) Object.assign(element.style, { left: `${!finish && !state.resize ? state.x + dx : x}%`, top: `${!finish && !state.resize ? state.y + dy : y}px`, width: `${width}%`, height: `${height}px` })
-    if (!finish && !state.resize && element) {
+    if (!state.resize && element) {
       const canvas = element.closest('[aria-label^="Site preview"]')
       const current = element.getBoundingClientRect()
       const matches: { vertical?: { x: number; top: number; height: number }; horizontal?: { y: number; left: number; width: number } } = {}
+      let snapX = 0, snapY = 0
       canvas?.querySelectorAll<HTMLElement>('[data-section-object], [data-placed-media], [data-ws-image-index], [contenteditable="true"]').forEach(other => {
         if (other === element || element.contains(other) || other.contains(element)) return
         const rect = other.getBoundingClientRect()
         if (!rect.width || !rect.height) return
         if (!matches.vertical) for (const [a, b] of [[current.left, rect.left], [current.right, rect.right], [(current.left + current.right) / 2, (rect.left + rect.right) / 2]]) {
-          if (Math.abs(a - b) <= 4) { const top = Math.min(current.top, rect.top); matches.vertical = { x: b, top, height: Math.max(current.bottom, rect.bottom) - top }; break }
+          if (Math.abs(a - b) <= 4) { const top = Math.min(current.top, rect.top); matches.vertical = { x: b, top, height: Math.max(current.bottom, rect.bottom) - top }; snapX = b - a; break }
         }
         if (!matches.horizontal) for (const [a, b] of [[current.top, rect.top], [current.bottom, rect.bottom], [(current.top + current.bottom) / 2, (rect.top + rect.bottom) / 2]]) {
-          if (Math.abs(a - b) <= 4) { const left = Math.min(current.left, rect.left); matches.horizontal = { y: b, left, width: Math.max(current.right, rect.right) - left }; break }
+          if (Math.abs(a - b) <= 4) { const left = Math.min(current.left, rect.left); matches.horizontal = { y: b, left, width: Math.max(current.right, rect.right) - left }; snapY = b - a; break }
         }
       })
-      setGuides(matches)
+      if (block.props.snapSectionObjects === true) {
+        x = Math.max(0, Math.min(100 - width, x + snapX / state.parentWidth * 100)); y = Math.max(0, y + snapY)
+        Object.assign(element.style, { left: `${finish ? x : state.x + dx + snapX / state.parentWidth * 100}%`, top: `${finish ? y : state.y + dy + snapY}px` })
+      }
+      if (!finish) setGuides(matches)
     }
     event.preventDefault(); event.stopPropagation()
     if (finish) {
