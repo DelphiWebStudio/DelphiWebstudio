@@ -109,11 +109,11 @@ function ComponentsPanel() {
               return (
                 <button
                   key={meta.type}
-                  draggable={!['content', 'image', 'cta', 'panel'].includes(meta.type)}
+                  draggable={!['content', 'image', 'cta', 'panel', 'collage'].includes(meta.type)}
                   onDragStart={(event) => { event.dataTransfer.setData('application/x-webstudio-component', meta.type); event.dataTransfer.effectAllowed = 'copy' }}
                   onPointerDown={event => {
                     suppressClick.current = false
-                    if (event.button !== 0 || !['content', 'image', 'cta', 'panel'].includes(meta.type)) return
+                    if (event.button !== 0 || !['content', 'image', 'cta', 'panel', 'collage'].includes(meta.type)) return
                     sectionDrag.current = { x: event.clientX, y: event.clientY, moved: false }
                     event.currentTarget.setPointerCapture(event.pointerId)
                   }}
@@ -140,11 +140,13 @@ function ComponentsPanel() {
                     const bounds = section.getBoundingClientRect()
                     if (!bounds.width) return
                     const key = `section${number}Objects`
-                    const items = Array.isArray(block.props[key]) ? block.props[key] : []
+                    const items = Array.isArray(block.props[key]) ? block.props[key] as Record<string, unknown>[] : []
+                    const hitId = element?.closest('[data-section-object]')?.getAttribute('data-section-object')
+                    const parent = items.find(item => item.id === hitId && item.type === 'panel')
                     const type = meta.type === 'content' ? 'text' : meta.type === 'cta' ? 'button' : meta.type
                     const x = Math.max(0, Math.min(70, (event.clientX - bounds.left) / bounds.width * 100))
                     const y = Math.max(0, event.clientY - bounds.top)
-                    useConfigStore.getState().updateBlockProps(block.id, { [key]: [...items, { id: `object-${crypto.randomUUID()}`, type, text: type === 'text' ? 'Text' : type === 'button' ? 'Button' : type === 'panel' ? 'Panel' : '', src: '', alt: '', url: '', color: type === 'panel' ? '#b9aeb6' : '#ffffff', textColor: type === 'panel' ? '#111111' : '', fontSize: '', x, y, width: 30, height: type === 'image' ? 180 : 80, layer: items.length + 1 }] })
+                    useConfigStore.getState().updateBlockProps(block.id, { [key]: [...items, { id: `object-${crypto.randomUUID()}`, type, text: type === 'text' ? 'Text' : type === 'button' ? 'Button' : type === 'panel' ? 'Panel' : '', src: '', alt: '', url: '', color: type === 'panel' ? '#b9aeb6' : '#ffffff', textColor: type === 'panel' ? '#111111' : '', fontSize: '', ...(type === 'collage' ? { images: [] } : {}), ...(parent && type !== 'panel' ? { parentId: parent.id } : {}), x, y, width: 30, height: type === 'image' || type === 'collage' ? 180 : 80, layer: Math.max(0, ...items.map(item => Number(item.layer) || 0)) + 1 }] })
                     selectBlock(block.id)
                     useEditorStore.getState().selectSection(number)
                     toast(`${meta.label} added to section ${number}`)

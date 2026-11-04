@@ -255,23 +255,35 @@ export const useConfigStore = create<ConfigState>()(
         const items = Array.isArray(source?.props[sourceKey]) ? source.props[sourceKey] as Record<string, unknown>[] : []
         const item = items.find(value => value && value.id === itemId)
         if (!source || !target || !item || toSection > Math.max(1, Number(target.props.sectionCount) || 1)) return state
-        const textKey = `sectionObject_${itemId}`, richKey = `${textKey}Rich`
+        const moving = [item, ...items.filter(value => value?.parentId === itemId)]
+        const movingIds = new Set(moving.map(value => value.id))
         return {
           ...pushUndo(state, 'Move section object'),
           config: produce(withPages(state.config), draft => {
             const active = draft.pages!.find(p => p.id === state.activePageId)!
             const from = active.blocks.find(b => b.id === fromId)!, to = active.blocks.find(b => b.id === toId)!
-            const oldText = from.props[textKey], oldRich = from.props[richKey]
             for (const block of draft.pages!.flatMap(p => p.blocks)) {
               if (block === from || (from.webstudioSharedSectionId && block.webstudioSharedSectionId === from.webstudioSharedSectionId)) {
-                block.props[sourceKey] = (Array.isArray(block.props[sourceKey]) ? block.props[sourceKey] as Record<string, unknown>[] : []).filter(value => !value || value.id !== itemId)
-                if (fromId !== toId) { delete block.props[textKey]; delete block.props[richKey] }
+                block.props[sourceKey] = (Array.isArray(block.props[sourceKey]) ? block.props[sourceKey] as Record<string, unknown>[] : []).filter(value => !value || !movingIds.has(value.id))
               }
               if (block === to || (to.webstudioSharedSectionId && block.webstudioSharedSectionId === to.webstudioSharedSectionId)) {
                 const existing = Array.isArray(block.props[targetKey]) ? block.props[targetKey] : []
-                block.props[targetKey] = [...existing, { ...structuredClone(item), x, y, width, height }]
-                if (oldText !== undefined) block.props[textKey] = oldText
-                if (oldRich !== undefined) block.props[richKey] = oldRich
+                const ratio = Number(item.width) > 0 ? width / Number(item.width) : 1
+                block.props[targetKey] = [...existing, ...moving.map(value => {
+                  if (value.id !== itemId) return { ...structuredClone(value), x: x + (Number(value.x) - Number(item.x)) * ratio, y: y + Number(value.y) - Number(item.y), width: Number(value.width) * ratio }
+                  const result: Record<string, unknown> = { ...structuredClone(value), x, y, width, height }
+                  delete result.parentId
+                  return result
+                })]
+                for (const value of moving) for (const suffix of ['', 'Rich']) {
+                  const prop = `sectionObject_${value.id}${suffix}`
+                  if (from.props[prop] !== undefined) block.props[prop] = from.props[prop]
+                }
+              }
+            }
+            if (fromId !== toId) for (const block of draft.pages!.flatMap(p => p.blocks)) {
+              if (block === from || (from.webstudioSharedSectionId && block.webstudioSharedSectionId === from.webstudioSharedSectionId)) for (const value of moving) {
+                delete block.props[`sectionObject_${value.id}`]; delete block.props[`sectionObject_${value.id}Rich`]
               }
             }
             draft.blocks = (draft.pages!.find(p => p.path === '/') ?? draft.pages![0]).blocks

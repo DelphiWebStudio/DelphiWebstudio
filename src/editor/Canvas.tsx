@@ -94,11 +94,16 @@ export function Canvas() {
         if (!bounds.width) return
         const key = `section${sectionNumber}Objects`
         const items = Array.isArray(block.props[key]) ? block.props[key] as Array<Record<string, unknown>> : []
+        const hitId = event.target instanceof Element ? event.target.closest('[data-section-object]')?.getAttribute('data-section-object') : null
+        const parent = items.find(item => item.id === hitId && item.type === 'panel') ?? [...items].filter(item => item.type === 'panel' && typeof item.id === 'string').sort((a, b) => (Number(b.layer) || 0) - (Number(a.layer) || 0)).find(item => {
+          const bounds = area.querySelector<HTMLElement>(`[data-section-object="${item.id}"]`)?.getBoundingClientRect()
+          return bounds && event.clientX >= bounds.left && event.clientX <= bounds.right && event.clientY >= bounds.top && event.clientY <= bounds.bottom
+        })
         const id = `object-${crypto.randomUUID()}`
         const x = Math.max(0, Math.min(70, (event.clientX - bounds.left) / bounds.width * 100))
         const y = Math.max(0, event.clientY - bounds.top)
         const layer = Math.max(0, ...items.map(item => Number(item.layer) || 0)) + 1
-        useConfigStore.getState().updateBlockProps(block.id, { [key]: [...items, { id, type: 'text', text: 'Text', textColor: '', fontSize: '', x, y, width: 30, height: 80, layer }] })
+        useConfigStore.getState().updateBlockProps(block.id, { [key]: [...items, { id, type: 'text', text: 'Text', textColor: '', fontSize: '', x, y, width: 30, height: 80, layer, ...(parent ? { parentId: parent.id } : {}) }] })
         selectBlock(block.id)
         useEditorStore.getState().selectSection(sectionNumber)
         useEditorStore.getState().setNewTextObjectId(id)
@@ -136,7 +141,7 @@ export function Canvas() {
         const props = Object.fromEntries(Object.entries(block.props).map(([key, value]) => {
           if (typeof value === 'string' && (/^(src|image|logoImage|heroImage|avatar|url)$/i.test(key) || /^section[2-4]Image$/.test(key))) return [key, assetUrls[value] ?? value]
           if (Array.isArray(value)) return [key, value.map(item => item && typeof item === 'object' && !Array.isArray(item)
-            ? Object.fromEntries(Object.entries(item).map(([itemKey, itemValue]) => [itemKey, typeof itemValue === 'string' && /^(src|image|logoImage|heroImage|avatar|url)$/i.test(itemKey) ? assetUrls[itemValue] ?? itemValue : itemValue]))
+            ? Object.fromEntries(Object.entries(item).map(([itemKey, itemValue]) => [itemKey, typeof itemValue === 'string' && /^(src|image|logoImage|heroImage|avatar|url)$/i.test(itemKey) ? assetUrls[itemValue] ?? itemValue : itemKey === 'images' && Array.isArray(itemValue) ? itemValue.map(photo => photo && typeof photo === 'object' && typeof photo.src === 'string' ? { ...photo, src: assetUrls[photo.src] ?? photo.src } : photo) : itemValue]))
             : item)]
           return [key, value]
         }))
