@@ -7,10 +7,10 @@ import { chooseWindowsFont } from '@/desktop/native-bridge'
 import { WindowsColorInput } from '@/editor/WindowsColorInput'
 
 type Run = { text: string; font?: string; size?: number; color?: string; bold?: boolean; italic?: boolean; underline?: boolean; href?: string; align?: 'left' | 'center' | 'right' | 'justify' }
-type Props = { blockId: string; field: string; text: string; value: unknown; editable?: boolean; multiline?: boolean; markdown?: boolean; position?: { x: number; y: number; width?: number; height?: number }; fill?: boolean; alignment?: unknown }
+type Props = { blockId: string; field: string; text: string; value: unknown; editable?: boolean; multiline?: boolean; markdown?: boolean; position?: { x: number; y: number; width?: number; height?: number }; fill?: boolean; alignment?: unknown; onDeleteBox?: () => void }
 let draggedText: { element: HTMLElement; range: Range } | null = null
 
-export function RichText({ blockId, field, text, value, editable = false, multiline = false, markdown = false, position, fill = false, alignment }: Props) {
+export function RichText({ blockId, field, text, value, editable = false, multiline = false, markdown = false, position, fill = false, alignment, onDeleteBox }: Props) {
   const root = useRef<HTMLElement>(null)
   const dirty = useRef(false)
   const savedRange = useRef<Range | null>(null)
@@ -171,7 +171,7 @@ export function RichText({ blockId, field, text, value, editable = false, multil
   const updatePosition = (nextX: number, nextY: number) => useConfigStore.getState().updateBlockProps(blockId, { [`${field}OffsetX`]: Math.round(Math.max(-2000, Math.min(2000, nextX))), [`${field}OffsetY`]: Math.round(Math.max(-2000, Math.min(2000, nextY))) })
   return <>
     <Outer data-text-position={position ? field : undefined} className={position && editable ? 'group/text relative inline-block' : undefined} style={position ? { display: 'inline-block', position: 'relative', maxWidth: '100%', overflowWrap: 'anywhere', transform: `translate(${x}px, ${y}px)`, ...(position.width && position.width > 0 ? { width: `${position.width}px` } : {}), ...(position.height && position.height > 0 ? { minHeight: `${position.height}px` } : {}), ...(textAlign ? { textAlign } : {}) } : { ...(fill && editable ? { display: 'flex', flex: '1 1 auto' } : {}), ...(textAlign ? { display: fill && editable ? 'flex' : 'block', width: '100%', textAlign } : {}) }}>
-    <Tag ref={(element: HTMLElement | null) => { root.current = element }} data-rich-editor={editable ? field : undefined} role={editable ? 'textbox' : undefined} aria-label={editable ? `Edit ${field}` : undefined} aria-multiline={editable && multiline ? true : undefined} contentEditable={editable || undefined} suppressContentEditableWarning style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', ...(editable && multiline ? { display: 'block', minHeight: '3em', cursor: 'text', ...(fill ? { flex: 1 } : {}) } : {}) }}
+    <Tag ref={(element: HTMLElement | null) => { root.current = element }} data-rich-editor={editable ? field : undefined} role={editable ? 'textbox' : undefined} aria-label={editable ? `Edit ${field}` : undefined} aria-multiline={editable && multiline ? true : undefined} contentEditable={editable || undefined} suppressContentEditableWarning style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', ...(editable ? { display: 'inline-block', minWidth: '2em', minHeight: '1em', cursor: 'text' } : {}), ...(editable && multiline ? { display: 'block', minHeight: '3em', ...(fill ? { flex: 1 } : {}) } : {}) }}
       onBlur={() => { if (!menuActive.current && !draggedText) save() }}
       onInput={() => { dirty.current = true; if (position) requestAnimationFrame(() => { const element = root.current; const section = element?.closest<HTMLElement>('[data-editor-section]'); if (!element || !section) return; const bounds = element.getBoundingClientRect(), area = section.getBoundingClientRect(); const correction = bounds.left < area.left ? area.left - bounds.left : bounds.right > area.right ? area.right - bounds.right : 0; if (Math.abs(correction) > 1) updatePosition(x + correction, y) }) }}
       onCopy={event => {
@@ -242,7 +242,7 @@ export function RichText({ blockId, field, text, value, editable = false, multil
         window.setTimeout(() => { if (root.current && document.activeElement !== root.current) save() }, 0)
       }}
       dangerouslySetInnerHTML={editable ? undefined : { __html: markup }} />
-    {position && editable && <button type="button" aria-label={`Move ${field}`} title="Drag to move text, or focus and use arrow keys" className="absolute -top-5 left-0 z-30 rounded border border-gray-400 bg-white px-1 text-xs leading-4 text-black opacity-0 group-hover/text:opacity-100 group-focus-within/text:opacity-100 focus:opacity-100" style={{ cursor: 'move', touchAction: 'none' }}
+    {position && editable && <button type="button" aria-label={`Move ${field}`} title="Drag to move text, or focus and use arrow keys" className="absolute -top-5 left-0 z-30 rounded border border-gray-400 bg-white px-1 text-black opacity-0 group-hover/text:opacity-100 group-focus-within/text:opacity-100 focus:opacity-100" style={{ cursor: 'move', touchAction: 'none', font: '12px/16px Segoe UI, sans-serif', letterSpacing: 'normal', whiteSpace: 'nowrap' }}
       onPointerDown={event => { if (event.button !== 0) return; event.preventDefault(); event.stopPropagation(); moveRef.current = { startX: event.clientX, startY: event.clientY, x, y }; event.currentTarget.setPointerCapture(event.pointerId) }}
       onPointerMove={event => { const move = moveRef.current; const element = event.currentTarget.parentElement; if (move && element) {
         element.style.transform = `translate(${move.x + event.clientX - move.startX}px, ${move.y + event.clientY - move.startY}px)`
@@ -270,6 +270,7 @@ export function RichText({ blockId, field, text, value, editable = false, multil
       {guides.horizontal && <div style={{ position: 'fixed', left: guides.horizontal.left, top: guides.horizontal.y, width: guides.horizontal.width, height: 1, background: '#1683e5' }} />}
     </div>, document.body)}
     {menu && createPortal(<div ref={menuElement} data-rich-menu role="menu" aria-label="Text formatting" className="fixed z-[10001] w-56 rounded border border-gray-400 bg-white p-2 text-sm text-black shadow-lg" style={{ left: menu.x, top: menu.y }} onContextMenu={event => event.preventDefault()} onClick={event => event.stopPropagation()}>
+      {(onDeleteBox || position) && <button type="button" role="menuitem" className="mb-2 block w-full rounded border border-gray-400 px-2 py-1 text-left" onClick={() => { menuActive.current = false; dirty.current = false; setMenu(null); if (onDeleteBox) onDeleteBox(); else useConfigStore.getState().updateBlockProps(blockId, { [`${field}Hidden`]: true }) }}>Delete text box</button>}
       <div className="mb-2 flex flex-wrap gap-1 border-b border-gray-300 pb-2">
         <button type="button" className="rounded border border-gray-400 px-2 py-1" onMouseDown={event => event.preventDefault()} onClick={() => {
           if (!root.current) return
