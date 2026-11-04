@@ -89,7 +89,8 @@ export function Canvas() {
         if (!textPlacement || event.button !== 0 || previewMode) return
         event.preventDefault(); event.stopPropagation()
         useEditorStore.getState().setTextPlacement(null)
-        if (textPlacement.projectId !== useEditorStore.getState().activeProjectId || textPlacement.pageId !== useConfigStore.getState().activePageId) { toast.error('The page changed. Select Add text again.'); return }
+        const isPanel = textPlacement.kind === 'panel'
+        if (textPlacement.projectId !== useEditorStore.getState().activeProjectId || textPlacement.pageId !== useConfigStore.getState().activePageId) { toast.error(`The page changed. Select Add ${isPanel ? 'panel' : 'text'} again.`); return }
         const section = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-editor-section]') : null
         const sectionNumber = Number(section?.dataset.editorSection)
         const blockId = section?.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id')
@@ -102,10 +103,11 @@ export function Canvas() {
           const newBlockId = `block-${crypto.randomUUID()}`
           const bounds = event.currentTarget.getBoundingClientRect()
           const x = bounds.width ? Math.max(0, Math.min(70, (event.clientX - bounds.left) / bounds.width * 100)) : 0
-          useConfigStore.getState().addBlock({ id: newBlockId, type: 'content', variant: meta.variants[0], props: { ...structuredClone(meta.defaultProps), title: '', body: '', section1Objects: [{ id, type: 'text', text: 'Text', textColor: '', fontSize: '', x, y: 0, width: 30, height: 80, layer: 1 }] } })
+          useConfigStore.getState().addBlock({ id: newBlockId, type: 'content', variant: meta.variants[0], props: { ...structuredClone(meta.defaultProps), title: '', body: '', section1Objects: [{ id, type: isPanel ? 'panel' : 'text', text: isPanel ? 'Panel' : 'Text', color: isPanel ? '#b9aeb6' : '', textColor: isPanel ? '#111111' : '', fontSize: '', x, y: 0, width: 30, height: isPanel ? 160 : 80, layer: 1 }] } })
           selectBlock(newBlockId)
           useEditorStore.getState().selectSection(1)
-          useEditorStore.getState().setNewTextObjectId(id)
+          if (isPanel) useEditorStore.getState().selectSectionObject({ blockId: newBlockId, section: 1, id })
+          else useEditorStore.getState().setNewTextObjectId(id)
           return
         }
         const bounds = area.getBoundingClientRect()
@@ -121,10 +123,11 @@ export function Canvas() {
         const x = Math.max(0, Math.min(70, (event.clientX - bounds.left) / bounds.width * 100))
         const y = Math.max(0, event.clientY - bounds.top)
         const layer = Math.max(0, ...items.map(item => Number(item.layer) || 0)) + 1
-        useConfigStore.getState().updateBlockProps(block.id, { [key]: [...items, { id, type: 'text', text: 'Text', textColor: '', fontSize: '', x, y, width: 30, height: 80, layer, ...(parent ? { parentId: parent.id } : {}) }] })
+        useConfigStore.getState().updateBlockProps(block.id, { [key]: [...items, { id, type: isPanel ? 'panel' : 'text', text: isPanel ? 'Panel' : 'Text', color: isPanel ? '#b9aeb6' : '', textColor: isPanel ? '#111111' : '', fontSize: '', x, y, width: 30, height: isPanel ? 160 : 80, layer, ...(!isPanel && parent ? { parentId: parent.id } : {}) }] })
         selectBlock(block.id)
         useEditorStore.getState().selectSection(sectionNumber)
-        useEditorStore.getState().setNewTextObjectId(id)
+        if (isPanel) useEditorStore.getState().selectSectionObject({ blockId: block.id, section: sectionNumber, id })
+        else useEditorStore.getState().setNewTextObjectId(id)
       }}
       onClick={(e) => {
         if (previewMode && !e.defaultPrevented && e.target instanceof Element) {
@@ -145,7 +148,7 @@ export function Canvas() {
       role="region"
       aria-label={`Site preview, ${blocks.length} blocks, ${viewport} viewport`}
     >
-      {(textPlacement || movingCollage) && <div className="absolute left-0 top-0 z-50 bg-blue-700 px-3 py-2 text-sm text-white" style={{ pointerEvents: 'none' }}>{movingCollage ? 'Click the destination section for the collage.' : 'Click inside a section or on a panel to place text.'} Press Esc to cancel.</div>}
+      {(textPlacement || movingCollage) && <div className="absolute left-0 top-0 z-50 bg-blue-700 px-3 py-2 text-sm text-white" style={{ pointerEvents: 'none' }}>{movingCollage ? 'Click the destination section for the collage.' : textPlacement?.kind === 'panel' ? 'Click inside a section to place the panel.' : 'Click inside a section or on a panel to place text.'} Press Esc to cancel.</div>}
       {!previewMode && viewport === 'desktop' && <div aria-hidden="true" className="absolute inset-y-0 left-1/2 z-30 pointer-events-none" style={{ width: 'min(1100px, calc(100% - 32px))', transform: 'translateX(-50%)', borderLeft: '1px dashed #8996a2', borderRight: '1px dashed #8996a2' }} />}
       {activeArticle && (activeArticle.author || activeArticle.summary || activeArticle.tags?.length) && <header className="px-6 py-3 text-text-1">
         {activeArticle.author && <p className="text-sm">By {activeArticle.author}</p>}

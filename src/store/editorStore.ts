@@ -12,7 +12,7 @@ interface EditorState {
   selectedSectionObject: { blockId: string; section: number; id: string } | null
   selectSectionObject: (value: EditorState['selectedSectionObject']) => void
   copiedSectionObject: { token: string; projectId: string | null; item: Record<string, unknown>; text?: unknown; rich?: unknown } | null
-  textPlacement: { projectId: string | null; pageId: string | null } | null
+  textPlacement: { projectId: string | null; pageId: string | null; kind?: 'text' | 'panel' } | null
   newTextObjectId: string | null
   movingCollage: { blockId: string; projectId: string | null; pageId: string } | null
   setMovingCollage: (value: EditorState['movingCollage']) => void

@@ -229,6 +229,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
     if (finish) {
       dragRef.current = null
       if (heroLayout) { element.removeAttribute('data-ws-hero-resizing'); element.style.removeProperty('--ws-hero-height') }
+      if (panelLayout) element.style.removeProperty('--ws-panel-height')
       useConfigStore.getState().updateBlockProps(block.id, drag.kind === 'move'
         ? { layoutLeft: Math.round(nextLeft), layoutTop: Math.round(nextTop) }
         : { layoutLeft: Math.round(nextLeft), layoutTop: Math.round(nextTop), layoutWidth: Math.round(nextWidth), layoutHeight: Math.round(nextHeight) })
@@ -240,7 +241,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       element.style.marginTop = `${nextTop}px`
       element.style.width = `${nextWidth}%`
       if (navbarLayout) element.style.height = `${nextHeight}px`
-      else if (!imageLayout) { element.style.minHeight = `${nextHeight}px`; if (heroLayout) element.style.setProperty('--ws-hero-height', `${nextHeight}px`) }
+      else if (!imageLayout) { element.style.minHeight = `${nextHeight}px`; if (heroLayout) element.style.setProperty('--ws-hero-height', `${nextHeight}px`); if (panelLayout) element.style.setProperty('--ws-panel-height', `${nextHeight}px`) }
       else {
         const image = element.querySelector('img')
         if (image) image.style.height = `${nextHeight}px`
