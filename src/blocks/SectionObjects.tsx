@@ -36,12 +36,11 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
         const targetBlock = target?.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id')
         const area = target?.querySelector<HTMLElement>(`[data-section-object-area="${targetSection}"]`)
         const moving = saved.find(item => item.id === state.id)
-        if (moving && area && targetBlock === block.id && targetSection >= 1 && targetSection <= 4 && targetSection !== section) {
-          const bounds = area.getBoundingClientRect(), targetKey = `section${targetSection}Objects`
-          const targetItems = Array.isArray(current.props[targetKey]) ? current.props[targetKey] as SectionObject[] : []
+        if (moving && area && targetBlock && targetSection >= 1 && targetSection <= 4 && (targetBlock !== block.id || targetSection !== section)) {
+          const bounds = area.getBoundingClientRect()
           const nextWidth = bounds.width ? Math.max(5, Math.min(100, width * state.parentWidth / bounds.width)) : width
           const nextX = bounds.width ? Math.max(0, Math.min(100 - nextWidth, (event.clientX - state.grabX - bounds.left) / bounds.width * 100)) : 0
-          useConfigStore.getState().updateBlockProps(block.id, { [key]: saved.filter(item => item.id !== state.id), [targetKey]: [...targetItems, { ...moving, x: nextX, y: Math.max(0, event.clientY - state.grabY - bounds.top), width: nextWidth, height }] })
+          useConfigStore.getState().moveSectionObject(block.id, section, targetBlock, targetSection, state.id, nextX, Math.max(0, event.clientY - state.grabY - bounds.top), nextWidth, height)
           setSelected(null)
           return
         }
