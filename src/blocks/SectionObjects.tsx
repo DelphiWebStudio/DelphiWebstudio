@@ -1,5 +1,7 @@
 import { useRef, useState, type PointerEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { useConfigStore } from '@/store/configStore'
+import { useEditorStore } from '@/store/editorStore'
 import type { BlockConfig } from './types'
 import { RichText } from './RichText'
 
@@ -10,6 +12,7 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
   const objects = Array.isArray(block.props[key]) ? block.props[key] as SectionObject[] : []
   const [selected, setSelected] = useState<string | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
+  const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null)
   const drag = useRef<{ id: string; startX: number; startY: number; grabX: number; grabY: number; x: number; y: number; width: number; height: number; parentWidth: number; resize: boolean } | null>(null)
   function move(event: PointerEvent<HTMLElement>, finish = false) {
     const state = drag.current
@@ -48,12 +51,13 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
       useConfigStore.getState().updateBlockProps(block.id, { [key]: saved.map(item => item.id === state.id ? { ...item, x, y, width, height } : item) })
     }
   }
-  return <div data-section-object-area={section} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+  return <><div data-section-object-area={section} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
     {objects.filter(item => item && typeof item.id === 'string' && ['text', 'image', 'button', 'panel'].includes(item.type)).map(item => {
       const x = Math.max(0, Math.min(95, Number(item.x) || 0)), y = Math.max(0, Number(item.y) || 0)
       const width = Math.max(5, Math.min(100 - x, Number(item.width) || 30)), height = Math.max(24, Number(item.height) || 80)
       const link = typeof item.url === 'string' && /^(https?:\/\/|\/(?!\/)|#)/i.test(item.url) ? item.url : undefined
       return <div key={item.id} data-section-object={item.id} tabIndex={editable ? 0 : undefined} aria-label={editable ? `${item.type} in section ${section}` : undefined} style={{ position: 'absolute', left: `${x}%`, top: y, width: `${width}%`, height, zIndex: Number(item.layer) || 1, pointerEvents: 'auto', outline: editable && selected === item.id ? '1px solid #005a9e' : undefined, touchAction: editable ? 'none' : undefined, cursor: editable ? 'move' : undefined, background: item.type === 'panel' && /^#[0-9a-f]{6}$/i.test(item.color || '') ? item.color : undefined, color: /^#[0-9a-f]{6}$/i.test(item.textColor || '') ? item.textColor : undefined, fontSize: Number(item.fontSize) >= 6 && Number(item.fontSize) <= 200 ? Number(item.fontSize) : undefined }}
+        onContextMenu={event => { if (!editable || (editing === item.id && event.target instanceof Element && event.target.closest('[contenteditable="true"]'))) return; event.preventDefault(); event.stopPropagation(); setSelected(item.id); useEditorStore.getState().selectBlock(block.id); setMenu({ id: item.id, x: event.clientX, y: event.clientY }) }}
         onDoubleClick={event => { if (editable && (item.type === 'text' || item.type === 'panel')) { const element = event.currentTarget; event.stopPropagation(); setSelected(item.id); setEditing(item.id); requestAnimationFrame(() => element.querySelector<HTMLElement>('[contenteditable="true"]')?.focus()) } }}
         onKeyDown={event => { if (!editable || event.target !== event.currentTarget || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return; event.preventDefault(); event.stopPropagation(); const current = useConfigStore.getState().getActivePageBlocks().find(value => value.id === block.id); const saved = Array.isArray(current?.props[key]) ? current.props[key] as SectionObject[] : []; const step = event.shiftKey ? 10 : 1; const area = event.currentTarget.parentElement; const horizontal = area?.clientWidth ? step / area.clientWidth * 100 : 0; useConfigStore.getState().updateBlockProps(block.id, { [key]: saved.map(value => value.id === item.id ? { ...value, x: Math.max(0, Math.min(100 - width, x + (event.key === 'ArrowRight' ? horizontal : event.key === 'ArrowLeft' ? -horizontal : 0))), y: Math.max(0, y + (event.key === 'ArrowDown' ? step : event.key === 'ArrowUp' ? -step : 0)) } : value) }) }}
         onPointerDown={event => { if (!editable || event.button !== 0 || (event.target instanceof Element && (event.target.closest('[data-rich-menu]') || (editing === item.id && event.target.closest('[contenteditable="true"]'))))) return; const parent = event.currentTarget.parentElement; if (!parent?.clientWidth) return; const bounds = event.currentTarget.getBoundingClientRect(); event.preventDefault(); event.stopPropagation(); setSelected(item.id); drag.current = { id: item.id, startX: event.clientX, startY: event.clientY, grabX: event.clientX - bounds.left, grabY: event.clientY - bounds.top, x, y, width, height, parentWidth: parent.clientWidth, resize: false }; event.currentTarget.setPointerCapture(event.pointerId) }} onPointerMove={event => move(event)} onPointerUp={event => move(event, true)} onPointerCancel={() => { drag.current = null }}>
@@ -65,4 +69,22 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
       </div>
     })}
   </div>
+  {editable && menu && createPortal(<div role="menu" aria-label="Object actions" style={{ position: 'fixed', left: Math.max(0, Math.min(menu.x, window.innerWidth - 170)), top: Math.max(0, Math.min(menu.y, window.innerHeight - 160)), zIndex: 10001 }} className="rounded border border-gray-400 bg-white p-1 text-sm text-black shadow-lg" onClick={event => event.stopPropagation()} onMouseLeave={() => setMenu(null)} onKeyDown={event => { if (event.key === 'Escape') setMenu(null) }}>
+    {(['Duplicate', 'Bring to front', 'Send to back', 'Delete'] as const).map(action => <button key={action} type="button" role="menuitem" className="block w-full rounded px-3 py-1 text-left hover:bg-blue-100" onClick={() => {
+      const current = useConfigStore.getState().getActivePageBlocks().find(value => value.id === block.id)
+      const saved = Array.isArray(current?.props[key]) ? current.props[key] as SectionObject[] : []
+      const index = saved.findIndex(value => value.id === menu.id)
+      if (index >= 0) {
+        if (action === 'Duplicate' || action === 'Delete') useConfigStore.getState().editBlockItems(block.id, key, index, index, action === 'Duplicate' ? 'duplicate' : 'remove')
+        else {
+          const ordered = saved.map((value, position) => ({ value, position })).sort((a, b) => (Number(a.value.layer) || 1) - (Number(b.value.layer) || 1) || a.position - b.position).filter(entry => entry.value.id !== menu.id)
+          const chosen = { value: saved[index], position: index }
+          if (action === 'Bring to front') ordered.push(chosen); else ordered.unshift(chosen)
+          useConfigStore.getState().updateBlockProps(block.id, { [key]: saved.map(value => ({ ...value, layer: ordered.findIndex(entry => entry.value.id === value.id) + 1 })) })
+        }
+      }
+      if (action === 'Delete') setSelected(null)
+      setMenu(null)
+    }}>{action}</button>)}
+  </div>, document.body)}</>
 }

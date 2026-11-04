@@ -13,6 +13,20 @@ beforeEach(() => {
 })
 
 describe('page history', () => {
+  it('duplicates a formatted section object visibly in front and preserves its rich text', () => {
+    const item = { id: 'original', type: 'text', x: 10, y: 20, width: 30, height: 80, layer: 2 }
+    const rich = [{ text: 'Styled', bold: true }]
+    useConfigStore.getState().addBlock({ id: 'hero', type: 'hero', variant: 'centered', props: { section1Objects: [item], sectionObject_original: 'Styled', sectionObject_originalRich: rich } })
+    useConfigStore.getState().editBlockItems('hero', 'section1Objects', 0, 0, 'duplicate')
+    const props = useConfigStore.getState().getActivePageBlocks()[0].props
+    const copy = (props.section1Objects as typeof item[])[1]
+    expect(copy).toMatchObject({ x: 12, y: 32, layer: 3 })
+    expect(copy.id).not.toBe(item.id)
+    expect(props[`sectionObject_${copy.id}`]).toBe('Styled')
+    expect(props[`sectionObject_${copy.id}Rich`]).toEqual(rich)
+    useConfigStore.getState().undo()
+    expect((useConfigStore.getState().getActivePageBlocks()[0].props.section1Objects as unknown[])).toHaveLength(1)
+  })
   it('moves, duplicates, and removes composite items with undo', () => {
     useConfigStore.getState().addBlock({ id: 'features', type: 'features', variant: 'grid', props: { items: [{ title: 'First' }, { title: 'Second' }] } })
     useConfigStore.getState().editBlockItems('features', 'items', 0, 1)
