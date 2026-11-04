@@ -73,6 +73,23 @@ describe('page history', () => {
     expect(blocks[0].props.sectionObject_text1Rich).toEqual(rich)
     expect(blocks[1].props.section1Objects).toBeUndefined()
   })
+  it('moves a panel and its formatted text together between sections and undoes the move', () => {
+    const panel = { id: 'panel', type: 'panel', x: 10, y: 20, width: 40, height: 180, layer: 1 }
+    const text = { id: 'child', type: 'text', parentId: 'panel', x: 15, y: 35, width: 20, height: 50, layer: 2 }
+    const rich = [{ text: 'Panel text', bold: true }]
+    const store = useConfigStore.getState()
+    store.addBlock({ id: 'first', type: 'hero', variant: 'centered', props: { section1Objects: [panel, text], sectionObject_child: 'Panel text', sectionObject_childRich: rich } })
+    store.addBlock({ id: 'second', type: 'content', variant: 'prose', props: {} })
+    useConfigStore.getState().moveSectionObject('first', 1, 'second', 1, 'panel', 30, 60, 20, 180)
+    let blocks = useConfigStore.getState().getActivePageBlocks()
+    expect(blocks[0].props.section1Objects).toEqual([])
+    expect(blocks[1].props.section1Objects).toEqual([{ ...panel, x: 30, y: 60, width: 20 }, { ...text, x: 32.5, y: 75, width: 10 }])
+    expect(blocks[1].props.sectionObject_childRich).toEqual(rich)
+    useConfigStore.getState().undo()
+    blocks = useConfigStore.getState().getActivePageBlocks()
+    expect(blocks[0].props.section1Objects).toEqual([panel, text])
+    expect(blocks[0].props.sectionObject_childRich).toEqual(rich)
+  })
   it('adds a Navbar at the top, preserves other blocks, and still allows the user to move it', () => {
     const store = useConfigStore.getState()
     store.addBlock({ id: 'hero', type: 'hero', variant: 'centered', props: {} })

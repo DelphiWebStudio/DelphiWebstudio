@@ -5,7 +5,7 @@ import type { BlockConfig } from '../types'
 
 type Photo = { src?: string; alt?: string; x?: string; y?: string; width?: string; height?: string; layer?: string }
 
-export function CollageBlock({ block, editable = false }: { block: BlockConfig; editable?: boolean }) {
+export function CollageBlock({ block, editable = false, sectionObject }: { block: BlockConfig; editable?: boolean; sectionObject?: { section: number; id: string } }) {
   const images = Array.isArray(block.props.images) ? block.props.images as Photo[] : []
   const [selected, setSelected] = useState<number | null>(null)
   const canvas = useRef<HTMLDivElement>(null)
@@ -45,11 +45,17 @@ export function CollageBlock({ block, editable = false }: { block: BlockConfig; 
     if (finish) {
       drag.current = null
       const original = useConfigStore.getState().getActivePageBlocks().find(item => item.id === block.id)
-      const saved = Array.isArray(original?.props.images) ? original.props.images as Photo[] : []
-      if (saved[state.index]) useConfigStore.getState().updateBlockProps(block.id, { images: saved.map((item, i) => i === state.index ? { ...item, x: String(Math.round(left)), y: String(Math.round(top)), width: String(Math.round(width)), height: String(Math.round(height)) } : item) })
+      const objectKey = sectionObject ? `section${sectionObject.section}Objects` : ''
+      const objects = sectionObject && Array.isArray(original?.props[objectKey]) ? original.props[objectKey] as Record<string, unknown>[] : []
+      const savedObject = objects.find(item => item.id === sectionObject?.id)
+      const saved = sectionObject ? (Array.isArray(savedObject?.images) ? savedObject.images as Photo[] : []) : (Array.isArray(original?.props.images) ? original.props.images as Photo[] : [])
+      if (saved[state.index]) {
+        const updated = saved.map((item, i) => i === state.index ? { ...item, x: String(Math.round(left)), y: String(Math.round(top)), width: String(Math.round(width)), height: String(Math.round(height)) } : item)
+        useConfigStore.getState().updateBlockProps(block.id, sectionObject ? { [objectKey]: objects.map(item => item.id === sectionObject.id ? { ...item, images: updated } : item) } : { images: updated })
+      }
     }
   }
-  return <div ref={canvas} data-collage-canvas style={{ position: 'relative', width: '100%', aspectRatio: '3 / 2', overflow: 'hidden' }}>
+  return <div ref={canvas} data-collage-canvas style={{ position: 'relative', width: '100%', ...(sectionObject ? { height: '100%' } : { aspectRatio: '3 / 2' }), overflow: 'hidden' }}>
     {editable && images.length === 0 && <p className="p-4 text-sm">Add photos in Properties. Select a photo to move or resize it.</p>}
     {images.map((item, index) => {
       const left = number(item.x, index % 2 * 50, 0, 95)

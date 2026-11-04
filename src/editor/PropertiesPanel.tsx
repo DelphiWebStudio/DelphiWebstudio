@@ -708,7 +708,23 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
                   onChange(updated)
                 }}>{direction}</button>)}
               </div>}
-              {Object.entries(mediaItems && !(imageKey in item) ? { ...item, [imageKey]: '' } : item).filter(([key]) => !(mediaItems && key === 'assetId') && !(/^section[1-4]Objects$/.test(field.key) && (key === 'id' || key === 'type'))).map(([key, val]) => (
+              {/^section[1-4]Objects$/.test(field.key) && item.type === 'collage' && <div className="mb-2"><label className="block text-xs">Add collage image from Media</label><select aria-label={`Add image to collage ${i + 1}`} value="" onChange={event => {
+                const image = images.find(candidate => candidate.path === event.target.value)
+                if (!image) return
+                const photos = Array.isArray(item.images) ? item.images as Record<string, unknown>[] : []
+                const updated: Record<string, unknown>[] = [...items]
+                updated[i] = { ...updated[i], images: [...photos, { src: image.path, alt: image.name, x: String(photos.length % 2 * 50), y: String(Math.floor(photos.length / 2) % 2 * 50), width: '50', height: '50', layer: String(photos.length + 1) }] }
+                onChange(updated)
+              }} className="mt-1 w-full rounded border border-border-subtle bg-bg-3 px-1.5 py-1 text-xs"><option value="">Choose an image...</option>{images.filter(image => image.mime.startsWith('image/')).map(image => <option key={image.id} value={image.path}>{image.name}</option>)}</select>
+                <p className="mt-1 text-[10px] text-text-3">Select the collage, then drag an image or its corner to arrange it.</p>
+                {(Array.isArray(item.images) ? item.images as Record<string, unknown>[] : []).map((photo, photoIndex) => <div key={photoIndex} className="mt-1 flex items-center gap-1 text-xs"><span className="min-w-0 flex-1 truncate">{String(photo.alt || `Image ${photoIndex + 1}`)}</span><button type="button" aria-label={`Remove collage image ${photoIndex + 1}`} className="rounded border border-border-default px-1" onClick={() => {
+                  const photos = item.images as unknown as Record<string, unknown>[]
+                  const updated: Record<string, unknown>[] = [...items]
+                  updated[i] = { ...updated[i], images: photos.filter((_, index) => index !== photoIndex) }
+                  onChange(updated)
+                }}>Remove</button></div>)}
+              </div>}
+              {Object.entries(mediaItems && !(imageKey in item) ? { ...item, [imageKey]: '' } : item).filter(([key]) => !(mediaItems && key === 'assetId') && !(/^section[1-4]Objects$/.test(field.key) && (key === 'id' || key === 'type' || key === 'parentId' || key === 'images'))).map(([key, val]) => (
                 <div key={key} className="mb-1">
                   <label className="block text-[10px] text-text-3 mb-0.5">{block.type === 'collage' || /^section[1-4]Objects$/.test(field.key) ? ({ src: 'Image', alt: 'Image description', text: 'Text', url: 'Link', color: 'Panel background color', textColor: 'Text color', fontSize: 'Font size (px)', x: 'Left (%)', y: 'Top (px)', width: 'Width (%)', height: 'Height (px)', layer: 'Layer order' } as Record<string, string>)[key] ?? key : key}</label>
                   <input
@@ -879,9 +895,9 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
         {Array.from({ length: Math.min(4, Math.max(1, Number(block.props.sectionCount) || 1)) }, (_, index) => {
           const number = index + 1, key = `section${number}Objects`
           return <div key={key} className="mt-3 border-t border-border-default pt-2"><div className="text-xs font-semibold">Section {number} objects</div><div className="mt-1 flex flex-wrap gap-1">
-            {(['text', 'image', 'button', 'panel'] as const).map(type => <button key={type} type="button" className="rounded border border-border-default px-2 py-1 text-xs" onClick={() => {
+            {(['text', 'image', 'button', 'panel', 'collage'] as const).map(type => <button key={type} type="button" className="rounded border border-border-default px-2 py-1 text-xs" onClick={() => {
               const items = Array.isArray(block.props[key]) ? block.props[key] : []
-              updateBlockProps(block.id, { [key]: [...items, { id: `object-${crypto.randomUUID()}`, type, text: type === 'text' ? 'Text' : type === 'button' ? 'Button' : type === 'panel' ? 'Panel' : '', src: '', alt: '', url: '', color: '#ffffff', textColor: '', fontSize: '', x: 0, y: items.length * 90, width: 30, height: 80, layer: items.length + 1 }] })
+              updateBlockProps(block.id, { [key]: [...items, { id: `object-${crypto.randomUUID()}`, type, text: type === 'text' ? 'Text' : type === 'button' ? 'Button' : type === 'panel' ? 'Panel' : '', src: '', alt: '', url: '', color: '#ffffff', textColor: '', fontSize: '', ...(type === 'collage' ? { images: [] } : {}), x: 0, y: items.length * 90, width: 30, height: type === 'collage' ? 180 : 80, layer: items.length + 1 }] })
             }}>Add {type}</button>)}
           </div><PropertyField block={block} field={{ key, label: `Section ${number} objects`, type: 'array-items' }} /></div>
         })}
