@@ -166,7 +166,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
     return declarations ? [`${selector} [data-ws-text-key="${key}"]{${declarations}}`] : []
   }).join('')
   const heroHeightStyle = heroHeight ? `${selector}{min-height:${heroHeight}px}${Number(block.props.sectionCount) > 1 ? `${selector}>:first-child,${selector}>:first-child>:first-child{min-height:${heroHeight}px}` : ''}${backgroundTarget}{min-height:${heroHeight}px;box-sizing:border-box}` : ''
-  const customStyle = (backgroundColor ? `${selector},${backgroundTarget}{background-color:${backgroundColor}!important}` : '') + (textRules ? `${selector} :is(h1,h2,h3,h4,h5,h6,p,span,a,li,label):not([data-rich-run]){${textRules}}` : '') + individualTextRules + imageRules + heroHeightStyle + (navbarHeight ? `${selector},${selector}>nav{height:100%}${selector}>nav{padding-block:4px}` : '') + (panelLayout ? `@container (max-width:600px){[data-ws-scope="${scope}"]{width:100%!important;margin-left:0!important;margin-top:0!important;z-index:auto!important}}` : '')
+  const customStyle = (backgroundColor ? `${selector},${backgroundTarget}{background-color:${backgroundColor}!important}` : '') + (textRules ? `${selector} :is(h1,h2,h3,h4,h5,h6,p,span,a,li,label):not([data-rich-run]){${textRules}}` : '') + individualTextRules + imageRules + heroHeightStyle + (navbarLayout ? `${selector},${selector}>[data-editor-section]{height:100%}${selector} nav{height:100%;box-sizing:border-box;padding-block:4px}` : '') + (panelLayout ? `@container (max-width:600px){[data-ws-scope="${scope}"]{width:100%!important;margin-left:0!important;margin-top:0!important;z-index:auto!important}}` : '')
 
   if (previewMode) {
     return (
