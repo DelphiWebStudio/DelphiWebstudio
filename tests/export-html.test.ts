@@ -40,6 +40,12 @@ describe('exportSiteToHTML', () => {
     expect(html).toContain('position:absolute;inset:0;pointer-events:none')
     expect(html).toMatch(/<a href="\/church"[^>]*><img[^>]*src="assets\/photo.png"/)
   })
+  it('preserves the optional stacked phone layout for section objects in exported pages', () => {
+    const block = { id: 'mobile', type: 'content' as const, variant: 'prose', props: { body: 'Intro', stackSectionObjectsOnMobile: true, section1Objects: [{ id: 'photo', type: 'image', src: 'assets/photo.png', x: 10, y: 20, width: 40, height: 120, layer: 1 }] } }
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
+    expect(html).toContain('ws-stack-mobile')
+    expect(html).toContain('data-section-object="photo"')
+  })
   it('exports multiple linked section items and a resource footer without unsafe links', () => {
     const section = { id: 'section', type: 'content' as const, variant: 'prose', props: { body: 'Intro', sectionCount: 2, section1Items: [{ src: 'assets/one.png', alt: 'One', text: 'First', url: '/first' }, { src: 'assets/two.png', alt: 'Two', text: 'Second', url: 'javascript:alert(1)' }], section2Items: [{ text: 'Third', src: '', alt: '', url: '#third' }] } }
     const footer = { id: 'footer', type: 'footer' as const, variant: 'resources', props: { logo: 'Resources', resources: [{ src: 'assets/resource.png', alt: 'Resource', title: 'Giving', description: 'Support us', url: 'https://example.org' }], resourceButtons: [{ label: 'Contact', url: '/contact' }, { label: 'Unsafe', url: 'javascript:alert(1)' }] } }
