@@ -1,4 +1,4 @@
-import { useRef, useState, type PointerEvent } from 'react'
+import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { useConfigStore } from '@/store/configStore'
 import { useEditorStore } from '@/store/editorStore'
@@ -12,6 +12,24 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
   const objects = Array.isArray(block.props[key]) ? block.props[key] as SectionObject[] : []
   const [selected, setSelected] = useState<string | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
+  const newTextObjectId = useEditorStore(state => state.newTextObjectId)
+  useEffect(() => {
+    if (!newTextObjectId || !objects.some(item => item.id === newTextObjectId)) return
+    setSelected(newTextObjectId)
+    setEditing(newTextObjectId)
+    const timer = window.setTimeout(() => {
+      const element = document.querySelector<HTMLElement>(`[data-section-object="${newTextObjectId}"] [contenteditable="true"]`)
+      if (!element) return
+      element.focus()
+      const selection = window.getSelection()
+      const range = document.createRange()
+      range.selectNodeContents(element)
+      selection?.removeAllRanges()
+      selection?.addRange(range)
+      useEditorStore.getState().setNewTextObjectId(null)
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [newTextObjectId, objects])
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null)
   const [guides, setGuides] = useState<{ vertical?: { x: number; top: number; height: number }; horizontal?: { y: number; left: number; width: number } }>({})
   const drag = useRef<{ id: string; startX: number; startY: number; grabX: number; grabY: number; x: number; y: number; width: number; height: number; parentWidth: number; resize: false | string } | null>(null)

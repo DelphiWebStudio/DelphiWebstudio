@@ -23,6 +23,7 @@ export function Canvas() {
   const activeArticle = pages?.find(page => page.id === activePageId)?.webstudioArticle
   const setActivePage = useConfigStore((s) => s.setActivePage)
   const { selectedBlockId, selectBlock, viewport, customViewportWidth, activeProjectId, previewMode } = useEditorStore()
+  const textPlacement = useEditorStore(state => state.textPlacement)
   const revision = useProjectsStore(state => state.projects.find(project => project.id === activeProjectId)?.mediaRevision ?? 0)
   const webmasterEmail = useProjectsStore(state => state.projects.find(project => project.id === activeProjectId)?.settings?.webmasterEmail ?? '')
   const [assetUrls, setAssetUrls] = useState<Record<string, string>>({})
@@ -55,10 +56,53 @@ export function Canvas() {
 
   const previewWidth = customViewportWidth ?? (viewport === 'desktop' ? 1200 : viewport === 'tablet' ? 768 : 375)
 
+  useEffect(() => {
+    if (!textPlacement) return
+    const cancel = (event: KeyboardEvent) => { if (event.key === 'Escape') useEditorStore.getState().setTextPlacement(null) }
+    window.addEventListener('keydown', cancel)
+    return () => window.removeEventListener('keydown', cancel)
+  }, [textPlacement])
+
   const canvasContent = (
     <div
       className={`@container outline outline-1 rounded-xl ${blocks.length === 0 ? 'min-h-[400px]' : ''} relative z-[1] overflow-clip transition-all duration-300 mx-auto shrink-0`}
       style={{ width: `${previewWidth}px`, ...cssVars, color: 'var(--color-text-0)', backgroundColor: 'var(--color-bg-1)', outlineColor: 'var(--color-border-default)', overflowWrap: 'anywhere' } as React.CSSProperties}
+      onPointerDownCapture={event => {
+        if (!textPlacement || event.button !== 0 || previewMode) return
+        event.preventDefault(); event.stopPropagation()
+        useEditorStore.getState().setTextPlacement(null)
+        if (textPlacement.projectId !== useEditorStore.getState().activeProjectId || textPlacement.pageId !== useConfigStore.getState().activePageId) { toast.error('The page changed. Select Add text again.'); return }
+        const section = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-editor-section]') : null
+        const sectionNumber = Number(section?.dataset.editorSection)
+        const blockId = section?.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id')
+        const block = useConfigStore.getState().getActivePageBlocks().find(item => item.id === blockId)
+        const area = section?.querySelector<HTMLElement>(`[data-section-object-area="${sectionNumber}"]`)
+        if (!block || !area || sectionNumber < 1 || sectionNumber > 4) {
+          const meta = blockMetadata.find(item => item.type === 'content')
+          if (!meta) return
+          const id = `object-${crypto.randomUUID()}`
+          const newBlockId = `block-${crypto.randomUUID()}`
+          const bounds = event.currentTarget.getBoundingClientRect()
+          const x = bounds.width ? Math.max(0, Math.min(70, (event.clientX - bounds.left) / bounds.width * 100)) : 0
+          useConfigStore.getState().addBlock({ id: newBlockId, type: 'content', variant: meta.variants[0], props: { ...structuredClone(meta.defaultProps), title: '', body: '', section1Objects: [{ id, type: 'text', text: 'Text', textColor: '', fontSize: '', x, y: 0, width: 30, height: 80, layer: 1 }] } })
+          selectBlock(newBlockId)
+          useEditorStore.getState().selectSection(1)
+          useEditorStore.getState().setNewTextObjectId(id)
+          return
+        }
+        const bounds = area.getBoundingClientRect()
+        if (!bounds.width) return
+        const key = `section${sectionNumber}Objects`
+        const items = Array.isArray(block.props[key]) ? block.props[key] as Array<Record<string, unknown>> : []
+        const id = `object-${crypto.randomUUID()}`
+        const x = Math.max(0, Math.min(70, (event.clientX - bounds.left) / bounds.width * 100))
+        const y = Math.max(0, event.clientY - bounds.top)
+        const layer = Math.max(0, ...items.map(item => Number(item.layer) || 0)) + 1
+        useConfigStore.getState().updateBlockProps(block.id, { [key]: [...items, { id, type: 'text', text: 'Text', textColor: '', fontSize: '', x, y, width: 30, height: 80, layer }] })
+        selectBlock(block.id)
+        useEditorStore.getState().selectSection(sectionNumber)
+        useEditorStore.getState().setNewTextObjectId(id)
+      }}
       onClick={(e) => {
         if (previewMode && !e.defaultPrevented && e.target instanceof Element) {
           const link = e.target.closest('a[href]')
@@ -78,6 +122,7 @@ export function Canvas() {
       role="region"
       aria-label={`Site preview, ${blocks.length} blocks, ${viewport} viewport`}
     >
+      {textPlacement && <div className="absolute left-0 top-0 z-50 bg-blue-700 px-3 py-2 text-sm text-white" style={{ pointerEvents: 'none' }}>Click inside a section or on a panel to place text. Press Esc to cancel.</div>}
       {!previewMode && viewport === 'desktop' && <div aria-hidden="true" className="absolute inset-y-0 left-1/2 z-30 pointer-events-none" style={{ width: 'min(1100px, calc(100% - 32px))', transform: 'translateX(-50%)', borderLeft: '1px dashed #8996a2', borderRight: '1px dashed #8996a2' }} />}
       {activeArticle && (activeArticle.author || activeArticle.summary || activeArticle.tags?.length) && <header className="px-6 py-3 text-text-1">
         {activeArticle.author && <p className="text-sm">By {activeArticle.author}</p>}

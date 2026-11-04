@@ -708,9 +708,9 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
                   onChange(updated)
                 }}>{direction}</button>)}
               </div>}
-              {Object.entries(mediaItems && !(imageKey in item) ? { ...item, [imageKey]: '' } : item).filter(([key]) => !(mediaItems && key === 'assetId') && !(/^section[1-4]Objects$/.test(field.key) && key === 'id')).map(([key, val]) => (
+              {Object.entries(mediaItems && !(imageKey in item) ? { ...item, [imageKey]: '' } : item).filter(([key]) => !(mediaItems && key === 'assetId') && !(/^section[1-4]Objects$/.test(field.key) && (key === 'id' || key === 'type'))).map(([key, val]) => (
                 <div key={key} className="mb-1">
-                  <label className="block text-[10px] text-text-3 mb-0.5">{block.type === 'collage' ? ({ src: 'Image', alt: 'Image description', x: 'Left (%)', y: 'Top (%)', width: 'Width (%)', height: 'Height (%)', layer: 'Layer order' } as Record<string, string>)[key] ?? key : key}</label>
+                  <label className="block text-[10px] text-text-3 mb-0.5">{block.type === 'collage' || /^section[1-4]Objects$/.test(field.key) ? ({ src: 'Image', alt: 'Image description', text: 'Text', url: 'Link', color: 'Panel background color', textColor: 'Text color', fontSize: 'Font size (px)', x: 'Left (%)', y: 'Top (px)', width: 'Width (%)', height: 'Height (px)', layer: 'Layer order' } as Record<string, string>)[key] ?? key : key}</label>
                   <input
                     type="text"
                     aria-label={`${field.label} item ${i + 1} ${key}`}
@@ -724,6 +724,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
                     }}
                     className="w-full px-1.5 py-1 rounded border border-border-subtle bg-bg-3 text-text-0 text-[11px] outline-none focus:border-green"
                   />
+                  {/^section[1-4]Objects$/.test(field.key) && (key === 'color' || key === 'textColor') && <WindowsColorInput label={key === 'color' ? 'Choose panel background color' : 'Choose object text color'} value={typeof val === 'string' && /^#[0-9a-f]{6}$/i.test(val) ? val : key === 'color' ? '#ffffff' : '#111111'} onChange={value => { const updated = [...items]; updated[i] = { ...updated[i], [key]: value }; onChange(updated) }} className="mt-1 block h-7 w-full rounded border border-border-default" />}
                   {(block.type === 'navbar' || block.type === 'footer') && field.key === 'navItems' && key === 'url' && portableProjectsEnabled && (pages ?? []).some(page => page.webstudioArticle?.status !== 'draft') && <select
                     aria-label={`Choose a page for ${field.label} item ${i + 1}`}
                     value={(pages ?? []).some(page => page.path === val && page.webstudioArticle?.status !== 'draft') || (val === '/search.html' && siteSearchEnabled) || (val === '/articles/index.html' && (pages ?? []).some(page => page.webstudioArticle?.status === 'ready')) ? val : ''}
@@ -870,7 +871,7 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
             {[1, 2, 3, 4].map(count => <option key={count} value={count}>{count}</option>)}
           </select>
         </label>
-        <p className="mt-2 text-[10px] text-text-3">The original block is section 1. Additional sections can contain text and an image. Reducing the count keeps their contents for later.</p>
+        <p className="mt-2 text-[10px] text-text-3">Each section can contain independently positioned text, images, buttons, and panels. Reducing the count keeps hidden section contents for later.</p>
         <button type="button" onClick={() => updateBlockProps(block.id, { sectionWidths: [] })} className="mt-2 rounded border border-border-default px-2 py-1 text-xs">Reset section widths</button>
         <label className="mt-2 flex items-center gap-2 text-xs"><input type="checkbox" checked={block.props.snapSectionObjects === true} onChange={event => updateBlockProps(block.id, { snapSectionObjects: event.target.checked })} /> Snap section objects to alignment guides</label>
         <label className="mt-2 flex items-center gap-2 text-xs"><input type="checkbox" checked={block.props.stackSectionObjectsOnMobile === true} onChange={event => updateBlockProps(block.id, { stackSectionObjectsOnMobile: event.target.checked })} /> Stack section objects on phones</label>
