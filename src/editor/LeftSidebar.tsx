@@ -46,6 +46,12 @@ function ComponentsPanel() {
   }, {})
 
   function handleAdd(type: BlockType) {
+    if (type === 'panel') {
+      if (useEditorStore.getState().previewMode) { toast('Exit Preview to add a panel'); return }
+      useEditorStore.getState().setTextPlacement({ projectId: useEditorStore.getState().activeProjectId, pageId: useConfigStore.getState().activePageId, kind: 'panel' })
+      toast('Click where you want to place the panel. Press Escape to cancel.')
+      return
+    }
     const meta = blockMetadata.find((b) => b.type === type)
     if (!meta) return
     const block: BlockConfig = {
