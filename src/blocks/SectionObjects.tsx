@@ -14,16 +14,17 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
   const [editing, setEditing] = useState<string | null>(null)
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null)
   const [guides, setGuides] = useState<{ vertical?: { x: number; top: number; height: number }; horizontal?: { y: number; left: number; width: number } }>({})
-  const drag = useRef<{ id: string; startX: number; startY: number; grabX: number; grabY: number; x: number; y: number; width: number; height: number; parentWidth: number; resize: boolean } | null>(null)
+  const drag = useRef<{ id: string; startX: number; startY: number; grabX: number; grabY: number; x: number; y: number; width: number; height: number; parentWidth: number; resize: false | string } | null>(null)
   function move(event: PointerEvent<HTMLElement>, finish = false) {
     const state = drag.current
     if (!state) return
     const dx = (event.clientX - state.startX) / state.parentWidth * 100
     const dy = event.clientY - state.startY
-    const x = state.resize ? state.x : Math.max(0, Math.min(100 - state.width, state.x + dx))
-    const y = state.resize ? state.y : Math.max(0, state.y + dy)
-    const width = state.resize ? Math.max(5, Math.min(100 - x, state.width + dx)) : state.width
-    const height = state.resize ? Math.max(24, state.height + dy) : state.height
+    const direction = state.resize || ''
+    const width = direction.includes('w') ? Math.max(5, Math.min(state.width + state.x, state.width - dx)) : direction.includes('e') ? Math.max(5, Math.min(100 - state.x, state.width + dx)) : state.width
+    const height = direction.includes('n') ? Math.max(24, Math.min(state.height + state.y, state.height - dy)) : direction.includes('s') ? Math.max(24, state.height + dy) : state.height
+    const x = state.resize ? direction.includes('w') ? state.x + state.width - width : state.x : Math.max(0, Math.min(100 - state.width, state.x + dx))
+    const y = state.resize ? direction.includes('n') ? state.y + state.height - height : state.y : Math.max(0, state.y + dy)
     const element = event.currentTarget.closest<HTMLElement>('[data-section-object]')
     if (element) Object.assign(element.style, { left: `${!finish && !state.resize ? state.x + dx : x}%`, top: `${!finish && !state.resize ? state.y + dy : y}px`, width: `${width}%`, height: `${height}px` })
     if (!finish && !state.resize && element) {
@@ -89,7 +90,7 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
         {editable && item.type === 'image' && !item.src && <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', border: '1px dashed #8290a0', color: '#8290a0' }}>Choose an image in Properties</div>}
         {(item.type === 'text' || item.type === 'panel') && <RichText blockId={block.id} field={`sectionObject_${item.id}`} text={typeof block.props[`sectionObject_${item.id}`] === 'string' ? block.props[`sectionObject_${item.id}`] as string : item.text || ''} value={block.props[`sectionObject_${item.id}Rich`]} editable={editable && editing === item.id} multiline />}
         {item.type === 'button' && (link ? <a href={link} onClick={editable ? event => event.preventDefault() : undefined} className="inline-block rounded border border-current px-4 py-2">{item.text || 'Button'}</a> : <span className="inline-block rounded border border-current px-4 py-2">{item.text || 'Button'}</span>)}
-        {editable && selected === item.id && <button type="button" aria-label="Resize object" style={{ position: 'absolute', right: 0, bottom: 0, width: 12, height: 12, background: 'white', border: '1px solid black', cursor: 'nwse-resize', touchAction: 'none' }} onPointerDown={event => { const parent = event.currentTarget.parentElement?.parentElement; if (!parent?.clientWidth) return; event.preventDefault(); event.stopPropagation(); drag.current = { id: item.id, startX: event.clientX, startY: event.clientY, grabX: 0, grabY: 0, x, y, width, height, parentWidth: parent.clientWidth, resize: true }; event.currentTarget.setPointerCapture(event.pointerId) }} onPointerMove={event => move(event)} onPointerUp={event => move(event, true)} onPointerCancel={() => { drag.current = null }} />}
+        {editable && selected === item.id && (['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const).map(direction => <button key={direction} type="button" aria-label={`Resize object ${direction}`} style={{ position: 'absolute', left: direction.includes('w') ? -6 : direction.includes('e') ? 'calc(100% - 6px)' : 'calc(50% - 6px)', top: direction.includes('n') ? -6 : direction.includes('s') ? 'calc(100% - 6px)' : 'calc(50% - 6px)', width: 12, height: 12, background: 'white', border: '1px solid black', cursor: `${direction}-resize`, touchAction: 'none' }} onPointerDown={event => { const parent = event.currentTarget.parentElement?.parentElement; if (!parent?.clientWidth) return; event.preventDefault(); event.stopPropagation(); drag.current = { id: item.id, startX: event.clientX, startY: event.clientY, grabX: 0, grabY: 0, x, y, width, height, parentWidth: parent.clientWidth, resize: direction }; event.currentTarget.setPointerCapture(event.pointerId) }} onPointerMove={event => move(event)} onPointerUp={event => move(event, true)} onPointerCancel={() => { drag.current = null }} />)}
       </div>
     })}
   </div>
