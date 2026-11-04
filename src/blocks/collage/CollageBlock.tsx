@@ -62,7 +62,22 @@ export function CollageBlock({ block, editable = false, sectionObject }: { block
       const top = number(item.y, Math.floor(index / 2) % 2 * 50, 0, 95)
       const width = number(item.width, 50, 5, 100 - left)
       const height = number(item.height, 50, 5, 100 - top)
-      return <div key={index} data-collage-layer={index} style={{ position: 'absolute', left: `${left}%`, top: `${top}%`, width: `${width}%`, height: `${height}%`, zIndex: number(item.layer, index + 1, 1, 1000), touchAction: editable ? 'none' : undefined, outline: editable && selected === index ? '1px solid white' : undefined, cursor: editable ? 'move' : undefined }}
+      return <div key={index} data-collage-layer={index} tabIndex={editable ? 0 : undefined} role={editable ? 'group' : undefined} aria-label={editable ? `Collage image ${index + 1}: ${item.alt || 'image'}` : undefined} style={{ position: 'absolute', left: `${left}%`, top: `${top}%`, width: `${width}%`, height: `${height}%`, zIndex: number(item.layer, index + 1, 1, 1000), touchAction: editable ? 'none' : undefined, outline: editable && selected === index ? '1px solid white' : undefined, cursor: editable ? 'move' : undefined }}
+        onFocus={() => { if (editable) setSelected(index) }} onKeyDown={event => {
+          if (!editable || event.target !== event.currentTarget || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return
+          event.preventDefault(); event.stopPropagation()
+          const step = event.shiftKey ? 10 : 1
+          const nextX = Math.max(0, Math.min(100 - width, left + (event.key === 'ArrowRight' ? step : event.key === 'ArrowLeft' ? -step : 0)))
+          const nextY = Math.max(0, Math.min(100 - height, top + (event.key === 'ArrowDown' ? step : event.key === 'ArrowUp' ? -step : 0)))
+          const original = useConfigStore.getState().getActivePageBlocks().find(value => value.id === block.id)
+          const objectKey = sectionObject ? `section${sectionObject.section}Objects` : ''
+          const objects = sectionObject && Array.isArray(original?.props[objectKey]) ? original.props[objectKey] as Record<string, unknown>[] : []
+          const savedObject = objects.find(value => value.id === sectionObject?.id)
+          const saved = sectionObject ? (Array.isArray(savedObject?.images) ? savedObject.images as Photo[] : []) : (Array.isArray(original?.props.images) ? original.props.images as Photo[] : [])
+          if (!saved[index]) return
+          const updated = saved.map((photo, i) => i === index ? { ...photo, x: String(nextX), y: String(nextY) } : photo)
+          useConfigStore.getState().updateBlockProps(block.id, sectionObject ? { [objectKey]: objects.map(value => value.id === sectionObject.id ? { ...value, images: updated } : value) } : { images: updated })
+        }}
         onPointerDown={event => begin(event, index, false)} onPointerMove={event => move(event)} onPointerUp={event => move(event, true)} onPointerCancel={() => { drag.current = null }}>
         {item.src && <img src={item.src} alt={item.alt || ''} draggable={false} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />}
         {editable && selected === index && <button type="button" aria-label={`Resize collage image ${index + 1}`} title="Drag to resize" style={{ position: 'absolute', right: 0, bottom: 0, width: 12, height: 12, background: 'white', border: '1px solid black', cursor: 'nwse-resize', touchAction: 'none' }} onPointerDown={event => begin(event, index, true)} onPointerMove={event => move(event)} onPointerUp={event => move(event, true)} onClick={event => event.stopPropagation()} />}

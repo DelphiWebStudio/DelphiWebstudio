@@ -24,6 +24,7 @@ export function Canvas() {
   const setActivePage = useConfigStore((s) => s.setActivePage)
   const { selectedBlockId, selectBlock, viewport, customViewportWidth, activeProjectId, previewMode } = useEditorStore()
   const textPlacement = useEditorStore(state => state.textPlacement)
+  const movingCollage = useEditorStore(state => state.movingCollage)
   const revision = useProjectsStore(state => state.projects.find(project => project.id === activeProjectId)?.mediaRevision ?? 0)
   const webmasterEmail = useProjectsStore(state => state.projects.find(project => project.id === activeProjectId)?.settings?.webmasterEmail ?? '')
   const [assetUrls, setAssetUrls] = useState<Record<string, string>>({})
@@ -57,17 +58,33 @@ export function Canvas() {
   const previewWidth = customViewportWidth ?? (viewport === 'desktop' ? 1200 : viewport === 'tablet' ? 768 : 375)
 
   useEffect(() => {
-    if (!textPlacement) return
-    const cancel = (event: KeyboardEvent) => { if (event.key === 'Escape') useEditorStore.getState().setTextPlacement(null) }
+    if (!textPlacement && !movingCollage) return
+    const cancel = (event: KeyboardEvent) => { if (event.key === 'Escape') { useEditorStore.getState().setTextPlacement(null); useEditorStore.getState().setMovingCollage(null) } }
     window.addEventListener('keydown', cancel)
     return () => window.removeEventListener('keydown', cancel)
-  }, [textPlacement])
+  }, [textPlacement, movingCollage])
 
   const canvasContent = (
     <div
       className={`@container outline outline-1 rounded-xl ${blocks.length === 0 ? 'min-h-[400px]' : ''} relative z-[1] overflow-clip transition-all duration-300 mx-auto shrink-0`}
       style={{ width: `${previewWidth}px`, ...cssVars, color: 'var(--color-text-0)', backgroundColor: 'var(--color-bg-1)', outlineColor: 'var(--color-border-default)', overflowWrap: 'anywhere' } as React.CSSProperties}
       onPointerDownCapture={event => {
+        if (movingCollage && event.button === 0 && !previewMode) {
+          event.preventDefault(); event.stopPropagation()
+          const editor = useEditorStore.getState()
+          if (movingCollage.projectId !== editor.activeProjectId || movingCollage.pageId !== useConfigStore.getState().activePageId) { editor.setMovingCollage(null); toast.error('The page changed. Select the collage again.'); return }
+          const section = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-editor-section]') : null
+          const number = Number(section?.dataset.editorSection)
+          const targetId = section?.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id')
+          const area = section?.querySelector<HTMLElement>(`[data-section-object-area="${number}"]`)
+          if (!targetId || !area || targetId === movingCollage.blockId) { toast('Click a different section to move the collage.'); return }
+          const bounds = area.getBoundingClientRect()
+          try {
+            useConfigStore.getState().moveCollageBlockToSection(movingCollage.blockId, targetId, number, bounds.width ? (event.clientX - bounds.left) / bounds.width * 100 : 0, event.clientY - bounds.top)
+            editor.setMovingCollage(null); selectBlock(targetId); editor.selectSection(number); toast('Collage moved into section')
+          } catch (error) { editor.setMovingCollage(null); toast.error(error instanceof Error ? error.message : 'The collage could not be moved.') }
+          return
+        }
         if (!textPlacement || event.button !== 0 || previewMode) return
         event.preventDefault(); event.stopPropagation()
         useEditorStore.getState().setTextPlacement(null)
@@ -127,7 +144,7 @@ export function Canvas() {
       role="region"
       aria-label={`Site preview, ${blocks.length} blocks, ${viewport} viewport`}
     >
-      {textPlacement && <div className="absolute left-0 top-0 z-50 bg-blue-700 px-3 py-2 text-sm text-white" style={{ pointerEvents: 'none' }}>Click inside a section or on a panel to place text. Press Esc to cancel.</div>}
+      {(textPlacement || movingCollage) && <div className="absolute left-0 top-0 z-50 bg-blue-700 px-3 py-2 text-sm text-white" style={{ pointerEvents: 'none' }}>{movingCollage ? 'Click the destination section for the collage.' : 'Click inside a section or on a panel to place text.'} Press Esc to cancel.</div>}
       {!previewMode && viewport === 'desktop' && <div aria-hidden="true" className="absolute inset-y-0 left-1/2 z-30 pointer-events-none" style={{ width: 'min(1100px, calc(100% - 32px))', transform: 'translateX(-50%)', borderLeft: '1px dashed #8996a2', borderRight: '1px dashed #8996a2' }} />}
       {activeArticle && (activeArticle.author || activeArticle.summary || activeArticle.tags?.length) && <header className="px-6 py-3 text-text-1">
         {activeArticle.author && <p className="text-sm">By {activeArticle.author}</p>}

@@ -724,7 +724,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
                   onChange(updated)
                 }}>Remove</button></div>)}
               </div>}
-              {Object.entries(mediaItems && !(imageKey in item) ? { ...item, [imageKey]: '' } : item).filter(([key]) => !(mediaItems && key === 'assetId') && !(/^section[1-4]Objects$/.test(field.key) && (key === 'id' || key === 'type' || key === 'parentId' || key === 'images'))).map(([key, val]) => (
+              {Object.entries(mediaItems && !(imageKey in item) ? { ...item, [imageKey]: '' } : item).filter(([key]) => !(mediaItems && key === 'assetId') && !(/^section[1-4]Objects$/.test(field.key) && (key === 'id' || key === 'type' || key === 'parentId' || key === 'images' || key === 'sourceCollageProps'))).map(([key, val]) => (
                 <div key={key} className="mb-1">
                   <label className="block text-[10px] text-text-3 mb-0.5">{block.type === 'collage' || /^section[1-4]Objects$/.test(field.key) ? ({ src: 'Image', alt: 'Image description', text: 'Text', url: 'Link', color: 'Panel background color', textColor: 'Text color', fontSize: 'Font size (px)', x: 'Left (%)', y: 'Top (px)', width: 'Width (%)', height: 'Height (px)', layer: 'Layer order' } as Record<string, string>)[key] ?? key : key}</label>
                   <input
