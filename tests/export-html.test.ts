@@ -37,6 +37,7 @@ describe('exportSiteToHTML', () => {
     ] } }
     const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
     for (const value of ['Independent ', 'font-weight:bold', 'text-align:center', 'assets/photo.png', 'alt="Church"', 'href="/visit"', 'Notice', '#ddeeff', 'data-section-object-area="2"']) expect(html).toContain(value)
+    expect(html).toContain('position:absolute;inset:0;pointer-events:none')
   })
   it('exports multiple linked section items and a resource footer without unsafe links', () => {
     const section = { id: 'section', type: 'content' as const, variant: 'prose', props: { body: 'Intro', sectionCount: 2, section1Items: [{ src: 'assets/one.png', alt: 'One', text: 'First', url: '/first' }, { src: 'assets/two.png', alt: 'Two', text: 'Second', url: 'javascript:alert(1)' }], section2Items: [{ text: 'Third', src: '', alt: '', url: '#third' }] } }
