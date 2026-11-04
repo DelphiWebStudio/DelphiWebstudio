@@ -1308,7 +1308,7 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
       const layer = Number.isFinite(layerValue) && layerValue > 0 ? Math.max(1, Math.min(100, Math.round(layerValue))) : 1
       const panelHeight = Number(block.props.layoutHeight)
       const minimumHeight = block.type === 'panel' && Number.isFinite(panelHeight) && panelHeight > 0 ? `;min-height:${Math.max(40, Math.min(2000, panelHeight))}px` : ''
-      return `<div data-ws-scope="${scope}"${classes.length ? ` class="${classes.join(' ')}"` : ''} style="position:relative;width:${width}%;margin-left:${left}%;margin-top:${top}px;z-index:${layer}${minimumHeight}${heroHeight ? `;min-height:${heroHeight}px` : ''}${otherHeight ? `;height:${otherHeight}px` : ''}">${content}${placed}</div>`
+      return `<div data-ws-scope="${scope}"${classes.length ? ` class="${classes.join(' ')}"` : ''} style="position:relative;width:${width}%;margin-left:${left}%;margin-top:${top}px;z-index:${layer}${minimumHeight}${heroHeight ? `;min-height:${heroHeight}px` : ''}${otherHeight ? `;min-height:${otherHeight}px` : ''}">${content}${placed}</div>`
     }
     if (customStyle || placed) return `<div data-ws-scope="${scope}"${classes.length ? ` class="${classes.join(' ')}"` : ''}${placed ? ' style="position:relative"' : ''}>${content}${placed}</div>`
     return classes.length ? `<div class="${classes.join(' ')}">${html}</div>` : html
