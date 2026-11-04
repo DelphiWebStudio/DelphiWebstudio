@@ -13,6 +13,28 @@ beforeEach(() => {
 })
 
 describe('page history', () => {
+  it('moves an existing collage into a section without losing images and restores it on undo', () => {
+    const photos = [{ src: 'assets/a.png', alt: 'A', x: '5', y: '6', width: '40', height: '40', layer: '2' }]
+    const props = { images: photos, customSetting: 'kept' }
+    const store = useConfigStore.getState()
+    store.addBlock({ id: 'hero', type: 'hero', variant: 'centered', props: { sectionCount: 2 } })
+    store.addBlock({ id: 'collage', type: 'collage', variant: 'default', props })
+    useConfigStore.getState().moveCollageBlockToSection('collage', 'hero', 2, 20, 30)
+    let blocks = useConfigStore.getState().getActivePageBlocks()
+    expect(blocks).toHaveLength(1)
+    expect(blocks[0].props.section2Objects).toEqual([expect.objectContaining({ type: 'collage', images: photos, sourceCollageProps: props, x: 20, y: 30 })])
+    useConfigStore.getState().undo()
+    blocks = useConfigStore.getState().getActivePageBlocks()
+    expect(blocks).toHaveLength(2)
+    expect(blocks[1].props).toEqual(props)
+  })
+  it('does not discard additional section content when moving a collage', () => {
+    const store = useConfigStore.getState()
+    store.addBlock({ id: 'hero', type: 'hero', variant: 'centered', props: {} })
+    store.addBlock({ id: 'collage', type: 'collage', variant: 'default', props: { images: [], section1Objects: [{ id: 'text', type: 'text' }] } })
+    expect(() => useConfigStore.getState().moveCollageBlockToSection('collage', 'hero', 1, 0, 0)).toThrow('additional section content')
+    expect(useConfigStore.getState().getActivePageBlocks()).toHaveLength(2)
+  })
   it('duplicates a formatted section object visibly in front and preserves its rich text', () => {
     const item = { id: 'original', type: 'text', x: 10, y: 20, width: 30, height: 80, layer: 2 }
     const rich = [{ text: 'Styled', bold: true }]

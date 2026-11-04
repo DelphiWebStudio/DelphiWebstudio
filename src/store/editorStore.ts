@@ -12,6 +12,8 @@ interface EditorState {
   copiedSectionObject: { token: string; projectId: string | null; item: Record<string, unknown>; text?: unknown; rich?: unknown } | null
   textPlacement: { projectId: string | null; pageId: string | null } | null
   newTextObjectId: string | null
+  movingCollage: { blockId: string; projectId: string | null; pageId: string } | null
+  setMovingCollage: (value: EditorState['movingCollage']) => void
   setTextPlacement: (value: EditorState['textPlacement']) => void
   setNewTextObjectId: (id: string | null) => void
   viewport: Viewport
@@ -58,6 +60,8 @@ export const useEditorStore = create<EditorState>()((set) => ({
   copiedSectionObject: null,
   textPlacement: null,
   newTextObjectId: null,
+  movingCollage: null,
+  setMovingCollage: (movingCollage) => set({ movingCollage }),
   setTextPlacement: (textPlacement) => set({ textPlacement }),
   setNewTextObjectId: (newTextObjectId) => set({ newTextObjectId }),
   viewport: 'desktop',
@@ -87,8 +91,8 @@ export const useEditorStore = create<EditorState>()((set) => ({
   toggleJsonDrawer: () => set((s) => ({ jsonDrawerOpen: !s.jsonDrawerOpen })),
   toggleHistory: () => set((s) => ({ historyOpen: !s.historyOpen })),
   toggleShortcutsModal: () => set((s) => ({ shortcutsModalOpen: !s.shortcutsModalOpen })),
-  togglePreview: () => set((s) => ({ previewMode: !s.previewMode, textPlacement: null, ...(!s.previewMode ? { selectedBlockId: null } : {}) })),
-  setActiveProject: (id) => set({ activeProjectId: id, textPlacement: null }),
+  togglePreview: () => set((s) => ({ previewMode: !s.previewMode, textPlacement: null, movingCollage: null, ...(!s.previewMode ? { selectedBlockId: null } : {}) })),
+  setActiveProject: (id) => set({ activeProjectId: id, textPlacement: null, movingCollage: null }),
   setDeploymentKey: (projectId, key) => set(state => ({ deploymentKeys: { ...state.deploymentKeys, [projectId]: key } })),
   setGenerating: (prompt) => set({ isGenerating: !!prompt, generationPrompt: prompt, generationError: null }),
   setGenerationError: (err) => set({ generationError: err }),

@@ -39,6 +39,7 @@ interface ConfigState {
   editBlockItems: (id: string, field: string, from: number, to: number, operation?: 'move' | 'remove' | 'duplicate') => void
   movePlacedMedia: (fromId: string, toId: string, itemId: string, x: number, y: number, width: number) => void
   moveSectionObject: (fromId: string, fromSection: number, toId: string, toSection: number, itemId: string, x: number, y: number, width: number, height: number) => void
+  moveCollageBlockToSection: (fromId: string, toId: string, section: number, x: number, y: number) => void
   addBlock: (block: BlockConfig, index?: number) => void
   removeBlock: (id: string) => void
   duplicateBlock: (id: string) => void
@@ -289,6 +290,28 @@ export const useConfigStore = create<ConfigState>()(
             draft.blocks = (draft.pages!.find(p => p.path === '/') ?? draft.pages![0]).blocks
           }),
         }
+      }),
+
+      moveCollageBlockToSection: (fromId, toId, section, x, y) => set(state => {
+        const page = ensurePages(state.config).find(p => p.id === state.activePageId)
+        const from = page?.blocks.find(block => block.id === fromId)
+        const to = page?.blocks.find(block => block.id === toId)
+        if (!from || from.type !== 'collage' || !to || from === to || section < 1 || section > Math.max(1, Number(to.props.sectionCount) || 1)) throw new Error('Choose a different section on this page.')
+        if (from.webstudioSharedSectionId || Object.entries(from.props).some(([key, value]) => /^section[1-4](Objects|Items|Text|Image)$/.test(key) && (Array.isArray(value) ? value.length > 0 : !!value))) throw new Error('This collage has shared or additional section content. Move that content first so it is not lost.')
+        const key = `section${section}Objects`
+        const id = `object-${crypto.randomUUID()}`
+        const current = Array.isArray(to.props[key]) ? to.props[key] as Record<string, unknown>[] : []
+        const item = { id, type: 'collage', images: structuredClone(Array.isArray(from.props.images) ? from.props.images : []), sourceCollageProps: structuredClone(from.props), x: Math.max(0, Math.min(65, x)), y: Math.max(0, y), width: 35, height: 240, layer: Math.max(0, ...current.map(value => Number(value.layer) || 0)) + 1 }
+        return { ...pushUndo(state, 'Move collage into section'), config: produce(withPages(state.config), draft => {
+          const active = draft.pages!.find(p => p.id === state.activePageId)!
+          const target = active.blocks.find(block => block.id === toId)!
+          for (const block of draft.pages!.flatMap(p => p.blocks)) if (block === target || (target.webstudioSharedSectionId && block.webstudioSharedSectionId === target.webstudioSharedSectionId)) {
+            const existing = Array.isArray(block.props[key]) ? block.props[key] : []
+            block.props[key] = [...existing, structuredClone(item)]
+          }
+          active.blocks = active.blocks.filter(block => block.id !== fromId)
+          draft.blocks = (draft.pages!.find(p => p.path === '/') ?? draft.pages![0]).blocks
+        }) }
       }),
 
       addBlock: (block, index) =>

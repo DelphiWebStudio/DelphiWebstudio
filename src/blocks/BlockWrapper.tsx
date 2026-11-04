@@ -462,6 +462,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         onClick={event => event.stopPropagation()} onContextMenu={event => event.preventDefault()}
       >
         {copiedSectionObject && copiedSectionObject.projectId === useEditorStore.getState().activeProjectId && <button type="button" role="menuitem" className="flex w-full rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100" onClick={() => { if (contextMenu) pasteSectionObject(contextMenu.section || 1, contextMenu.objectX || 0, contextMenu.objectY || 0); setContextMenu(null) }}>Paste object</button>}
+        {block.type === 'collage' && <button type="button" role="menuitem" className="flex w-full rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100" onClick={() => { setContextMenu(null); const editor = useEditorStore.getState(); editor.setMovingCollage({ blockId: block.id, projectId: editor.activeProjectId, pageId: useConfigStore.getState().activePageId }); toast('Click the destination section. Press Escape to cancel.') }}>Move collage into a section…</button>}
         {contextMenu.item && <>
           <div className="px-3 pt-1 text-xs font-semibold">Item</div>
           {([-1, 1] as const).map(delta => <button key={delta} type="button" role="menuitem" disabled={contextMenu.item!.index + delta < 0 || contextMenu.item!.index + delta >= (block.props[contextMenu.item!.field] as unknown[]).length} className="flex w-full rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100 disabled:opacity-40" onClick={() => {
