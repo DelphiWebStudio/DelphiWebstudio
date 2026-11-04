@@ -29,6 +29,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
   const selectedSection = useEditorStore(state => state.selectedSection)
   const copiedSectionObject = useEditorStore(state => state.copiedSectionObject)
   const previewMode = useEditorStore((s) => s.previewMode)
+  const selectedSectionObject = useEditorStore((s) => s.selectedSectionObject)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; section?: number; objectX?: number; objectY?: number; item?: { field: string; index: number } } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<{ kind: 'move' | 'resize'; direction: string; x: number; y: number; width: number; left: number; top: number; height: number; pageWidth: number; minTop: number } | null>(null)
@@ -511,7 +512,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       </div>, document.body)}
       <div data-ws-content><BlockColumns block={block} editable selectedSection={isSelected ? selectedSection : 0} onSelectSection={section => { selectBlock(block.id); useEditorStore.getState().selectSection(section) }}>{children}</BlockColumns></div>
       <PlacedMedia block={block} editable />
-      {resizableLayout && isSelected && ([
+      {resizableLayout && isSelected && !selectedSectionObject && ([
         ['nw', 'top-0 left-0 cursor-nwse-resize'], ['n', 'top-0 left-1/2 -translate-x-1/2 cursor-ns-resize'],
         ['ne', 'top-0 right-0 cursor-nesw-resize'], ['e', 'top-1/2 right-0 -translate-y-1/2 cursor-ew-resize'],
         ['se', 'bottom-0 right-0 cursor-nwse-resize'], ['s', 'bottom-0 left-1/2 -translate-x-1/2 cursor-ns-resize'],

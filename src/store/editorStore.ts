@@ -9,6 +9,8 @@ interface EditorState {
   selectedImageIndex: number
   selectedTextKey: string
   selectedSection: number
+  selectedSectionObject: { blockId: string; section: number; id: string } | null
+  selectSectionObject: (value: EditorState['selectedSectionObject']) => void
   copiedSectionObject: { token: string; projectId: string | null; item: Record<string, unknown>; text?: unknown; rich?: unknown } | null
   textPlacement: { projectId: string | null; pageId: string | null } | null
   newTextObjectId: string | null
@@ -57,6 +59,8 @@ export const useEditorStore = create<EditorState>()((set) => ({
   selectedImageIndex: 0,
   selectedTextKey: '',
   selectedSection: 0,
+  selectedSectionObject: null,
+  selectSectionObject: (selectedSectionObject) => set({ selectedSectionObject }),
   copiedSectionObject: null,
   textPlacement: null,
   newTextObjectId: null,
@@ -78,7 +82,7 @@ export const useEditorStore = create<EditorState>()((set) => ({
   isGenerating: false,
   generationPrompt: null,
   generationError: null,
-  selectBlock: (id) => set(state => ({ selectedBlockId: id, ...(state.selectedBlockId !== id ? { selectedImageIndex: 0, selectedTextKey: '', selectedSection: 0 } : {}) })),
+  selectBlock: (id) => set(state => ({ selectedBlockId: id, ...(state.selectedBlockId !== id ? { selectedImageIndex: 0, selectedTextKey: '', selectedSection: 0, selectedSectionObject: null } : {}) })),
   selectImage: (index) => set({ selectedImageIndex: Math.max(0, Math.floor(index)) }),
   selectText: (key) => set({ selectedTextKey: key }),
   selectSection: (section) => set({ selectedSection: Math.max(1, Math.min(4, Math.floor(section))) }),
