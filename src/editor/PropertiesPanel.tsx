@@ -399,6 +399,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
   const mediaRevision = useProjectsStore((s) => s.projects.find(project => project.id === projectId)?.mediaRevision ?? 0)
   const [media, setMedia] = useState<{ projectId: string; revision: number; images: MediaAsset[] } | null>(null)
   const [itemMenu, setItemMenu] = useState<{ index: number; x: number; y: number } | null>(null)
+  const [expandedNavIndex, setExpandedNavIndex] = useState<number | null>(null)
   const imageItems = field.type === 'array-items' && ((field.key === 'images' && (block.type === 'gallery' || block.type === 'image' || block.type === 'collage')) || (field.key === 'items' && block.type === 'features') || (field.key === 'members' && block.type === 'team') || (field.key === 'resources' && block.type === 'footer') || /^section[1-4](Items|Objects)$/.test(field.key))
   const documentItems = field.type === 'array-items' && block.type === 'documentLibrary' && field.key === 'items'
   const mediaItems = imageItems || documentItems
@@ -659,6 +660,60 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
         }
         return blockTemplates[block.type]?.[field.key] || (/^section[1-4]Items$/.test(field.key) ? { src: '', alt: '', text: '', url: '' } : { title: '', description: '' })
       }
+
+      if (block.type === 'navbar' && field.key === 'navItems') return (
+        <details open className="mb-2.5 rounded border border-border-default bg-bg-2">
+          <summary className="cursor-pointer px-2 py-1.5 text-xs font-medium text-text-1">Navigation Links ({items.length})</summary>
+          <div className="border-t border-border-default p-2">
+            <p className="mb-1 text-[10px] text-text-3">Drag a link to reorder it, or use the arrow buttons.</p>
+            {items.map((item, i) => <div key={i} className="mb-1 rounded border border-border-default bg-bg-3" onDragOver={event => {
+              if (event.dataTransfer.types.includes('application/x-webstudio-property-item')) { event.preventDefault(); event.dataTransfer.dropEffect = 'move' }
+            }} onDrop={event => {
+              const data = event.dataTransfer.getData('application/x-webstudio-property-item')
+              if (!data) return
+              event.preventDefault(); event.stopPropagation()
+              try {
+                const source = JSON.parse(data) as { block: string; field: string; index: number }
+                if (source.block !== block.id || source.field !== field.key || !Number.isInteger(source.index) || source.index < 0 || source.index >= items.length || source.index === i) return
+                useConfigStore.getState().editBlockItems(block.id, field.key, source.index, i)
+                setExpandedNavIndex(null)
+              } catch (error) { toast.error(error instanceof Error ? error.message : 'The link could not be moved.') }
+            }}>
+              <div className="flex items-center gap-1 px-1 py-1">
+                <button type="button" draggable aria-label={`Drag link ${i + 1}`} title="Drag to reorder" className="cursor-grab rounded border border-border-default px-1.5 text-xs active:cursor-grabbing" onDragStart={event => {
+                  event.dataTransfer.setData('application/x-webstudio-property-item', JSON.stringify({ block: block.id, field: field.key, index: i })); event.dataTransfer.effectAllowed = 'move'
+                }}>↕</button>
+                <button type="button" aria-expanded={expandedNavIndex === i} className="min-w-0 flex-1 truncate px-1 text-left text-xs text-text-0" onClick={() => setExpandedNavIndex(expandedNavIndex === i ? null : i)}>{item.label?.trim() || `New link ${i + 1}`}</button>
+                {([-1, 1] as const).map(delta => <button key={delta} type="button" aria-label={`Move link ${i + 1} ${delta < 0 ? 'up' : 'down'}`} disabled={i + delta < 0 || i + delta >= items.length} className="rounded border border-border-default px-1 text-xs disabled:opacity-40" onClick={() => {
+                  try { useConfigStore.getState().editBlockItems(block.id, field.key, i, i + delta); setExpandedNavIndex(null) } catch (error) { toast.error(error instanceof Error ? error.message : 'The link could not be moved.') }
+                }}>{delta < 0 ? '↑' : '↓'}</button>)}
+              </div>
+              {expandedNavIndex === i && <div className="border-t border-border-default p-2">
+                <label className="block text-[10px] text-text-3">Label<input aria-label={`Link ${i + 1} label`} value={item.label || ''} onChange={event => { const updated = [...items]; updated[i] = { ...updated[i], label: event.target.value }; onChange(updated) }} className="mt-1 w-full rounded border border-border-subtle bg-bg-2 px-1.5 py-1 text-xs text-text-0" /></label>
+                <label className="mt-2 block text-[10px] text-text-3">Destination<input aria-label={`Link ${i + 1} destination`} value={item.url || ''} onChange={event => { const updated = [...items]; updated[i] = { ...updated[i], url: event.target.value }; onChange(updated) }} className="mt-1 w-full rounded border border-border-subtle bg-bg-2 px-1.5 py-1 text-xs text-text-0" /></label>
+                {portableProjectsEnabled && (pages ?? []).some(page => page.webstudioArticle?.status !== 'draft') && <select aria-label={`Choose a page for link ${i + 1}`} value={(pages ?? []).some(page => page.path === item.url && page.webstudioArticle?.status !== 'draft') || (item.url === '/search.html' && siteSearchEnabled) || (item.url === '/articles/index.html' && (pages ?? []).some(page => page.webstudioArticle?.status === 'ready')) ? item.url : ''} onChange={event => {
+                  if (!event.target.value) return
+                  const updated = [...items]; updated[i] = { ...updated[i], url: event.target.value }; onChange(updated)
+                }} className="mt-1 w-full rounded border border-border-subtle bg-bg-2 px-1.5 py-1 text-xs text-text-0">
+                  <option value="">Choose a site page...</option>
+                  {(pages ?? []).filter(page => page.webstudioArticle?.status !== 'draft').map(page => <option key={page.id} value={page.path}>{page.name} ({page.path})</option>)}
+                  {siteSearchEnabled && <option value="/search.html">Search</option>}
+                  {(pages ?? []).some(page => page.webstudioArticle?.status === 'ready') && <option value="/articles/index.html">Articles</option>}
+                </select>}
+                <button type="button" className="mt-2 text-xs text-text-2 hover:text-status-red" onClick={() => {
+                  try { useConfigStore.getState().editBlockItems(block.id, field.key, i, i, 'remove'); setExpandedNavIndex(null) } catch (error) { toast.error(error instanceof Error ? error.message : 'The link could not be removed.') }
+                }}>Remove link</button>
+              </div>}
+            </div>)}
+            <button type="button" className="mt-1 text-xs text-green hover:text-green-dim" onClick={() => {
+              const legacy = Array.isArray(block.props.links) && block.props.links.every(link => typeof link === 'string') ? block.props.links : []
+              if (legacy.length) updateBlockProps(block.id, { navItems: [...items, ...legacy.map(label => ({ label, url: '' })), createEmptyItem()], links: [] })
+              else onChange([...items, createEmptyItem()])
+              setExpandedNavIndex(items.length + legacy.length)
+            }}>+ Add link</button>
+          </div>
+        </details>
+      )
 
       return (
         <div className="mb-2.5">
