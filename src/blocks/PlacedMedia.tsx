@@ -44,7 +44,7 @@ export function PlacedMedia({ block, editable = false }: { block: BlockConfig; e
       const canvas = element.closest('[aria-label^="Site preview"]')
       const current = element.getBoundingClientRect()
       const matches: { vertical?: { x: number; top: number; height: number }; horizontal?: { y: number; left: number; width: number } } = {}
-      canvas?.querySelectorAll<HTMLElement>('[data-placed-media], [data-ws-image-index], [contenteditable="true"]').forEach(other => {
+      canvas?.querySelectorAll<HTMLElement>('[data-section-object], [data-placed-media], [data-ws-image-index], [contenteditable="true"]').forEach(other => {
         if (other === element || element.contains(other) || other.contains(element)) return
         const rect = other.getBoundingClientRect()
         if (!rect.width || !rect.height) return
