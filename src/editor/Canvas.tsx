@@ -154,8 +154,21 @@ export function Canvas() {
       const blockId = target?.getAttribute('data-webstudio-block-id')
       const dropped = blockId && rect?.width && rect.height ? { blockId, x: Math.max(0, Math.min(99, (event.clientX - rect.left) / rect.width * 100)), y: Math.max(0, Math.min(99, (event.clientY - rect.top) / rect.height * 100)), pageId: activePageId, projectId: activeProjectId } : null
       const destination = dropped
+      const sectionElement = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-editor-section]') : null
+      const sectionNumber = Number(sectionElement?.dataset.editorSection)
+      const sectionBounds = sectionElement?.getBoundingClientRect()
+      const sectionDestination = sectionElement && sectionBounds?.width && sectionNumber >= 1 && sectionNumber <= 4 && blockId ? { sectionNumber, blockId, width: sectionBounds.width, x: Math.max(0, Math.min(70, (event.clientX - sectionBounds.left) / sectionBounds.width * 100)), y: Math.max(0, event.clientY - sectionBounds.top) } : null
       const placeAsset = (asset: MediaAsset, offset: number) => {
         if (useEditorStore.getState().activeProjectId !== activeProjectId || useConfigStore.getState().activePageId !== activePageId) throw new Error('The project or page changed; select the intended page and try again.')
+        if (sectionDestination && asset.mime.startsWith('image/')) {
+          const block = useConfigStore.getState().getActivePageBlocks().find(item => item.id === sectionDestination.blockId)
+          if (!block) throw new Error('The selected block no longer exists.')
+          const key = `section${sectionDestination.sectionNumber}Objects`, objects = Array.isArray(block.props[key]) ? block.props[key] : []
+          const height = asset.width && asset.height ? Math.max(24, sectionDestination.width * .3 * asset.height / asset.width) : 180
+          useConfigStore.getState().updateBlockProps(block.id, { [key]: [...objects, { id: `object-${crypto.randomUUID()}`, type: 'image', src: asset.path, assetId: asset.id, alt: asset.name, x: Math.min(70, sectionDestination.x + offset * 2), y: sectionDestination.y + offset * 12, width: 30, height, layer: objects.length + 1 }] })
+          useEditorStore.getState().selectBlock(block.id); useEditorStore.getState().selectSection(sectionDestination.sectionNumber)
+          return
+        }
         if (destination) {
           const block = useConfigStore.getState().getActivePageBlocks().find(item => item.id === destination.blockId)
           if (!block) throw new Error('The selected block no longer exists.')

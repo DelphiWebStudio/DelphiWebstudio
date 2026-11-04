@@ -121,6 +121,7 @@ function ComponentsPanel() {
                     sectionDrag.current = null
                     if (!drag?.moved) return
                     suppressClick.current = true
+                    if (useEditorStore.getState().previewMode) return
                     const element = document.elementFromPoint(event.clientX, event.clientY)
                     const section = element?.closest<HTMLElement>('[data-editor-section]')
                     const number = Number(section?.dataset.editorSection)
