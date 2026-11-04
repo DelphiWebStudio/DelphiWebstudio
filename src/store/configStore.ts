@@ -174,7 +174,13 @@ export const useConfigStore = create<ConfigState>()(
         if (operation === 'remove') updated.splice(from, 1)
         else if (operation === 'duplicate') {
           const copy = structuredClone(updated[from])
-          if (/^section[1-4]Objects$/.test(field) && copy && typeof copy === 'object') (copy as Record<string, unknown>).id = `object-${crypto.randomUUID()}`
+          if (/^section[1-4]Objects$/.test(field) && copy && typeof copy === 'object') {
+            const object = copy as Record<string, unknown>
+            object.id = `object-${crypto.randomUUID()}`
+            object.x = Math.max(0, Math.min(100 - (Number(object.width) || 30), (Number(object.x) || 0) + 2))
+            object.y = Math.max(0, (Number(object.y) || 0) + 12)
+            object.layer = Math.max(0, ...items.map(item => Number((item as Record<string, unknown>)?.layer) || 0)) + 1
+          }
           updated.splice(from + 1, 0, copy)
         }
         else { const [moved] = updated.splice(from, 1); updated.splice(to, 0, moved) }
