@@ -462,6 +462,15 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         style={{ left: contextMenu.x, top: contextMenu.y }}
         onClick={event => event.stopPropagation()} onContextMenu={event => event.preventDefault()}
       >
+        <button type="button" role="menuitem" className="flex w-full rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100" onClick={() => {
+          const section = contextMenu.section || 1
+          const current = useConfigStore.getState().getActivePageBlocks().find(value => value.id === block.id)
+          if (!current) return
+          const key = `section${section}Objects`, items = Array.isArray(current.props[key]) ? current.props[key] as Record<string, unknown>[] : []
+          const id = `object-${crypto.randomUUID()}`
+          useConfigStore.getState().updateBlockProps(block.id, { [key]: [...items, { id, type: 'text', text: 'Text', x: Math.max(0, Math.min(70, contextMenu.objectX || 0)), y: Math.max(0, contextMenu.objectY || 0), width: 30, height: 80, layer: Math.max(0, ...items.map(item => Number(item.layer) || 0)) + 1 }] })
+          const editor = useEditorStore.getState(); editor.selectBlock(block.id); editor.selectSection(section); editor.setNewTextObjectId(id); setContextMenu(null)
+        }}>Add text</button>
         {copiedSectionObject && copiedSectionObject.projectId === useEditorStore.getState().activeProjectId && <button type="button" role="menuitem" className="flex w-full rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100" onClick={() => { if (contextMenu) pasteSectionObject(contextMenu.section || 1, contextMenu.objectX || 0, contextMenu.objectY || 0); setContextMenu(null) }}>Paste object</button>}
         {block.type === 'collage' && <button type="button" role="menuitem" className="flex w-full rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100" onClick={() => { setContextMenu(null); const editor = useEditorStore.getState(); editor.setMovingCollage({ blockId: block.id, projectId: editor.activeProjectId, pageId: useConfigStore.getState().activePageId }); toast('Click the destination section. Press Escape to cancel.') }}>Move collage into a section…</button>}
         {contextMenu.item && <>

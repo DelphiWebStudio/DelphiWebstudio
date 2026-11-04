@@ -22,6 +22,10 @@ type
     RecoverySaveDialog: TSaveDialog;
     ProjectMenu: TMainMenu;
     ProjectMenuItem: TMenuItem;
+    OpenProjectItem: TMenuItem;
+    SaveProjectItem: TMenuItem;
+    SaveProjectAsItem: TMenuItem;
+    ProjectSeparator: TMenuItem;
     BackupProjectItem: TMenuItem;
     RestoreBackupItem: TMenuItem;
     ExitItem: TMenuItem;
@@ -49,6 +53,8 @@ type
     procedure BackupProjectItemClick(Sender: TObject);
     procedure RestoreBackupItemClick(Sender: TObject);
     procedure ExitItemClick(Sender: TObject);
+    procedure OpenProjectItemClick(Sender: TObject);
+    procedure SaveProjectItemClick(Sender: TObject);
     procedure LocalAIItemClick(Sender: TObject);
     procedure SftpItemClick(Sender: TObject);
     procedure DiagnosticsItemClick(Sender: TObject);
@@ -73,8 +79,19 @@ uses Winapi.ActiveX, System.IOUtils, System.Zip, System.JSON, System.UITypes, Sy
 
 procedure TMainForm.ExitItemClick(Sender: TObject);
 begin
-  if MessageDlg('Save your project before exiting if you want to keep your changes. Exit Delphi Web Studio?', mtConfirmation, [mbYes, mbNo], 0) = mrYes then
-    Close;
+  Close;
+end;
+
+procedure TMainForm.OpenProjectItemClick(Sender: TObject);
+begin
+  if EditorBrowser.DefaultInterface <> nil then
+    EditorBrowser.ExecuteScript('document.querySelector(''[data-project-command="open"]'')?.click();');
+end;
+
+procedure TMainForm.SaveProjectItemClick(Sender: TObject);
+begin
+  if EditorBrowser.DefaultInterface <> nil then
+    EditorBrowser.ExecuteScript('document.querySelector(''[data-project-command="save"]'')?.click();');
 end;
 
 procedure TMainForm.DiagnosticsItemClick(Sender: TObject);
@@ -281,6 +298,15 @@ begin
   end else begin
     CanClose := True;
     if not FDownloadPending and (FActiveProjectSaves = 0) then FCloseWarningShown := False;
+    if EditorBrowser.LocationURL.StartsWith('https://webstudio.local/index.html#/editor') then
+      case MessageDlg('Save your project before exiting?', mtConfirmation, [mbYes, mbNo, mbCancel], 0) of
+        mrYes: begin
+          CanClose := False;
+          SaveProjectItemClick(Sender);
+          StatusLabel.Caption := 'Choose where to save. After the save finishes, close the application again.';
+        end;
+        mrCancel: CanClose := False;
+      end;
   end;
 end;
 

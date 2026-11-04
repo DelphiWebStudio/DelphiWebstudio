@@ -100,6 +100,21 @@ object MainForm: TMainForm
     Top = 48
     object ProjectMenuItem: TMenuItem
       Caption = 'Project'
+      object OpenProjectItem: TMenuItem
+        Caption = '&Open project...'
+        OnClick = OpenProjectItemClick
+      end
+      object SaveProjectItem: TMenuItem
+        Caption = '&Save project...'
+        OnClick = SaveProjectItemClick
+      end
+      object SaveProjectAsItem: TMenuItem
+        Caption = 'Save project &as...'
+        OnClick = SaveProjectItemClick
+      end
+      object ProjectSeparator: TMenuItem
+        Caption = '-'
+      end
       object BackupProjectItem: TMenuItem
         Caption = 'Back up project...'
         OnClick = BackupProjectItemClick
