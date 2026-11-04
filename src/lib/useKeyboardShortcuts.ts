@@ -13,7 +13,7 @@ export function useKeyboardShortcuts() {
     function handleKeyDown(e: KeyboardEvent) {
       // Don't fire in inputs
       const tag = (e.target as HTMLElement).tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target instanceof Element && e.target.closest('[contenteditable="true"]'))) return
 
       // Nav shortcuts: 1-5
       if (!e.metaKey && !e.ctrlKey && !e.altKey) {
