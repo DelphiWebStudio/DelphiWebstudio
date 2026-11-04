@@ -200,11 +200,11 @@ ${navLinks.join('\n')}
 
 function renderHeroCentered(block: BlockConfig): string {
   const badge = prop<string>(block.props, 'badge', '')
-  const headline = renderToStaticMarkup(createElement(RichText, { blockId: block.id, field: 'headline', text: prop(block.props, 'headline', ''), value: block.props.headlineRich, alignment: block.props.headlineAlign, position: { x: Number(block.props.headlineOffsetX) || 0, y: Number(block.props.headlineOffsetY) || 0 } }))
-  const subheadline = renderToStaticMarkup(createElement(RichText, { blockId: block.id, field: 'subheadline', text: prop(block.props, 'subheadline', ''), value: block.props.subheadlineRich, alignment: block.props.subheadlineAlign, position: { x: Number(block.props.subheadlineOffsetX) || 0, y: Number(block.props.subheadlineOffsetY) || 0 } }))
-  const primaryCta = prop<string>(block.props, 'primaryCta', '')
+  const headline = renderToStaticMarkup(createElement(RichText, { blockId: block.id, field: 'headline', text: prop(block.props, 'headline', ''), value: block.props.headlineRich, alignment: block.props.headlineAlign, position: { x: Number(block.props.headlineOffsetX) || 0, y: Number(block.props.headlineOffsetY) || 0, width: Number(block.props.headlineWidth) || undefined } }))
+  const subheadline = renderToStaticMarkup(createElement(RichText, { blockId: block.id, field: 'subheadline', text: prop(block.props, 'subheadline', ''), value: block.props.subheadlineRich, alignment: block.props.subheadlineAlign, position: { x: Number(block.props.subheadlineOffsetX) || 0, y: Number(block.props.subheadlineOffsetY) || 0, width: Number(block.props.subheadlineWidth) || undefined } }))
+  const primaryCta = block.props.primaryCta === 'Get Started' && !block.props.primaryCtaUrl ? '' : prop<string>(block.props, 'primaryCta', '')
   const primaryCtaUrl = prop<string>(block.props, 'primaryCtaUrl', '')
-  const secondaryCta = prop<string>(block.props, 'secondaryCta', '')
+  const secondaryCta = block.props.secondaryCta === 'Learn More' && !block.props.secondaryCtaUrl ? '' : prop<string>(block.props, 'secondaryCta', '')
   const secondaryCtaUrl = prop<string>(block.props, 'secondaryCtaUrl', '')
 
   const badgeHtml = badge
@@ -223,7 +223,7 @@ ${badgeHtml}
       <h1 class="text-4xl @md:text-5xl font-bold tracking-tight leading-[1.1] mb-4 max-w-3xl mx-auto">${headline}</h1>
       <p class="text-text-2 text-base @md:text-lg leading-relaxed max-w-xl mx-auto mb-8">${subheadline}</p>
       <div class="flex flex-wrap items-center justify-center gap-3">
-        ${renderLink(primaryCta, primaryCtaUrl, 'px-6 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all inline-flex items-center gap-2')}
+        ${primaryCta ? renderLink(primaryCta, primaryCtaUrl, 'px-6 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all inline-flex items-center gap-2') : ''}
 ${secondaryHtml}
       </div>
   </section>`
@@ -231,11 +231,11 @@ ${secondaryHtml}
 
 function renderHeroSplit(block: BlockConfig): string {
   const badge = prop<string>(block.props, 'badge', '')
-  const headline = renderToStaticMarkup(createElement(RichText, { blockId: block.id, field: 'headline', text: prop(block.props, 'headline', ''), value: block.props.headlineRich, alignment: block.props.headlineAlign, position: { x: Number(block.props.headlineOffsetX) || 0, y: Number(block.props.headlineOffsetY) || 0 } }))
-  const subheadline = renderToStaticMarkup(createElement(RichText, { blockId: block.id, field: 'subheadline', text: prop(block.props, 'subheadline', ''), value: block.props.subheadlineRich, alignment: block.props.subheadlineAlign, position: { x: Number(block.props.subheadlineOffsetX) || 0, y: Number(block.props.subheadlineOffsetY) || 0 } }))
-  const primaryCta = prop<string>(block.props, 'primaryCta', '')
+  const headline = renderToStaticMarkup(createElement(RichText, { blockId: block.id, field: 'headline', text: prop(block.props, 'headline', ''), value: block.props.headlineRich, alignment: block.props.headlineAlign, position: { x: Number(block.props.headlineOffsetX) || 0, y: Number(block.props.headlineOffsetY) || 0, width: Number(block.props.headlineWidth) || undefined } }))
+  const subheadline = renderToStaticMarkup(createElement(RichText, { blockId: block.id, field: 'subheadline', text: prop(block.props, 'subheadline', ''), value: block.props.subheadlineRich, alignment: block.props.subheadlineAlign, position: { x: Number(block.props.subheadlineOffsetX) || 0, y: Number(block.props.subheadlineOffsetY) || 0, width: Number(block.props.subheadlineWidth) || undefined } }))
+  const primaryCta = block.props.primaryCta === 'Get Started' && !block.props.primaryCtaUrl ? '' : prop<string>(block.props, 'primaryCta', '')
   const primaryCtaUrl = prop<string>(block.props, 'primaryCtaUrl', '')
-  const secondaryCta = prop<string>(block.props, 'secondaryCta', '')
+  const secondaryCta = block.props.secondaryCta === 'Learn More' && !block.props.secondaryCtaUrl ? '' : prop<string>(block.props, 'secondaryCta', '')
   const secondaryCtaUrl = prop<string>(block.props, 'secondaryCtaUrl', '')
   const heroImage = prop<string>(block.props, 'heroImage', '')
 
@@ -261,7 +261,7 @@ ${badgeHtml}
         <h1 class="text-3xl @md:text-5xl font-bold tracking-tight leading-[1.1] mb-4">${headline}</h1>
         <p class="text-text-2 text-base leading-relaxed mb-6 max-w-lg">${subheadline}</p>
         <div class="flex flex-wrap items-center gap-3">
-          ${renderLink(primaryCta, primaryCtaUrl, 'px-6 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all inline-flex items-center gap-2')}
+          ${primaryCta ? renderLink(primaryCta, primaryCtaUrl, 'px-6 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all inline-flex items-center gap-2') : ''}
 ${secondaryHtml}
         </div>
       </div>
@@ -275,11 +275,11 @@ ${imageHtml}
 
 function renderHeroGradient(block: BlockConfig): string {
   const badge = prop<string>(block.props, 'badge', '')
-  const headline = renderToStaticMarkup(createElement(RichText, { blockId: block.id, field: 'headline', text: prop(block.props, 'headline', ''), value: block.props.headlineRich, alignment: block.props.headlineAlign, position: { x: Number(block.props.headlineOffsetX) || 0, y: Number(block.props.headlineOffsetY) || 0 } }))
-  const subheadline = renderToStaticMarkup(createElement(RichText, { blockId: block.id, field: 'subheadline', text: prop(block.props, 'subheadline', ''), value: block.props.subheadlineRich, alignment: block.props.subheadlineAlign, position: { x: Number(block.props.subheadlineOffsetX) || 0, y: Number(block.props.subheadlineOffsetY) || 0 } }))
-  const primaryCta = prop<string>(block.props, 'primaryCta', '')
+  const headline = renderToStaticMarkup(createElement(RichText, { blockId: block.id, field: 'headline', text: prop(block.props, 'headline', ''), value: block.props.headlineRich, alignment: block.props.headlineAlign, position: { x: Number(block.props.headlineOffsetX) || 0, y: Number(block.props.headlineOffsetY) || 0, width: Number(block.props.headlineWidth) || undefined } }))
+  const subheadline = renderToStaticMarkup(createElement(RichText, { blockId: block.id, field: 'subheadline', text: prop(block.props, 'subheadline', ''), value: block.props.subheadlineRich, alignment: block.props.subheadlineAlign, position: { x: Number(block.props.subheadlineOffsetX) || 0, y: Number(block.props.subheadlineOffsetY) || 0, width: Number(block.props.subheadlineWidth) || undefined } }))
+  const primaryCta = block.props.primaryCta === 'Get Started' && !block.props.primaryCtaUrl ? '' : prop<string>(block.props, 'primaryCta', '')
   const primaryCtaUrl = prop<string>(block.props, 'primaryCtaUrl', '')
-  const secondaryCta = prop<string>(block.props, 'secondaryCta', '')
+  const secondaryCta = block.props.secondaryCta === 'Learn More' && !block.props.secondaryCtaUrl ? '' : prop<string>(block.props, 'secondaryCta', '')
   const secondaryCtaUrl = prop<string>(block.props, 'secondaryCtaUrl', '')
 
   const badgeHtml = badge
@@ -301,7 +301,7 @@ ${badgeHtml}
         <h1 class="text-4xl @md:text-5xl font-bold tracking-tight leading-[1.1] mb-4 max-w-3xl mx-auto text-text-0">${headline}</h1>
         <p class="text-text-2 text-base @md:text-lg leading-relaxed max-w-xl mx-auto mb-8">${subheadline}</p>
         <div class="flex flex-wrap items-center justify-center gap-3">
-          ${renderLink(primaryCta, primaryCtaUrl, 'px-6 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all inline-flex items-center gap-2')}
+          ${primaryCta ? renderLink(primaryCta, primaryCtaUrl, 'px-6 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all inline-flex items-center gap-2') : ''}
 ${secondaryHtml}
         </div>
       </div>
@@ -315,9 +315,9 @@ function renderHero(block: BlockConfig): string {
     case 'gradient':
       return renderHeroGradient(block)
     case 'minimal': {
-      const headline = renderToStaticMarkup(createElement(RichText, { blockId: block.id, field: 'headline', text: prop(block.props, 'headline', ''), value: block.props.headlineRich, alignment: block.props.headlineAlign, position: { x: Number(block.props.headlineOffsetX) || 0, y: Number(block.props.headlineOffsetY) || 0 } }))
-      const subheadline = renderToStaticMarkup(createElement(RichText, { blockId: block.id, field: 'subheadline', text: prop(block.props, 'subheadline', ''), value: block.props.subheadlineRich, alignment: block.props.subheadlineAlign, position: { x: Number(block.props.subheadlineOffsetX) || 0, y: Number(block.props.subheadlineOffsetY) || 0 } }))
-      const primaryCta = prop<string>(block.props, 'primaryCta', '')
+      const headline = renderToStaticMarkup(createElement(RichText, { blockId: block.id, field: 'headline', text: prop(block.props, 'headline', ''), value: block.props.headlineRich, alignment: block.props.headlineAlign, position: { x: Number(block.props.headlineOffsetX) || 0, y: Number(block.props.headlineOffsetY) || 0, width: Number(block.props.headlineWidth) || undefined } }))
+      const subheadline = renderToStaticMarkup(createElement(RichText, { blockId: block.id, field: 'subheadline', text: prop(block.props, 'subheadline', ''), value: block.props.subheadlineRich, alignment: block.props.subheadlineAlign, position: { x: Number(block.props.subheadlineOffsetX) || 0, y: Number(block.props.subheadlineOffsetY) || 0, width: Number(block.props.subheadlineWidth) || undefined } }))
+      const primaryCta = block.props.primaryCta === 'Get Started' && !block.props.primaryCtaUrl ? '' : prop<string>(block.props, 'primaryCta', '')
       const primaryCtaUrl = prop<string>(block.props, 'primaryCtaUrl', '')
       const action = primaryCta ? `<div>${renderLink(primaryCta, primaryCtaUrl, 'px-8 py-4 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all inline-flex items-center gap-2 mx-auto')}</div>` : ''
       return `<section class="px-6 @md:px-10 py-24 @md:py-36 text-center"><h1 class="text-5xl @md:text-7xl font-bold tracking-tighter leading-[1.05] mb-6 max-w-4xl mx-auto">${headline}</h1><p class="text-text-2 text-lg @md:text-xl leading-relaxed max-w-lg mx-auto mb-10">${subheadline}</p>${action}</section>`

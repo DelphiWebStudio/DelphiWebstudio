@@ -19,6 +19,18 @@ const baseConfig: SiteConfig = {
 }
 
 describe('exportSiteToHTML', () => {
+  it('hides unconfigured example Hero buttons but preserves customized links and text width', () => {
+    for (const variant of ['centered', 'split', 'gradient', 'minimal']) {
+      const hero = { id: 'hero', type: 'hero' as const, variant, props: { headline: 'A long church name', headlineWidth: 240, primaryCta: 'Get Started', secondaryCta: 'Learn More' } }
+      const html = exportSiteToHTML({ ...baseConfig, blocks: [hero] })
+      expect(html).not.toContain('Get Started')
+      expect(html).not.toContain('Learn More')
+      expect(html).toContain('width:240px')
+      const linked = exportSiteToHTML({ ...baseConfig, blocks: [{ ...hero, props: { ...hero.props, primaryCtaUrl: '/visit' } }] })
+      expect(linked).toContain('Get Started')
+      expect(linked).toContain('href="/visit"')
+    }
+  })
   it('exports selected text alignment independently and keeps the section text container size', () => {
     const block = { id: 'hero-align', type: 'hero' as const, variant: 'centered', props: { sectionCount: 2, headline: '', section2Text: 'BeforeSelectedAfter', section2TextWidth: 180, section2TextHeight: 60, section2TextLeft: 8, section2TextTop: 4, section2TextRich: [{ text: 'Before' }, { text: 'Selected', align: 'center' }, { text: 'After' }] } }
     const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })

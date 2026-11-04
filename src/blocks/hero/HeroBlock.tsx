@@ -9,8 +9,10 @@ interface HeroProps {
   _subheadlineRich?: unknown
   headlineOffsetX?: number
   headlineOffsetY?: number
+  headlineWidth?: number
   subheadlineOffsetX?: number
   subheadlineOffsetY?: number
+  subheadlineWidth?: number
   headlineAlign?: unknown
   subheadlineAlign?: unknown
   badge?: string
@@ -36,20 +38,20 @@ function HeroCentered({ props }: { props: HeroProps }) {
 
       {/* Headline */}
       <h1 className="reveal-fade-up reveal-d2 text-4xl @md:text-5xl font-bold tracking-tight leading-[1.1] mb-4 max-w-3xl mx-auto">
-        <RichText blockId={props._blockId} field="headline" text={props.headline || ''} value={props._headlineRich} alignment={props.headlineAlign} editable={props._editable} position={{ x: Number(props.headlineOffsetX) || 0, y: Number(props.headlineOffsetY) || 0 }} />
+        <RichText blockId={props._blockId} field="headline" text={props.headline || ''} value={props._headlineRich} alignment={props.headlineAlign} editable={props._editable} position={{ x: Number(props.headlineOffsetX) || 0, y: Number(props.headlineOffsetY) || 0, width: Number(props.headlineWidth) || undefined }} />
       </h1>
 
       {/* Subheadline */}
       <p className="reveal-fade-up reveal-d3 text-text-2 text-base @md:text-lg leading-relaxed max-w-xl mx-auto mb-8">
-        <RichText blockId={props._blockId} field="subheadline" text={props.subheadline || ''} value={props._subheadlineRich} alignment={props.subheadlineAlign} editable={props._editable} position={{ x: Number(props.subheadlineOffsetX) || 0, y: Number(props.subheadlineOffsetY) || 0 }} />
+        <RichText blockId={props._blockId} field="subheadline" text={props.subheadline || ''} value={props._subheadlineRich} alignment={props.subheadlineAlign} editable={props._editable} position={{ x: Number(props.subheadlineOffsetX) || 0, y: Number(props.subheadlineOffsetY) || 0, width: Number(props.subheadlineWidth) || undefined }} />
       </p>
 
       {/* CTAs */}
       <div className="reveal-fade-up reveal-d4 flex flex-wrap items-center justify-center gap-3">
-        <a href={props.primaryCtaUrl || undefined} className="px-6 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all hover:accent-glow-xl flex items-center gap-2">
+        {props.primaryCta && <a href={props.primaryCtaUrl || undefined} className="px-6 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all hover:accent-glow-xl flex items-center gap-2">
           {props.primaryCta}
           <ArrowRight size={16} />
-        </a>
+        </a>}
         {props.secondaryCta && (
           <a href={props.secondaryCtaUrl || undefined} className="px-6 py-3 rounded-lg bg-bg-3 text-text-0 text-sm font-medium border border-border-default hover:bg-bg-4 hover:border-border-hover transition-all">
             {props.secondaryCta}
@@ -72,16 +74,16 @@ function HeroSplit({ props }: { props: HeroProps }) {
           </div>
         )}
         <h1 className="reveal-fade-up reveal-d2 text-3xl @md:text-5xl font-bold tracking-tight leading-[1.1] mb-4">
-          <RichText blockId={props._blockId} field="headline" text={props.headline || ''} value={props._headlineRich} alignment={props.headlineAlign} editable={props._editable} position={{ x: Number(props.headlineOffsetX) || 0, y: Number(props.headlineOffsetY) || 0 }} />
+          <RichText blockId={props._blockId} field="headline" text={props.headline || ''} value={props._headlineRich} alignment={props.headlineAlign} editable={props._editable} position={{ x: Number(props.headlineOffsetX) || 0, y: Number(props.headlineOffsetY) || 0, width: Number(props.headlineWidth) || undefined }} />
         </h1>
         <p className="reveal-fade-up reveal-d3 text-text-2 text-base leading-relaxed mb-6 max-w-lg">
-          <RichText blockId={props._blockId} field="subheadline" text={props.subheadline || ''} value={props._subheadlineRich} alignment={props.subheadlineAlign} editable={props._editable} position={{ x: Number(props.subheadlineOffsetX) || 0, y: Number(props.subheadlineOffsetY) || 0 }} />
+          <RichText blockId={props._blockId} field="subheadline" text={props.subheadline || ''} value={props._subheadlineRich} alignment={props.subheadlineAlign} editable={props._editable} position={{ x: Number(props.subheadlineOffsetX) || 0, y: Number(props.subheadlineOffsetY) || 0, width: Number(props.subheadlineWidth) || undefined }} />
         </p>
         <div className="reveal-fade-up reveal-d4 flex flex-wrap items-center gap-3">
-          <a href={props.primaryCtaUrl || undefined} className="px-6 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all flex items-center gap-2">
+          {props.primaryCta && <a href={props.primaryCtaUrl || undefined} className="px-6 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all flex items-center gap-2">
             {props.primaryCta}
             <ArrowRight size={16} />
-          </a>
+          </a>}
           {props.secondaryCta && (
             <a href={props.secondaryCtaUrl || undefined} className="px-6 py-3 rounded-lg bg-bg-3 text-text-0 text-sm font-medium border border-border-default hover:bg-bg-4 transition-all">
               {props.secondaryCta}
@@ -119,18 +121,18 @@ function HeroGradient({ props }: { props: HeroProps }) {
         )}
 
         <h1 className="reveal-fade-up reveal-d2 text-4xl @md:text-5xl font-bold tracking-tight leading-[1.1] mb-4 max-w-3xl mx-auto" style={{ color: 'var(--color-text-0)' }}>
-          <RichText blockId={props._blockId} field="headline" text={props.headline || ''} value={props._headlineRich} alignment={props.headlineAlign} editable={props._editable} position={{ x: Number(props.headlineOffsetX) || 0, y: Number(props.headlineOffsetY) || 0 }} />
+          <RichText blockId={props._blockId} field="headline" text={props.headline || ''} value={props._headlineRich} alignment={props.headlineAlign} editable={props._editable} position={{ x: Number(props.headlineOffsetX) || 0, y: Number(props.headlineOffsetY) || 0, width: Number(props.headlineWidth) || undefined }} />
         </h1>
 
         <p className="reveal-fade-up reveal-d3 text-text-2 text-base @md:text-lg leading-relaxed max-w-xl mx-auto mb-8">
-          <RichText blockId={props._blockId} field="subheadline" text={props.subheadline || ''} value={props._subheadlineRich} alignment={props.subheadlineAlign} editable={props._editable} position={{ x: Number(props.subheadlineOffsetX) || 0, y: Number(props.subheadlineOffsetY) || 0 }} />
+          <RichText blockId={props._blockId} field="subheadline" text={props.subheadline || ''} value={props._subheadlineRich} alignment={props.subheadlineAlign} editable={props._editable} position={{ x: Number(props.subheadlineOffsetX) || 0, y: Number(props.subheadlineOffsetY) || 0, width: Number(props.subheadlineWidth) || undefined }} />
         </p>
 
         <div className="reveal-fade-up reveal-d4 flex flex-wrap items-center justify-center gap-3">
-          <a href={props.primaryCtaUrl || undefined} className="px-6 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all hover:accent-glow-xl flex items-center gap-2">
+          {props.primaryCta && <a href={props.primaryCtaUrl || undefined} className="px-6 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all hover:accent-glow-xl flex items-center gap-2">
             {props.primaryCta}
             <ArrowRight size={16} />
-          </a>
+          </a>}
           {props.secondaryCta && (
             <a href={props.secondaryCtaUrl || undefined} className="px-6 py-3 rounded-lg bg-bg-3 text-text-0 text-sm font-medium border border-border-default hover:bg-bg-4 transition-all">
               {props.secondaryCta}
@@ -146,10 +148,10 @@ function HeroMinimal({ props }: { props: HeroProps }) {
   return (
     <section className="px-6 @md:px-10 py-24 @md:py-36 text-center">
       <h1 className="reveal-fade-up reveal-d1 text-5xl @md:text-7xl font-bold tracking-tighter leading-[1.05] mb-6 max-w-4xl mx-auto">
-        <RichText blockId={props._blockId} field="headline" text={props.headline || ''} value={props._headlineRich} alignment={props.headlineAlign} editable={props._editable} position={{ x: Number(props.headlineOffsetX) || 0, y: Number(props.headlineOffsetY) || 0 }} />
+        <RichText blockId={props._blockId} field="headline" text={props.headline || ''} value={props._headlineRich} alignment={props.headlineAlign} editable={props._editable} position={{ x: Number(props.headlineOffsetX) || 0, y: Number(props.headlineOffsetY) || 0, width: Number(props.headlineWidth) || undefined }} />
       </h1>
       <p className="reveal-fade-up reveal-d2 text-text-2 text-lg @md:text-xl leading-relaxed max-w-lg mx-auto mb-10">
-        <RichText blockId={props._blockId} field="subheadline" text={props.subheadline || ''} value={props._subheadlineRich} alignment={props.subheadlineAlign} editable={props._editable} position={{ x: Number(props.subheadlineOffsetX) || 0, y: Number(props.subheadlineOffsetY) || 0 }} />
+        <RichText blockId={props._blockId} field="subheadline" text={props.subheadline || ''} value={props._subheadlineRich} alignment={props.subheadlineAlign} editable={props._editable} position={{ x: Number(props.subheadlineOffsetX) || 0, y: Number(props.subheadlineOffsetY) || 0, width: Number(props.subheadlineWidth) || undefined }} />
       </p>
       {props.primaryCta && <div className="reveal-fade-up reveal-d3">
         <a href={props.primaryCtaUrl || undefined} className="px-8 py-4 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all hover:accent-glow-xl inline-flex items-center gap-2 mx-auto">
@@ -162,7 +164,7 @@ function HeroMinimal({ props }: { props: HeroProps }) {
 }
 
 export function HeroBlock({ block, editable = false }: { block: BlockConfig; editable?: boolean }) {
-  const props = { ...block.props, _blockId: block.id, _editable: editable, _headlineRich: block.props.headlineRich, _subheadlineRich: block.props.subheadlineRich } as unknown as HeroProps
+  const props = { ...block.props, primaryCta: block.props.primaryCta === 'Get Started' && !block.props.primaryCtaUrl ? '' : block.props.primaryCta, secondaryCta: block.props.secondaryCta === 'Learn More' && !block.props.secondaryCtaUrl ? '' : block.props.secondaryCta, _blockId: block.id, _editable: editable, _headlineRich: block.props.headlineRich, _subheadlineRich: block.props.subheadlineRich } as unknown as HeroProps
 
   switch (block.variant) {
     case 'split':
