@@ -42,6 +42,23 @@ describe('page history', () => {
     expect(blocks[0].props.placedMedia).toEqual([media])
     expect(blocks[1].props.placedMedia).toBeUndefined()
   })
+  it('moves a formatted section object between blocks and undoes it in one step', () => {
+    const item = { id: 'text1', type: 'text', text: 'Original', x: 5, y: 10, width: 20, height: 80, layer: 1 }
+    const rich = [{ text: 'Formatted', bold: true, color: '#123456' }]
+    useConfigStore.getState().addBlock({ id: 'first', type: 'hero', variant: 'centered', props: { section2Objects: [item], sectionCount: 2, sectionObject_text1: 'Formatted', sectionObject_text1Rich: rich } })
+    useConfigStore.getState().addBlock({ id: 'second', type: 'content', variant: 'prose', props: {} })
+    useConfigStore.getState().moveSectionObject('first', 2, 'second', 1, 'text1', 30, 40, 25, 90)
+    let blocks = useConfigStore.getState().getActivePageBlocks()
+    expect(blocks[0].props.section2Objects).toEqual([])
+    expect(blocks[0].props.sectionObject_text1Rich).toBeUndefined()
+    expect(blocks[1].props.section1Objects).toEqual([{ ...item, x: 30, y: 40, width: 25, height: 90 }])
+    expect(blocks[1].props.sectionObject_text1Rich).toEqual(rich)
+    useConfigStore.getState().undo()
+    blocks = useConfigStore.getState().getActivePageBlocks()
+    expect(blocks[0].props.section2Objects).toEqual([item])
+    expect(blocks[0].props.sectionObject_text1Rich).toEqual(rich)
+    expect(blocks[1].props.section1Objects).toBeUndefined()
+  })
   it('adds a Navbar at the top, preserves other blocks, and still allows the user to move it', () => {
     const store = useConfigStore.getState()
     store.addBlock({ id: 'hero', type: 'hero', variant: 'centered', props: {} })

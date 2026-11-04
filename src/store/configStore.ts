@@ -38,6 +38,7 @@ interface ConfigState {
   updateBlockProps: (id: string, props: Record<string, unknown>) => void
   editBlockItems: (id: string, field: string, from: number, to: number, operation?: 'move' | 'remove' | 'duplicate') => void
   movePlacedMedia: (fromId: string, toId: string, itemId: string, x: number, y: number, width: number) => void
+  moveSectionObject: (fromId: string, fromSection: number, toId: string, toSection: number, itemId: string, x: number, y: number, width: number, height: number) => void
   addBlock: (block: BlockConfig, index?: number) => void
   removeBlock: (id: string) => void
   duplicateBlock: (id: string) => void
@@ -233,6 +234,38 @@ export const useConfigStore = create<ConfigState>()(
               if (block === to || (to.webstudioSharedSectionId && block.webstudioSharedSectionId === to.webstudioSharedSectionId)) {
                 const existing = Array.isArray(block.props.placedMedia) ? block.props.placedMedia : []
                 block.props.placedMedia = [...existing, { ...structuredClone(item as Record<string, unknown>), x, y, width }]
+              }
+            }
+            draft.blocks = (draft.pages!.find(p => p.path === '/') ?? draft.pages![0]).blocks
+          }),
+        }
+      }),
+
+      moveSectionObject: (fromId, fromSection, toId, toSection, itemId, x, y, width, height) => set(state => {
+        if (fromSection < 1 || fromSection > 4 || toSection < 1 || toSection > 4 || (fromId === toId && fromSection === toSection)) return state
+        const page = ensurePages(state.config).find(p => p.id === state.activePageId)
+        const source = page?.blocks.find(b => b.id === fromId), target = page?.blocks.find(b => b.id === toId)
+        const sourceKey = `section${fromSection}Objects`, targetKey = `section${toSection}Objects`
+        const items = Array.isArray(source?.props[sourceKey]) ? source.props[sourceKey] as Record<string, unknown>[] : []
+        const item = items.find(value => value && value.id === itemId)
+        if (!source || !target || !item || toSection > Math.max(1, Number(target.props.sectionCount) || 1)) return state
+        const textKey = `sectionObject_${itemId}`, richKey = `${textKey}Rich`
+        return {
+          ...pushUndo(state, 'Move section object'),
+          config: produce(withPages(state.config), draft => {
+            const active = draft.pages!.find(p => p.id === state.activePageId)!
+            const from = active.blocks.find(b => b.id === fromId)!, to = active.blocks.find(b => b.id === toId)!
+            const oldText = from.props[textKey], oldRich = from.props[richKey]
+            for (const block of draft.pages!.flatMap(p => p.blocks)) {
+              if (block === from || (from.webstudioSharedSectionId && block.webstudioSharedSectionId === from.webstudioSharedSectionId)) {
+                block.props[sourceKey] = (Array.isArray(block.props[sourceKey]) ? block.props[sourceKey] as Record<string, unknown>[] : []).filter(value => !value || value.id !== itemId)
+                if (fromId !== toId) { delete block.props[textKey]; delete block.props[richKey] }
+              }
+              if (block === to || (to.webstudioSharedSectionId && block.webstudioSharedSectionId === to.webstudioSharedSectionId)) {
+                const existing = Array.isArray(block.props[targetKey]) ? block.props[targetKey] : []
+                block.props[targetKey] = [...existing, { ...structuredClone(item), x, y, width, height }]
+                if (oldText !== undefined) block.props[textKey] = oldText
+                if (oldRich !== undefined) block.props[richKey] = oldRich
               }
             }
             draft.blocks = (draft.pages!.find(p => p.path === '/') ?? draft.pages![0]).blocks
