@@ -27,7 +27,7 @@ export const blockMetadata: BlockMeta[] = [
     description: 'Full-width hero section with headline and CTAs',
     category: 'Hero',
     variants: ['centered', 'split', 'gradient', 'minimal'],
-    defaultProps: { headline: 'Your Headline Here', subheadline: 'A compelling subheadline that explains your value proposition.', primaryCta: 'Get Started', secondaryCta: 'Learn More' },
+    defaultProps: { headline: 'Your Headline Here', subheadline: 'A compelling subheadline that explains your value proposition.', primaryCta: '', secondaryCta: '' },
   },
   {
     type: 'features',
