@@ -44,7 +44,7 @@ function MediaThumbnail({ asset }: { asset: MediaAsset }) {
     observer.observe(image)
     return () => { active = false; observer.disconnect(); if (url) URL.revokeObjectURL(url); void pdfTask?.destroy().catch(() => undefined) }
   }, [asset])
-  return <img ref={imageRef} alt="" className="w-12 h-12 object-cover rounded bg-bg-3" />
+  return <img ref={imageRef} alt="" draggable={false} className="w-12 h-12 object-cover rounded bg-bg-3" />
 }
 
 export function MediaPanel() {
@@ -63,6 +63,7 @@ export function MediaPanel() {
   const [preview, setPreview] = useState<MediaAsset | null>(null)
   const [failures, setFailures] = useState<string[]>([])
   const cancel = useRef(false)
+  const imageDrag = useRef<{ x: number; y: number; moved: boolean; pageId: string } | null>(null)
   const addBlock = useConfigStore(state => state.addBlock)
   const selectBlock = useEditorStore(state => state.selectBlock)
   const visibleAssets = assets.filter(asset => `${asset.folder ?? ''}/${asset.name}`.toLowerCase().includes(filter.toLowerCase()) && (fileType === 'all' || (fileType === 'documents' ? !asset.mime.startsWith('image/') && !asset.mime.startsWith('audio/') && !asset.mime.startsWith('video/') && asset.mime !== 'application/pdf' : asset.mime.startsWith(fileType))))
@@ -213,7 +214,45 @@ export function MediaPanel() {
       {failures.length > 0 && <details className="text-xs text-status-red"><summary>{failures.length} files could not be imported</summary><ul>{failures.map((error, index) => <li key={index}>{error}</li>)}</ul></details>}
       <div className="overflow-y-auto flex-1 space-y-1">
         {visibleAssets.map(asset => (
-          <div key={asset.id} draggable onDragStart={event => { event.dataTransfer.setData('application/x-webstudio-asset', asset.id); event.dataTransfer.effectAllowed = 'copy' }} className="rounded border border-border-default p-2 text-xs text-text-1 break-all">
+          <div key={asset.id} draggable={!asset.mime.startsWith('image/')} onDragStart={event => { event.dataTransfer.setData('application/x-webstudio-asset', asset.id); event.dataTransfer.effectAllowed = 'copy' }} onPointerDown={event => {
+            if (!asset.mime.startsWith('image/') || event.button !== 0 || (event.target instanceof Element && event.target.closest('button'))) return
+            imageDrag.current = { x: event.clientX, y: event.clientY, moved: false, pageId: useConfigStore.getState().activePageId }
+            event.currentTarget.setPointerCapture(event.pointerId)
+          }} onPointerMove={event => {
+            const drag = imageDrag.current
+            if (drag && Math.hypot(event.clientX - drag.x, event.clientY - drag.y) > 6) drag.moved = true
+          }} onPointerCancel={() => { imageDrag.current = null }} onPointerUp={event => {
+            const drag = imageDrag.current
+            imageDrag.current = null
+            if (!drag?.moved || !projectId || useEditorStore.getState().activeProjectId !== projectId || useEditorStore.getState().previewMode || useConfigStore.getState().activePageId !== drag.pageId) return
+            const element = document.elementFromPoint(event.clientX, event.clientY)
+            const section = element?.closest<HTMLElement>('[data-editor-section]')
+            const number = Number(section?.dataset.editorSection)
+            const blockElement = element?.closest<HTMLElement>('[data-webstudio-block-id]')
+            const blockId = blockElement?.getAttribute('data-webstudio-block-id')
+            const block = useConfigStore.getState().getActivePageBlocks().find(item => item.id === blockId)
+            if (section && block && number >= 1 && number <= 4) {
+              const bounds = section.getBoundingClientRect()
+              if (!bounds.width) return
+              const key = `section${number}Objects`, items = Array.isArray(block.props[key]) ? block.props[key] : []
+              const width = 30, x = Math.max(0, Math.min(100 - width, (event.clientX - bounds.left) / bounds.width * 100))
+              const height = asset.width && asset.height ? Math.max(24, bounds.width * width / 100 * asset.height / asset.width) : 180
+              useConfigStore.getState().updateBlockProps(block.id, { [key]: [...items, { id: `object-${crypto.randomUUID()}`, type: 'image', src: asset.path, assetId: asset.id, alt: asset.name, x, y: Math.max(0, event.clientY - bounds.top), width, height, layer: items.length + 1 }] })
+              useEditorStore.getState().selectBlock(block.id); useEditorStore.getState().selectSection(number)
+              toast(`Image added to section ${number}`)
+            } else if (block && blockElement) {
+              const bounds = blockElement.getBoundingClientRect()
+              if (!bounds.width || !bounds.height) return
+              const x = Math.max(0, Math.min(99, (event.clientX - bounds.left) / bounds.width * 100)), y = Math.max(0, Math.min(99, (event.clientY - bounds.top) / bounds.height * 100))
+              const items = Array.isArray(block.props.placedMedia) ? block.props.placedMedia : []
+              useConfigStore.getState().updateBlockProps(block.id, { placedMedia: [...items, { id: `placed-${crypto.randomUUID()}`, assetId: asset.id, src: asset.path, name: asset.name, mime: asset.mime, x, y, width: Math.max(1, Math.min(25, 100 - x)) }] })
+              useEditorStore.getState().selectBlock(block.id)
+            } else if (element?.closest('[aria-label^="Site preview,"]')) {
+              const id = `block-${crypto.randomUUID()}`
+              useConfigStore.getState().addBlock({ id, type: 'image', variant: 'hero-image', props: { assetId: asset.id, src: asset.path, alt: asset.name, layoutWidth: 40 } })
+              useEditorStore.getState().selectBlock(id)
+            }
+          }} className="rounded border border-border-default p-2 text-xs text-text-1 break-all">
             {(asset.mime.startsWith('image/') || asset.mime === 'application/pdf') && <MediaThumbnail asset={asset} />}
             <div>{asset.name}</div><div className="text-text-3">{asset.folder && `${asset.folder} · `}{asset.mime} · {(asset.size / 1024).toFixed(1)} KB{asset.width && asset.height ? ` · ${asset.width}×${asset.height}` : ''}</div>
             {asset.mime === 'application/pdf' && <button type="button" onClick={() => setPreview(asset)} className="text-green mt-1">Preview PDF</button>}
