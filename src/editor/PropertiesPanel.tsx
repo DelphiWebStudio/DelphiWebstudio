@@ -10,6 +10,7 @@ import { useProjectsStore } from '@/store/projectsStore'
 import { ProjectMediaLibrary, type MediaAsset } from '@/media/media-library'
 import { WindowsColorInput } from './WindowsColorInput'
 import { chooseWindowsFont } from '@/desktop/native-bridge'
+import { resolveTheme } from '@/lib/theme-presets'
 
 interface FieldDef {
   key: string
@@ -833,6 +834,7 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
   const selectImage = useEditorStore(state => state.selectImage)
   const selectedTextKey = useEditorStore(state => state.selectedTextKey)
   const selectedSection = useEditorStore(state => state.selectedSection)
+  const theme = useConfigStore(state => state.config.theme)
   const selectText = useEditorStore(state => state.selectText)
   const schema = Object.hasOwn(blockFields, block.type) ? blockFields[block.type] : undefined
   const adjustments = block.props.imageAdjustments && typeof block.props.imageAdjustments === 'object' && !Array.isArray(block.props.imageAdjustments)
@@ -882,7 +884,7 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
       </Section>}
       <Section title="Block background">
         <label className="block text-xs text-text-2">Background color
-          <WindowsColorInput label="Block background color" value={typeof block.props.blockBackgroundColor === 'string' && /^#[0-9a-f]{6}$/i.test(block.props.blockBackgroundColor) ? block.props.blockBackgroundColor : '#ffffff'} onChange={value => updateBlockProps(block.id, { blockBackgroundColor: value })} className="mt-1 block h-9 w-full cursor-pointer rounded border border-border-default p-1" />
+          <WindowsColorInput label="Block background color" value={typeof block.props.blockBackgroundColor === 'string' && /^#[0-9a-f]{6}$/i.test(block.props.blockBackgroundColor) ? block.props.blockBackgroundColor : resolveTheme(theme).bg1} onChange={value => updateBlockProps(block.id, { blockBackgroundColor: value })} className="mt-1 block h-9 w-full cursor-pointer rounded border border-border-default p-1" />
         </label>
         <p className="mt-1 text-[10px] text-text-3">{block.props.blockBackgroundColor ? 'Custom block color' : 'Using the block’s default background'}</p>
         <button type="button" onClick={() => updateBlockProps(block.id, { blockBackgroundColor: '' })} className="mt-2 rounded border border-border-default px-2 py-1 text-xs">Reset background</button>

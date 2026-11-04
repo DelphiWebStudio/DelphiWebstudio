@@ -32,6 +32,7 @@ export function RightSidebar({ collapsed = false }: { collapsed?: boolean }) {
       {/* Tabs */}
       <div className="flex border-b border-border-default shrink-0">
         <button
+          data-properties-tab
           onClick={() => setSelection({ blockId: selectedBlockId, tab: 'properties' })}
           className={`flex-1 py-2 text-[11px] font-medium transition-colors ${
             activeTab === 'properties'

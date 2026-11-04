@@ -19,6 +19,14 @@ const baseConfig: SiteConfig = {
 }
 
 describe('exportSiteToHTML', () => {
+  it('preserves a resized content block and its chosen background in export', () => {
+    const block = { id: 'content', type: 'content' as const, variant: 'prose', props: { body: 'Hello', layoutWidth: 65, layoutHeight: 220, layoutLeft: 10, blockBackgroundColor: '#ffffff' } }
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
+    expect(html).toContain('width:65%;margin-left:10%')
+    expect(html).toContain('height:220px')
+    expect(html).toContain('background-color:#ffffff!important')
+    expect(html).toContain('Hello')
+  })
   it('hides unconfigured example Hero buttons but preserves customized links and text width', () => {
     for (const variant of ['centered', 'split', 'gradient', 'minimal']) {
       const hero = { id: 'hero', type: 'hero' as const, variant, props: { headline: 'A long church name', headlineWidth: 240, primaryCta: 'Get Started', secondaryCta: 'Learn More' } }
