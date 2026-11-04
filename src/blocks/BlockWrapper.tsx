@@ -328,7 +328,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
           drag.element.style.setProperty('top', `${drag.top + event.clientY - drag.y}px`, 'important')
           const current = drag.element.getBoundingClientRect()
           const matches: typeof guides = {}
-          drag.element.closest('[aria-label^="Site preview"]')?.querySelectorAll<HTMLElement>('[data-placed-media], [data-ws-image-index], [contenteditable="true"]').forEach(other => {
+          drag.element.closest('[aria-label^="Site preview"]')?.querySelectorAll<HTMLElement>('[data-section-object], [data-placed-media], [data-ws-image-index], [contenteditable="true"]').forEach(other => {
             if (other === drag.element || other.contains(drag.element) || drag.element.contains(other)) return
             const rect = other.getBoundingClientRect(); if (!rect.width || !rect.height) return
             if (!matches.vertical) for (const [a, b] of [[current.left, rect.left], [current.right, rect.right], [(current.left + current.right) / 2, (rect.left + rect.right) / 2]]) if (Math.abs(a - b) <= 4) { const top = Math.min(current.top, rect.top); matches.vertical = { x: b, top, height: Math.max(current.bottom, rect.bottom) - top }; break }
