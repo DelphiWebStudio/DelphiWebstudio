@@ -263,6 +263,11 @@ textarea:focus-visible {
   .ws-block-columns { grid-template-columns: var(--ws-section-widths); }
   .ws-section-divider { display: block !important; }
 }
+@container (max-width: 27.999rem) {
+  .ws-stack-mobile { position: relative !important; inset: auto !important; }
+  .ws-stack-mobile > [data-section-object] { position: relative !important; left: auto !important; top: auto !important; width: 100% !important; height: auto !important; min-height: 40px; margin: 12px 0; }
+  .ws-stack-mobile > [data-section-object] img { height: auto !important; max-height: 300px; }
+}
 
 .ws-section-divider {
   display: none;

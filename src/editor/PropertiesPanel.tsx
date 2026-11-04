@@ -872,6 +872,8 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
         </label>
         <p className="mt-2 text-[10px] text-text-3">The original block is section 1. Additional sections can contain text and an image. Reducing the count keeps their contents for later.</p>
         <button type="button" onClick={() => updateBlockProps(block.id, { sectionWidths: [] })} className="mt-2 rounded border border-border-default px-2 py-1 text-xs">Reset section widths</button>
+        <label className="mt-2 flex items-center gap-2 text-xs"><input type="checkbox" checked={block.props.stackSectionObjectsOnMobile === true} onChange={event => updateBlockProps(block.id, { stackSectionObjectsOnMobile: event.target.checked })} /> Stack section objects on phones</label>
+        <p className="mt-1 text-[10px] text-text-3">On narrow screens, stack objects below the section content. Desktop positions stay unchanged.</p>
         {Array.from({ length: Math.min(4, Math.max(1, Number(block.props.sectionCount) || 1)) }, (_, index) => {
           const number = index + 1, key = `section${number}Objects`
           return <div key={key} className="mt-3 border-t border-border-default pt-2"><div className="text-xs font-semibold">Section {number} objects</div><div className="mt-1 flex flex-wrap gap-1">

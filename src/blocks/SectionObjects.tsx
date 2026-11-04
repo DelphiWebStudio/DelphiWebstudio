@@ -70,7 +70,7 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
       useConfigStore.getState().updateBlockProps(block.id, { [key]: saved.map(item => item.id === state.id ? { ...item, x, y, width, height } : item) })
     }
   }
-  return <><div data-section-object-area={section} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+  return <><div data-section-object-area={section} className={block.props.stackSectionObjectsOnMobile === true ? 'ws-stack-mobile' : undefined} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
     {objects.filter(item => item && typeof item.id === 'string' && ['text', 'image', 'button', 'panel'].includes(item.type)).map(item => {
       const x = Math.max(0, Math.min(95, Number(item.x) || 0)), y = Math.max(0, Number(item.y) || 0)
       const width = Math.max(5, Math.min(100 - x, Number(item.width) || 30)), height = Math.max(24, Number(item.height) || 80)
