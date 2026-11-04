@@ -166,7 +166,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
     ].filter(Boolean).join(';')
     return declarations ? [`${selector} [data-ws-text-key="${key}"]{${declarations}}`] : []
   }).join('')
-  const heroHeightStyle = heroHeight ? `${selector}{min-height:${heroHeight}px}${Number(block.props.sectionCount) > 1 ? `${selector}>:first-child,${selector}>:first-child>:first-child{min-height:${heroHeight}px}` : ''}${backgroundTarget}{min-height:${heroHeight}px;box-sizing:border-box}` : ''
+  const heroHeightStyle = heroLayout ? `${selector}{min-height:var(--ws-hero-height,${heroHeight || 0}px)}${Number(block.props.sectionCount) > 1 ? `${selector}>:first-child,${selector}>:first-child>:first-child{min-height:var(--ws-hero-height,${heroHeight || 0}px)}` : ''}${backgroundTarget}{min-height:var(--ws-hero-height,${heroHeight || 0}px);box-sizing:border-box}${heroHeight ? `${selector} section{padding-block:8px!important}` : ''}[data-ws-scope="${scope}"][data-ws-hero-resizing] [data-ws-content] section{padding-block:8px!important}` : ''
   const customStyle = (backgroundColor ? `${selector},${backgroundTarget}{background-color:${backgroundColor}!important}` : '') + (textRules ? `${selector} :is(h1,h2,h3,h4,h5,h6,p,span,a,li,label):not([data-rich-run]){${textRules}}` : '') + individualTextRules + imageRules + heroHeightStyle + (otherHeight ? `${selector}{min-height:100%}` : '') + (navbarLayout ? `${selector},${selector}>[data-editor-section]{height:100%}${selector} nav{height:100%;box-sizing:border-box;padding-block:4px}` : '') + (panelLayout ? `@container (max-width:600px){[data-ws-scope="${scope}"]{width:100%!important;margin-left:0!important;margin-top:0!important;z-index:auto!important}}` : '')
 
   if (previewMode) {
@@ -195,6 +195,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
     const canvas = element.closest('[aria-label^="Site preview"]')
     const minTop = canvas ? top + canvas.getBoundingClientRect().top - element.getBoundingClientRect().top : -2000
     dragRef.current = { kind, direction, x: event.clientX, y: event.clientY, width, left, top, height, pageWidth, minTop: Math.max(-2000, minTop) }
+    if (heroLayout && kind === 'resize') element.setAttribute('data-ws-hero-resizing', '')
     event.preventDefault()
     event.stopPropagation()
     event.currentTarget.setPointerCapture(event.pointerId)
@@ -227,6 +228,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
     }
     if (finish) {
       dragRef.current = null
+      if (heroLayout) { element.removeAttribute('data-ws-hero-resizing'); element.style.removeProperty('--ws-hero-height') }
       useConfigStore.getState().updateBlockProps(block.id, drag.kind === 'move'
         ? { layoutLeft: Math.round(nextLeft), layoutTop: Math.round(nextTop) }
         : { layoutLeft: Math.round(nextLeft), layoutTop: Math.round(nextTop), layoutWidth: Math.round(nextWidth), layoutHeight: Math.round(nextHeight) })
@@ -238,7 +240,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       element.style.marginTop = `${nextTop}px`
       element.style.width = `${nextWidth}%`
       if (navbarLayout) element.style.height = `${nextHeight}px`
-      else if (!imageLayout) element.style.minHeight = `${nextHeight}px`
+      else if (!imageLayout) { element.style.minHeight = `${nextHeight}px`; if (heroLayout) element.style.setProperty('--ws-hero-height', `${nextHeight}px`) }
       else {
         const image = element.querySelector('img')
         if (image) image.style.height = `${nextHeight}px`
@@ -384,6 +386,8 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         dragRef.current = null
         const element = revealRef.current
         if (element) {
+          element.removeAttribute('data-ws-hero-resizing')
+          element.style.removeProperty('--ws-hero-height')
           element.style.width = `${width}%`
           element.style.marginLeft = `${left}%`
           element.style.marginTop = `${top}px`

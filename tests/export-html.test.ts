@@ -136,6 +136,7 @@ describe('exportSiteToHTML', () => {
     expect(html).toContain('width:75%')
     expect(html).toContain('margin-left:10%')
     expect(html).toContain('min-height:260px')
+    expect(html).toContain('padding-block:8px!important')
     expect(html).toContain('background-color:#ffffff!important')
     expect(html).not.toContain('height:100%;box-sizing:border-box;overflow:auto')
     expect(html).toContain('Welcome')
