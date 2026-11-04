@@ -76,8 +76,14 @@ function ComponentsPanel() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 pb-2">
-        <div className="px-1.5 pt-2.5 pb-2 border-b border-border-default">
-          <div className="text-[10px] font-semibold uppercase text-text-2">Reusable sections</div>
+        <button type="button" className="w-full flex items-center gap-2 rounded-md bg-blue-700 px-3 py-2 text-left text-sm text-white hover:bg-blue-600" onClick={() => {
+          if (useEditorStore.getState().previewMode) { toast('Exit Preview to add text'); return }
+          useEditorStore.getState().setTextPlacement({ projectId: useEditorStore.getState().activeProjectId, pageId: useConfigStore.getState().activePageId })
+          toast('Click where you want to place the text. Press Escape to cancel.')
+        }}><Type size={16} /> Add text</button>
+        <p className="px-2 py-1 text-[11px] text-text-3">Click Add text, then click a section or panel on the page.</p>
+        <details className="px-1.5 pt-2.5 pb-2 border-b border-border-default">
+          <summary className="text-[10px] font-semibold uppercase text-text-2 cursor-pointer">Reusable sections</summary>
           <p className="text-[11px] text-text-3 mt-1">Select a section on the page to save a copy for this project.</p>
           <label className="sr-only" htmlFor="reusable-section-name">Section name</label>
           <input id="reusable-section-name" value={sectionName} onChange={event => setSectionName(event.target.value)} placeholder="Section name" className="mt-2 w-full rounded border border-border-default bg-bg-2 px-2 py-1.5 text-xs" />
@@ -92,7 +98,7 @@ function ComponentsPanel() {
             <button type="button" onClick={() => { insertReusableSection(section.id); toast('Section added to this page') }} className="flex-1 rounded bg-bg-3 px-2 py-1.5 text-left text-xs" title="Add a copy to the current page">{section.name}</button>
             <button type="button" onClick={() => { removeReusableSection(section.id); toast('Saved section removed; use Undo to restore it') }} aria-label={`Remove saved section ${section.name}`} className="rounded px-2 py-1.5 text-xs hover:bg-bg-3">Remove</button>
           </div>)}
-        </div>
+        </details>
         {Object.entries(grouped).map(([category, items]) => (
           <div key={category}>
             <div className="text-[9px] font-semibold uppercase tracking-wider text-text-3 px-1.5 pt-2.5 pb-1">
@@ -149,7 +155,7 @@ function ComponentsPanel() {
                   <div className="w-[22px] h-[22px] rounded border border-border-default bg-bg-3 flex items-center justify-center text-[10px] shrink-0">
                     <Icon size={12} />
                   </div>
-                  <span className="flex-1">{meta.label}</span>
+                  <span className="flex-1">{meta.type === 'content' ? 'Content block' : meta.label}</span>
                   <Plus size={11} className="text-text-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </button>
               )

@@ -10,6 +10,10 @@ interface EditorState {
   selectedTextKey: string
   selectedSection: number
   copiedSectionObject: { token: string; projectId: string | null; item: Record<string, unknown>; text?: unknown; rich?: unknown } | null
+  textPlacement: { projectId: string | null; pageId: string | null } | null
+  newTextObjectId: string | null
+  setTextPlacement: (value: EditorState['textPlacement']) => void
+  setNewTextObjectId: (id: string | null) => void
   viewport: Viewport
   customViewportWidth: number | null
   mode: EditorMode
@@ -52,6 +56,10 @@ export const useEditorStore = create<EditorState>()((set) => ({
   selectedTextKey: '',
   selectedSection: 0,
   copiedSectionObject: null,
+  textPlacement: null,
+  newTextObjectId: null,
+  setTextPlacement: (textPlacement) => set({ textPlacement }),
+  setNewTextObjectId: (newTextObjectId) => set({ newTextObjectId }),
   viewport: 'desktop',
   customViewportWidth: null,
   mode: 'beginner',
@@ -79,8 +87,8 @@ export const useEditorStore = create<EditorState>()((set) => ({
   toggleJsonDrawer: () => set((s) => ({ jsonDrawerOpen: !s.jsonDrawerOpen })),
   toggleHistory: () => set((s) => ({ historyOpen: !s.historyOpen })),
   toggleShortcutsModal: () => set((s) => ({ shortcutsModalOpen: !s.shortcutsModalOpen })),
-  togglePreview: () => set((s) => ({ previewMode: !s.previewMode, ...(!s.previewMode ? { selectedBlockId: null } : {}) })),
-  setActiveProject: (id) => set({ activeProjectId: id }),
+  togglePreview: () => set((s) => ({ previewMode: !s.previewMode, textPlacement: null, ...(!s.previewMode ? { selectedBlockId: null } : {}) })),
+  setActiveProject: (id) => set({ activeProjectId: id, textPlacement: null }),
   setDeploymentKey: (projectId, key) => set(state => ({ deploymentKeys: { ...state.deploymentKeys, [projectId]: key } })),
   setGenerating: (prompt) => set({ isGenerating: !!prompt, generationPrompt: prompt, generationError: null }),
   setGenerationError: (err) => set({ generationError: err }),
