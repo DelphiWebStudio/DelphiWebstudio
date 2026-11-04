@@ -381,11 +381,11 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
   return (
     <div className="relative flex flex-wrap items-center gap-2 shrink-0">
       <input ref={inputRef} type="file" accept=".json,.zip,application/json,application/zip" className="hidden" aria-label="Choose project file" onChange={openProject} />
-      <button type="button" onClick={() => inputRef.current?.click()} disabled={opening || mediaImporting}
+      <button data-project-command="open" type="button" onClick={() => inputRef.current?.click()} disabled={opening || mediaImporting}
         className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-text-1 hover:bg-bg-3 disabled:opacity-50">
         <FolderOpen size={14} />{opening ? 'Opening…' : 'Open project'}
       </button>
-      {project && <button type="button" disabled={mediaImporting} onClick={() => void saveProject()}
+      {project && <button data-project-command="save" type="button" disabled={mediaImporting} onClick={() => void saveProject()}
         className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-text-1 hover:bg-bg-3 disabled:opacity-50">
         <Save size={14} />{saving ? 'Preparing project…' : 'Save project'}
       </button>}

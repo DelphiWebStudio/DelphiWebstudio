@@ -18,6 +18,7 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
   const newTextObjectId = useEditorStore(state => state.newTextObjectId)
   useEffect(() => {
     if (!newTextObjectId || !objects.some(item => item.id === newTextObjectId)) return
+    useEditorStore.getState().setNewTextObjectId(null)
     setSelected(newTextObjectId)
     setEditing(newTextObjectId)
     const timer = window.setTimeout(() => {
@@ -29,9 +30,8 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
       range.selectNodeContents(element)
       selection?.removeAllRanges()
       selection?.addRange(range)
-      useEditorStore.getState().setNewTextObjectId(null)
     }, 0)
-    return () => window.clearTimeout(timer)
+    void timer
   }, [newTextObjectId, objects])
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null)
   const [guides, setGuides] = useState<{ vertical?: { x: number; top: number; height: number }; horizontal?: { y: number; left: number; width: number } }>({})
