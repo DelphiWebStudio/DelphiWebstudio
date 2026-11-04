@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Search, Layout, Type, Grid3X3, DollarSign, Megaphone, PanelBottom, MessageSquare, BarChart3, HelpCircle, Users, Mail, Newspaper, Image, Plus, Minus, Flag, FileText, ImageIcon, Play, GalleryHorizontalEnd } from 'lucide-react'
 import { LayersPanel } from './LayersPanel'
@@ -24,6 +24,8 @@ const noReusableSections: NonNullable<import('@/blocks/types').SiteConfig['webst
 function ComponentsPanel() {
   const [search, setSearch] = useState('')
   const [sectionName, setSectionName] = useState('')
+  const sectionDrag = useRef<{ x: number; y: number; moved: boolean } | null>(null)
+  const suppressClick = useRef(false)
   const addBlock = useConfigStore((s) => s.addBlock)
   const sections = useConfigStore((s) => s.config.webstudioReusableSections ?? noReusableSections)
   const saveReusableSection = useConfigStore((s) => s.saveReusableSection)
@@ -101,9 +103,46 @@ function ComponentsPanel() {
               return (
                 <button
                   key={meta.type}
-                  draggable
+                  draggable={!['content', 'image', 'cta', 'panel'].includes(meta.type)}
                   onDragStart={(event) => { event.dataTransfer.setData('application/x-webstudio-component', meta.type); event.dataTransfer.effectAllowed = 'copy' }}
-                  onClick={() => handleAdd(meta.type)}
+                  onPointerDown={event => {
+                    suppressClick.current = false
+                    if (event.button !== 0 || !['content', 'image', 'cta', 'panel'].includes(meta.type)) return
+                    sectionDrag.current = { x: event.clientX, y: event.clientY, moved: false }
+                    event.currentTarget.setPointerCapture(event.pointerId)
+                  }}
+                  onPointerMove={event => {
+                    const drag = sectionDrag.current
+                    if (drag && Math.hypot(event.clientX - drag.x, event.clientY - drag.y) > 6) drag.moved = true
+                  }}
+                  onPointerCancel={() => { sectionDrag.current = null }}
+                  onPointerUp={event => {
+                    const drag = sectionDrag.current
+                    sectionDrag.current = null
+                    if (!drag?.moved) return
+                    suppressClick.current = true
+                    const element = document.elementFromPoint(event.clientX, event.clientY)
+                    const section = element?.closest<HTMLElement>('[data-editor-section]')
+                    const number = Number(section?.dataset.editorSection)
+                    const blockId = section?.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id')
+                    const block = useConfigStore.getState().getActivePageBlocks().find(item => item.id === blockId)
+                    if (!section || !block || number < 1 || number > 4) {
+                      if (element?.closest('[aria-label^="Site preview,"]')) handleAdd(meta.type)
+                      return
+                    }
+                    const bounds = section.getBoundingClientRect()
+                    if (!bounds.width) return
+                    const key = `section${number}Objects`
+                    const items = Array.isArray(block.props[key]) ? block.props[key] : []
+                    const type = meta.type === 'content' ? 'text' : meta.type === 'cta' ? 'button' : meta.type
+                    const x = Math.max(0, Math.min(70, (event.clientX - bounds.left) / bounds.width * 100))
+                    const y = Math.max(0, event.clientY - bounds.top)
+                    useConfigStore.getState().updateBlockProps(block.id, { [key]: [...items, { id: `object-${crypto.randomUUID()}`, type, text: type === 'text' ? 'Text' : type === 'button' ? 'Button' : type === 'panel' ? 'Panel' : '', src: '', alt: '', url: '', color: type === 'panel' ? '#b9aeb6' : '#ffffff', textColor: type === 'panel' ? '#111111' : '', fontSize: '', x, y, width: 30, height: type === 'image' ? 180 : 80, layer: items.length + 1 }] })
+                    selectBlock(block.id)
+                    useEditorStore.getState().selectSection(number)
+                    toast(`${meta.label} added to section ${number}`)
+                  }}
+                  onClick={() => { if (suppressClick.current) { suppressClick.current = false; return }; handleAdd(meta.type) }}
                   className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[12px] text-text-1 hover:bg-bg-3 hover:text-text-0 transition-colors text-left group"
                 >
                   <div className="w-[22px] h-[22px] rounded border border-border-default bg-bg-3 flex items-center justify-center text-[10px] shrink-0">
