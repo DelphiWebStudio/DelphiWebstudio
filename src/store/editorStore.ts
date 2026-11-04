@@ -9,6 +9,7 @@ interface EditorState {
   selectedImageIndex: number
   selectedTextKey: string
   selectedSection: number
+  copiedSectionObject: { token: string; projectId: string | null; item: Record<string, unknown>; text?: unknown; rich?: unknown } | null
   viewport: Viewport
   customViewportWidth: number | null
   mode: EditorMode
@@ -28,6 +29,7 @@ interface EditorState {
   selectImage: (index: number) => void
   selectText: (key: string) => void
   selectSection: (section: number) => void
+  setCopiedSectionObject: (value: EditorState['copiedSectionObject']) => void
   setViewport: (vp: Viewport) => void
   setCustomViewportWidth: (width: number) => void
   setMode: (mode: EditorMode) => void
@@ -49,6 +51,7 @@ export const useEditorStore = create<EditorState>()((set) => ({
   selectedImageIndex: 0,
   selectedTextKey: '',
   selectedSection: 0,
+  copiedSectionObject: null,
   viewport: 'desktop',
   customViewportWidth: null,
   mode: 'beginner',
@@ -67,6 +70,7 @@ export const useEditorStore = create<EditorState>()((set) => ({
   selectImage: (index) => set({ selectedImageIndex: Math.max(0, Math.floor(index)) }),
   selectText: (key) => set({ selectedTextKey: key }),
   selectSection: (section) => set({ selectedSection: Math.max(1, Math.min(4, Math.floor(section))) }),
+  setCopiedSectionObject: (copiedSectionObject) => set({ copiedSectionObject }),
   setViewport: (vp) => set({ viewport: vp, customViewportWidth: null }),
   setCustomViewportWidth: (width) => set(Number.isFinite(width) ? { customViewportWidth: Math.max(320, Math.min(1920, Math.round(width))) } : {}),
   setMode: (mode) => set({ mode, jsonDrawerOpen: mode === 'professional' }),

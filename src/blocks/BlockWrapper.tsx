@@ -27,12 +27,26 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
   const { duplicateBlock, removeBlock, moveBlock, shareSectionAcrossPages, unshareSection } = useConfigStore()
   const { selectedBlockId, selectBlock } = useEditorStore()
   const selectedSection = useEditorStore(state => state.selectedSection)
+  const copiedSectionObject = useEditorStore(state => state.copiedSectionObject)
   const previewMode = useEditorStore((s) => s.previewMode)
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item?: { field: string; index: number } } | null>(null)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; section?: number; objectX?: number; objectY?: number; item?: { field: string; index: number } } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<{ kind: 'move' | 'resize'; direction: string; x: number; y: number; width: number; left: number; top: number; height: number; pageWidth: number; minTop: number } | null>(null)
   const imageDragRef = useRef<{ index: string; x: number; y: number; left: number; top: number; originalStyle: string; element: HTMLImageElement } | null>(null)
   const [guides, setGuides] = useState<{ vertical?: { x: number; top: number; height: number }; horizontal?: { y: number; left: number; width: number } }>({})
+  function pasteSectionObject(section: number, x: number, y: number) {
+    const state = useEditorStore.getState(), copied = state.copiedSectionObject
+    if (!copied || copied.projectId !== state.activeProjectId) return
+    const current = useConfigStore.getState().getActivePageBlocks().find(value => value.id === block.id)
+    if (!current || section < 1 || section > Math.max(1, Number(current.props.sectionCount) || 1)) return
+    const key = `section${section}Objects`, items = Array.isArray(current.props[key]) ? current.props[key] as Record<string, unknown>[] : []
+    const id = `object-${crypto.randomUUID()}`, width = Math.max(5, Math.min(100, Number(copied.item.width) || 30))
+    const updates: Record<string, unknown> = { [key]: [...items, { ...structuredClone(copied.item), id, x: Math.max(0, Math.min(100 - width, x)), y: Math.max(0, y), layer: Math.max(0, ...items.map(item => Number(item?.layer) || 0)) + 1 }] }
+    if (copied.text !== undefined) updates[`sectionObject_${id}`] = structuredClone(copied.text)
+    if (copied.rich !== undefined) updates[`sectionObject_${id}Rich`] = structuredClone(copied.rich)
+    useConfigStore.getState().updateBlockProps(block.id, updates)
+    state.selectBlock(block.id); state.selectSection(section)
+  }
   const { ref: revealRef, isRevealed } = useScrollReveal(!previewMode)
 
   const imageLayout = block.type === 'image'
@@ -304,7 +318,10 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         const element = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-ws-item-field][data-ws-item-index]') : null
         const field = element?.dataset.wsItemField ?? '', itemIndex = Number(element?.dataset.wsItemIndex), items = block.props[field]
         const item = element && Array.isArray(items) && Number.isInteger(itemIndex) && itemIndex >= 0 && itemIndex < items.length ? { field, index: itemIndex } : undefined
-        setContextMenu({ x: event.clientX, y: event.clientY, item })
+        const sectionElement = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-editor-section]') : null
+        const section = Number(sectionElement?.dataset.editorSection) || 1
+        const bounds = sectionElement?.querySelector<HTMLElement>(`[data-section-object-area="${section}"]`)?.getBoundingClientRect()
+        setContextMenu({ x: event.clientX, y: event.clientY, item, section, objectX: bounds?.width ? (event.clientX - bounds.left) / bounds.width * 100 : 0, objectY: bounds ? event.clientY - bounds.top : 0 })
       }}
       onPointerDown={event => {
         if (!imageLayout && block.type !== 'collage' && event.button === 0 && event.target instanceof HTMLImageElement && event.target.closest('[data-ws-content]')) {
@@ -398,6 +415,14 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       aria-label={`${block.type} block${isSelected ? ', selected' : ''}`}
       aria-selected={isSelected}
       tabIndex={0}
+      onPaste={e => {
+        if (!(e.target instanceof Element) || e.target.closest('input,textarea,[contenteditable="true"]')) return
+        const state = useEditorStore.getState(), copied = state.copiedSectionObject
+        if (!copied || copied.projectId !== state.activeProjectId || e.clipboardData.getData('text/plain') !== `WebStudio object:${copied.token}`) return
+        const target = e.target.closest<HTMLElement>('[data-editor-section]')
+        pasteSectionObject(Number(target?.dataset.editorSection) || (isSelected ? selectedSection : 0) || 1, 0, 12)
+        e.preventDefault(); e.stopPropagation()
+      }}
       onKeyDown={(e) => {
         if (e.target !== e.currentTarget) return
         if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
@@ -436,6 +461,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         style={{ left: contextMenu.x, top: contextMenu.y }}
         onClick={event => event.stopPropagation()} onContextMenu={event => event.preventDefault()}
       >
+        {copiedSectionObject && copiedSectionObject.projectId === useEditorStore.getState().activeProjectId && <button type="button" role="menuitem" className="flex w-full rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100" onClick={() => { if (contextMenu) pasteSectionObject(contextMenu.section || 1, contextMenu.objectX || 0, contextMenu.objectY || 0); setContextMenu(null) }}>Paste object</button>}
         {contextMenu.item && <>
           <div className="px-3 pt-1 text-xs font-semibold">Item</div>
           {([-1, 1] as const).map(delta => <button key={delta} type="button" role="menuitem" disabled={contextMenu.item!.index + delta < 0 || contextMenu.item!.index + delta >= (block.props[contextMenu.item!.field] as unknown[]).length} className="flex w-full rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100 disabled:opacity-40" onClick={() => {
