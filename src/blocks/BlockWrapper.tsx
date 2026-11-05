@@ -434,6 +434,12 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       }}
       onKeyDown={(e) => {
         if (e.target !== e.currentTarget) return
+        if (e.key === 'Enter' && imageLayout && isSelected) {
+          const current = useConfigStore.getState().getActivePageBlocks().find(value => value.id === block.id)
+          if (current) useConfigStore.getState().updateBlockProps(block.id, { section1ExtraSpace: Math.min(4000, Math.max(0, Number(current.props.section1ExtraSpace) || 0) + 32) })
+          e.preventDefault(); e.stopPropagation()
+          return
+        }
         if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
           e.preventDefault()
           const bounds = e.currentTarget.getBoundingClientRect()

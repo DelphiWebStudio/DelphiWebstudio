@@ -956,7 +956,9 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
         <p className="mt-1 text-[10px] text-text-3">On narrow screens, stack objects below the section content. Desktop positions stay unchanged.</p>
         {Array.from({ length: Math.min(4, Math.max(1, Number(block.props.sectionCount) || 1)) }, (_, index) => {
           const number = index + 1, key = `section${number}Objects`
-          return <div key={key} className="mt-3 border-t border-border-default pt-2"><div className="text-xs font-semibold">Section {number} objects</div><div className="mt-1 flex flex-wrap gap-1">
+          return <div key={key} className="mt-3 border-t border-border-default pt-2"><div className="text-xs font-semibold">Section {number} objects</div>
+            <label className="mt-1 block text-xs text-text-2">Extra space below (px)<input type="number" min="0" max="4000" aria-label={`Section ${number} extra space below`} value={String(block.props[`section${number}ExtraSpace`] ?? 0)} onChange={event => updateBlockProps(block.id, { [`section${number}ExtraSpace`]: Math.max(0, Math.min(4000, Number(event.target.value) || 0)) })} className="mt-1 w-full rounded border border-border-default bg-bg-2 px-2 py-1 text-xs" /></label>
+            <p className="mt-1 text-[10px] text-text-3">Select an image and press Enter to add space below this section.</p><div className="mt-1 flex flex-wrap gap-1">
             {(['text', 'image', 'button', 'panel', 'collage'] as const).map(type => <button key={type} type="button" className="rounded border border-border-default px-2 py-1 text-xs" onClick={() => {
               const items = Array.isArray(block.props[key]) ? block.props[key] : []
               updateBlockProps(block.id, { [key]: [...items, { id: `object-${crypto.randomUUID()}`, type, text: type === 'text' ? 'Text' : type === 'button' ? 'Button' : type === 'panel' ? 'Panel' : '', src: '', alt: '', url: '', color: '#ffffff', textColor: '', fontSize: '', ...(type === 'collage' ? { images: [] } : {}), x: 0, y: items.length * 90, width: 30, height: type === 'collage' ? 180 : 80, layer: items.length + 1 }] })

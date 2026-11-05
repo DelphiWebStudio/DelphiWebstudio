@@ -60,7 +60,8 @@ function ComponentsPanel() {
       variant: meta.variants[0],
       props: { ...meta.defaultProps },
     }
-    addBlock(block)
+    const selectedIndex = type === 'divider' ? useConfigStore.getState().getActivePageBlocks().findIndex(item => item.id === selectedBlockId) : -1
+    addBlock(block, selectedIndex >= 0 ? selectedIndex + 1 : undefined)
     selectBlock(block.id)
     toast(`${meta.label} added`)
   }
