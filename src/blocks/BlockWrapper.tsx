@@ -421,7 +421,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       className={`scroll-revealed relative cursor-pointer border-b border-border-subtle group transition-[opacity,transform] duration-500 ${
         isRevealed ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
       } ${
-        (resizableLayout || block.type === 'collage') ? (isSelected ? 'outline outline-1 outline-white -outline-offset-1' : '') : isSelected
+        block.type === 'divider' ? (isSelected ? 'outline outline-2 outline-[#1683e5] -outline-offset-1' : 'outline outline-1 outline-dashed outline-[#aab5c0] -outline-offset-1') : (resizableLayout || block.type === 'collage') ? (isSelected ? 'outline outline-1 outline-white -outline-offset-1' : '') : isSelected
           ? 'bg-green-glow2 outline outline-2 outline-green -outline-offset-2 rounded animate-select-pulse'
           : 'hover:bg-green-glow2'
       }`}
@@ -466,6 +466,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         if (next >= 0 && next < blocks.length) moveBlock(index, next)
       }} />}
       {/* Block type tag */}
+      {block.type === 'divider' && <span aria-hidden="true" className="pointer-events-none absolute left-2 top-1 z-10 rounded bg-bg-2 px-1.5 py-0.5 text-[10px] font-normal text-text-1">Strip</span>}
       {hiddenOnCurrentWidth && <span className="absolute top-8 left-1.5 text-[10px] bg-bg-2 border border-border-default rounded px-1.5 py-0.5 z-10">Hidden at this width in preview and export</span>}
       {!resizableLayout && <span
         className={`absolute top-8 left-1.5 text-[9px] font-semibold uppercase tracking-wider text-green bg-green-glow px-1.5 py-0.5 rounded transition-opacity z-10 ${
