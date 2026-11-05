@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { useConfigStore } from '@/store/configStore'
 import { useEditorStore } from '@/store/editorStore'
@@ -11,6 +11,12 @@ type SectionObject = { id: string; type: 'text' | 'image' | 'button' | 'panel' |
 export function SectionObjects({ block, section, editable }: { block: BlockConfig; section: number; editable: boolean }) {
   const key = `section${section}Objects`
   const objects = Array.isArray(block.props[key]) ? block.props[key] as SectionObject[] : []
+  const responsiveOrder = objects.filter(item => item && typeof item.id === 'string').slice().sort((a, b) => {
+    const parentA = objects.find(item => item?.id === a.parentId && item.type === 'panel')
+    const parentB = objects.find(item => item?.id === b.parentId && item.type === 'panel')
+    const anchorA = parentA ?? a, anchorB = parentB ?? b
+    return (Number(anchorA.y) || 0) - (Number(anchorB.y) || 0) || (Number(anchorA.x) || 0) - (Number(anchorB.x) || 0) || (parentA ? 1 : 0) - (parentB ? 1 : 0) || (Number(a.y) || 0) - (Number(b.y) || 0)
+  }).map(item => item.id)
   const objectSelection = useEditorStore(state => state.selectedSectionObject)
   const selected = objectSelection?.blockId === block.id && objectSelection.section === section ? objectSelection.id : null
   const setSelected = (id: string | null) => useEditorStore.getState().selectSectionObject(id ? { blockId: block.id, section, id } : null)
@@ -118,12 +124,13 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
       useConfigStore.getState().updateBlockProps(block.id, { [key]: saved.map(item => item.id === state.id ? { ...item, x, y, width, height, ...(parentId ? { parentId } : { parentId: undefined }) } : !state.resize && moving?.type === 'panel' && item.parentId === state.id ? { ...item, x: item.x + x - state.x, y: item.y + y - state.y } : item) })
     }
   }
-  return <><div data-section-object-area={section} className={block.props.stackSectionObjectsOnMobile === true ? 'ws-stack-mobile' : undefined} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+  return <><div data-section-object-area={section} className="ws-stack-mobile" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
     {objects.filter(item => item && typeof item.id === 'string' && ['text', 'image', 'button', 'panel', 'collage'].includes(item.type)).map(item => {
       const x = Math.max(0, Math.min(95, Number(item.x) || 0)), y = Math.max(0, Number(item.y) || 0)
       const width = Math.max(5, Math.min(100 - x, Number(item.width) || 30)), height = Math.max(24, Number(item.height) || 80)
       const link = typeof item.url === 'string' && /^(https?:\/\/|\/(?!\/)|#)/i.test(item.url) ? item.url : undefined
-      return <div key={item.id} data-section-object={item.id} tabIndex={editable ? 0 : undefined} aria-label={editable ? `${item.type} in section ${section}` : undefined} style={{ position: 'absolute', left: `${x}%`, top: y, width: `${width}%`, height, zIndex: Number(item.layer) || 1, pointerEvents: 'auto', outline: editable && selected === item.id ? '1px solid #005a9e' : undefined, touchAction: editable ? 'none' : undefined, cursor: editable ? 'move' : undefined, background: item.type === 'panel' && /^#[0-9a-f]{6}$/i.test(item.color || '') ? item.color : undefined, color: /^#[0-9a-f]{6}$/i.test(item.textColor || '') ? item.textColor : undefined, fontSize: Number(item.fontSize) >= 6 && Number(item.fontSize) <= 200 ? Number(item.fontSize) : undefined }}
+      const parent = objects.find(value => value?.id === item.parentId && value.type === 'panel')
+      return <div key={item.id} data-section-object={item.id} data-ws-object-type={item.type} data-ws-parented={parent ? 'true' : undefined} tabIndex={editable ? 0 : undefined} aria-label={editable ? `${item.type} in section ${section}` : undefined} style={{ position: 'absolute', left: `${x}%`, top: y, width: `${width}%`, height, order: responsiveOrder.indexOf(item.id), '--ws-parent-background': parent && /^#[0-9a-f]{6}$/i.test(parent.color || '') ? parent.color : 'transparent', zIndex: Number(item.layer) || 1, pointerEvents: 'auto', outline: editable && selected === item.id ? '1px solid #005a9e' : undefined, touchAction: editable ? 'none' : undefined, cursor: editable ? 'move' : undefined, background: item.type === 'panel' && /^#[0-9a-f]{6}$/i.test(item.color || '') ? item.color : undefined, color: /^#[0-9a-f]{6}$/i.test(item.textColor || '') ? item.textColor : undefined, fontSize: Number(item.fontSize) >= 6 && Number(item.fontSize) <= 200 ? Number(item.fontSize) : undefined } as CSSProperties}
         onContextMenu={event => { if (!editable || (editing === item.id && event.target instanceof Element && event.target.closest('[contenteditable="true"]'))) return; event.preventDefault(); event.stopPropagation(); useEditorStore.getState().selectBlock(block.id); useEditorStore.getState().selectSection(section); setSelected(item.id); setMenu({ id: item.id, x: event.clientX, y: event.clientY }) }}
         onDoubleClick={event => { if (editable && (item.type === 'text' || item.type === 'panel')) { const element = event.currentTarget; event.stopPropagation(); setSelected(item.id); setEditing(item.id); requestAnimationFrame(() => element.querySelector<HTMLElement>('[contenteditable="true"]')?.focus()) } }}
         onCopy={event => { if (!editable || event.target !== event.currentTarget) return; const current = useConfigStore.getState().getActivePageBlocks().find(value => value.id === block.id); const saved = Array.isArray(current?.props[key]) ? current.props[key] as SectionObject[] : []; const original = saved.find(value => value.id === item.id); if (!original || !current) return; const token = crypto.randomUUID(); useEditorStore.getState().setCopiedSectionObject({ token, projectId: useEditorStore.getState().activeProjectId, item: structuredClone(original) as unknown as Record<string, unknown>, text: structuredClone(current.props[`sectionObject_${item.id}`]), rich: structuredClone(current.props[`sectionObject_${item.id}Rich`]) }); event.clipboardData.setData('text/plain', `WebStudio object:${token}`); event.preventDefault(); event.stopPropagation() }}

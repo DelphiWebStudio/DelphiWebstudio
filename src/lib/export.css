@@ -27,8 +27,14 @@
 @container (min-width: 28rem) {
   .ws-block-columns { grid-template-columns: var(--ws-section-widths); }
 }
-@container (max-width: 27.999rem) {
-  .ws-stack-mobile { position: relative !important; inset: auto !important; }
-  .ws-stack-mobile > [data-section-object] { position: relative !important; left: auto !important; top: auto !important; width: 100% !important; height: auto !important; min-height: 40px; margin: 12px 0; }
-  .ws-stack-mobile > [data-section-object] img { height: auto !important; max-height: 300px; }
+@container (max-width: 56.249rem) {
+  .ws-block-columns { grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
+  [data-ws-responsive-section] { min-height: 0 !important; }
+  [data-section-text-container] { left: auto !important; top: auto !important; width: 100% !important; min-height: 0 !important; overflow-wrap: anywhere; }
+  .ws-stack-mobile { position: relative !important; inset: auto !important; display: flex; flex-direction: column; }
+  .ws-stack-mobile > [data-section-object] { position: relative !important; left: auto !important; top: auto !important; width: 100% !important; height: auto !important; min-height: 40px; margin: 8px 0; overflow-wrap: anywhere; }
+  .ws-stack-mobile > [data-section-object][data-ws-parented] { background: var(--ws-parent-background); margin: 0; padding: 8px; }
+  .ws-stack-mobile > [data-ws-object-type="image"] img { height: auto !important; max-width: 100%; }
+  .ws-stack-mobile > [data-ws-object-type="collage"] [data-collage-canvas] { height: auto !important; aspect-ratio: 3 / 2; }
+  [data-placed-media] { position: relative !important; left: auto !important; top: auto !important; width: 100% !important; margin: 12px 0; }
 }
