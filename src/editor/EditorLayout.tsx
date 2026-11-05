@@ -189,25 +189,14 @@ export function EditorLayout() {
           </div>
         </>}
         <div className="flex-1 flex flex-col min-w-0 relative">
-          <CanvasToolbar />
+          <CanvasToolbar settingsOpen={!rightCollapsed} onOpenSettings={() => setRightCollapsed(false)} />
           <div className="flex-1 flex flex-col overflow-hidden relative">
             <Canvas />
             <JsonDrawer />
             <GenerationOverlay />
           </div>
         </div>
-        {!previewMode && <>
-          <div className="hidden md:flex w-6 shrink-0 items-start justify-center border-l border-border-default bg-bg-1 pt-1">
-            <button type="button" onClick={() => setRightCollapsed(value => !value)}
-              aria-label={rightCollapsed ? 'Expand right panel' : 'Collapse right panel'}
-              aria-expanded={!rightCollapsed} aria-controls="editor-right-panel"
-              title={rightCollapsed ? 'Expand right panel' : 'Collapse right panel'}
-              className="flex h-7 w-5 items-center justify-center rounded border border-border-default text-text-2 hover:bg-bg-3 hover:text-text-0">
-              {rightCollapsed ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
-            </button>
-          </div>
-          <RightSidebar key={`right-${mode}`} collapsed={rightCollapsed} />
-        </>}
+        {!previewMode && <RightSidebar key={`right-${mode}`} collapsed={rightCollapsed} onClose={() => setRightCollapsed(true)} />}
       </div>
       <VersionHistory />
       <LocalPlanReview />

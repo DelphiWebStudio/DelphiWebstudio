@@ -230,7 +230,7 @@ function DeletePageDialog({ page, linkedPages, onCancel, onConfirm }: {
   )
 }
 
-export function CanvasToolbar() {
+export function CanvasToolbar({ settingsOpen = false, onOpenSettings }: { settingsOpen?: boolean; onOpenSettings?: () => void } = {}) {
   const navigate = useNavigate()
   const { viewport, setViewport, customViewportWidth, setCustomViewportWidth, mode, setMode, toggleJsonDrawer, jsonDrawerOpen, toggleHistory, togglePreview, toggleShortcutsModal, previewMode, activeProjectId } = useEditorStore()
   const { undo, redo, canUndo, canRedo } = useConfigStore()
@@ -427,6 +427,7 @@ export function CanvasToolbar() {
         <div className="w-px h-5 bg-border-default mx-1" />
 
         {/* Preview toggle */}
+        {!previewMode && <button type="button" aria-label={settingsOpen ? 'Settings window open' : 'Expand right panel'} aria-expanded={settingsOpen} aria-controls="editor-right-panel" onClick={onOpenSettings} className="h-7 rounded px-2 text-[11px] text-text-1 hover:bg-bg-3">Settings</button>}
         <button
           onClick={togglePreview}
           className={`h-7 px-2 rounded flex items-center gap-1 text-[11px] transition-all ${
