@@ -176,6 +176,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         className={isRevealed ? 'scroll-revealed' : ''}
         style={layoutStyle}
         data-ws-scope={scope}
+        data-ws-navbar-block={navbarLayout ? 'true' : undefined}
       >
         {customStyle && <style>{customStyle}</style>}
         <div data-ws-content><BlockColumns block={block}>{children}</BlockColumns></div>
@@ -254,6 +255,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       ref={revealRef}
       data-webstudio-block-id={block.id}
       data-ws-scope={scope}
+      data-ws-navbar-block={navbarLayout ? 'true' : undefined}
       onDragStart={event => {
         if (event.target instanceof Element && event.target.closest('[data-webstudio-block-drag-handle]')) {
           event.dataTransfer.setData('application/x-webstudio-block', block.id)

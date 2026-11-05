@@ -92,9 +92,6 @@ const SVG_CHECK =
 const SVG_CHEVRON_DOWN =
   '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>'
 
-const SVG_MENU =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>'
-
 const SVG_SPARKLES =
   '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>'
 
@@ -159,37 +156,32 @@ function renderNavbar(block: BlockConfig): string {
   const destinationLinks = navItems.filter(item => item && typeof item.label === 'string' && typeof item.url === 'string').map(item =>
     renderLink(item.label, item.url, 'text-[13px] text-text-2 hover:text-text-0 transition-colors')
   )
-  const mobileLinks = destinationLinks.length ? `<details class="@2xl:hidden relative"><summary aria-label="Navigation menu" class="w-9 h-9 rounded-lg border border-border-default flex items-center justify-center text-text-2 cursor-pointer">${SVG_MENU}</summary><div class="absolute right-0 z-10 w-56 max-h-[60vh] overflow-y-auto [overflow-wrap:anywhere] p-3 bg-bg-1 border border-border-default rounded-lg flex flex-col gap-3">${destinationLinks.join('\n')}</div></details>` : ''
-
   const logoHtml = logoImage
     ? `<img src="${escapeHtml(logoImage)}" alt="${logo}" class="h-8 w-auto max-w-[96px] shrink-0 object-contain" />`
     : ''
 
   if (block.variant === 'centered') {
     const mid = Math.ceil(navLinks.length / 2)
-    return `  <nav${layoutAttr} class="px-6 @md:px-10 py-4 flex flex-wrap gap-3 items-center justify-between">
-    <div class="hidden @2xl:flex flex-wrap items-center gap-6 flex-1">${destinationLinks.join('\n')}${navLinks.slice(0, mid).join('\n')}</div>
+    return `  <nav data-ws-navbar="true"${layoutAttr} class="px-6 @md:px-10 py-4 flex flex-wrap gap-3 items-center justify-between">
+    <div class="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3 flex-1 [overflow-wrap:anywhere]">${destinationLinks.join('\n')}${navLinks.slice(0, mid).join('\n')}</div>
     ${logoImage || logo ? `<div class="flex min-w-0 items-center gap-2">${logoHtml}<span class="min-w-0 font-semibold text-[15px] text-text-0 tracking-tight">${logo}</span></div>` : ''}
-    <div class="hidden @2xl:flex flex-wrap items-center gap-6 flex-1 justify-end">${navLinks.slice(mid).join('\n')}
+    <div class="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3 flex-1 justify-end [overflow-wrap:anywhere]">${navLinks.slice(mid).join('\n')}
       ${ctaText ? renderLink(ctaText, ctaUrl, 'px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold hover:bg-green-dim transition-colors ml-2') : ''}
     </div>
-    ${ctaText ? renderLink(ctaText, ctaUrl, '@2xl:hidden px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold') : ''}
-    ${mobileLinks}
   </nav>`
   }
 
-  return `  <nav${layoutAttr} class="px-6 @md:px-10 py-4 flex flex-wrap gap-3 items-center justify-between">
+  return `  <nav data-ws-navbar="true"${layoutAttr} class="px-6 @md:px-10 py-4 flex flex-wrap gap-3 items-center justify-between">
     ${logoImage || logo ? `<div class="flex min-w-0 items-center gap-2">
       ${logoHtml}
       <span class="min-w-0 font-semibold text-[15px] text-text-0 tracking-tight">${logo}</span>
     </div>` : ''}
-    <div class="hidden @2xl:flex flex-wrap items-center gap-6">
+    <div class="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3 [overflow-wrap:anywhere]">
 ${destinationLinks.join('\n')}
 ${navLinks.join('\n')}
     </div>
     <div class="flex items-center gap-3">
       ${ctaText ? renderLink(ctaText, ctaUrl, 'px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold hover:bg-green-dim transition-colors') : ''}
-      ${mobileLinks}
     </div>
   </nav>`
 }
@@ -1310,7 +1302,7 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
       const minimumHeight = block.type === 'panel' && Number.isFinite(panelHeight) && panelHeight > 0 ? `;min-height:${Math.max(40, Math.min(2000, panelHeight))}px` : ''
       return `<div data-ws-scope="${scope}"${classes.length ? ` class="${classes.join(' ')}"` : ''} style="position:relative;width:${width}%;margin-left:${left}%;margin-top:${top}px;z-index:${layer}${minimumHeight}${heroHeight ? `;min-height:${heroHeight}px` : ''}${otherHeight ? `;min-height:${otherHeight}px` : ''}">${content}${placed}</div>`
     }
-    if (customStyle || placed) return `<div data-ws-scope="${scope}"${classes.length ? ` class="${classes.join(' ')}"` : ''}${placed ? ' style="position:relative"' : ''}>${content}${placed}</div>`
+    if (customStyle || placed || block.type === 'navbar') return `<div data-ws-scope="${scope}"${block.type === 'navbar' ? ' data-ws-navbar-block="true"' : ''}${classes.length ? ` class="${classes.join(' ')}"` : ''}${placed ? ' style="position:relative"' : ''}>${content}${placed}</div>`
     return classes.length ? `<div class="${classes.join(' ')}">${html}</div>` : html
   }).join('\n\n')}</main>`
   const documentLibraryScript = config.blocks.some(block => block.type === 'documentLibrary') ? `<script>document.querySelectorAll('[data-document-library]').forEach(function(library){var search=library.querySelector('[data-library-search]');search.addEventListener('input',function(){var query=search.value.toLocaleLowerCase();library.querySelectorAll('[data-library-item]').forEach(function(item){item.style.display=item.textContent.toLocaleLowerCase().includes(query)?'':'none';});});});</script>` : ''
