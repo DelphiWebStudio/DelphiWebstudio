@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { MousePointer2 } from 'lucide-react'
 import { useEditorStore } from '@/store/editorStore'
 import { useConfigStore } from '@/store/configStore'
@@ -9,6 +9,8 @@ type Tab = 'properties' | 'design'
 
 export function RightSidebar({ collapsed = false }: { collapsed?: boolean }) {
   const selectedBlockId = useEditorStore((s) => s.selectedBlockId)
+  const selectedObject = useEditorStore((s) => s.selectedSectionObject)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const mode = useEditorStore((s) => s.mode)
   const blocks = useConfigStore((s) => {
     const pages = s.config.pages
@@ -17,13 +19,15 @@ export function RightSidebar({ collapsed = false }: { collapsed?: boolean }) {
     return page.blocks
   })
   const selectedBlock = blocks.find((b) => b.id === selectedBlockId)
-  const [selection, setSelection] = useState<{ blockId: string | null; tab: Tab }>({
-    blockId: null, tab: mode === 'designer' ? 'design' : 'properties',
+  const objectKey = selectedObject ? `${selectedObject.blockId}:${selectedObject.section}:${selectedObject.id}` : ''
+  const [selection, setSelection] = useState<{ blockId: string | null; objectKey: string; tab: Tab }>({
+    blockId: null, objectKey: '', tab: mode === 'designer' ? 'design' : 'properties',
   })
-  if (selection.blockId !== selectedBlockId) {
-    setSelection({ blockId: selectedBlockId, tab: selectedBlock ? 'properties' : selection.tab })
+  if (selection.blockId !== selectedBlockId || selection.objectKey !== objectKey) {
+    setSelection({ blockId: selectedBlockId, objectKey, tab: selectedBlock ? 'properties' : selection.tab })
   }
-  const activeTab = selectedBlock && selection.blockId !== selectedBlock.id
+  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = 0 }, [selectedBlockId, objectKey])
+  const activeTab = selectedBlock && (selection.blockId !== selectedBlock.id || selection.objectKey !== objectKey)
     ? 'properties'
     : selection.tab
 
@@ -33,7 +37,7 @@ export function RightSidebar({ collapsed = false }: { collapsed?: boolean }) {
       <div className="flex border-b border-border-default shrink-0">
         <button
           data-properties-tab
-          onClick={() => setSelection({ blockId: selectedBlockId, tab: 'properties' })}
+          onClick={() => setSelection({ blockId: selectedBlockId, objectKey, tab: 'properties' })}
           className={`flex-1 py-2 text-[11px] font-medium transition-colors ${
             activeTab === 'properties'
               ? 'text-text-0 border-b border-green'
@@ -43,7 +47,7 @@ export function RightSidebar({ collapsed = false }: { collapsed?: boolean }) {
           Properties
         </button>
         <button
-          onClick={() => setSelection({ blockId: selectedBlockId, tab: 'design' })}
+          onClick={() => setSelection({ blockId: selectedBlockId, objectKey, tab: 'design' })}
           className={`flex-1 py-2 text-[11px] font-medium transition-colors ${
             activeTab === 'design'
               ? 'text-text-0 border-b border-green'
@@ -55,7 +59,7 @@ export function RightSidebar({ collapsed = false }: { collapsed?: boolean }) {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto">
         {activeTab === 'design' ? (
           <DesignPanel />
         ) : selectedBlock ? (

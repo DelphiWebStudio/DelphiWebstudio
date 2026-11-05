@@ -389,7 +389,7 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
   },
 }
 
-function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }) {
+function PropertyField({ field, block, onlyItemId }: { field: FieldDef; block: BlockConfig; onlyItemId?: string }) {
   const textArea = useRef<HTMLTextAreaElement>(null)
   const updateBlockProps = useConfigStore((s) => s.updateBlockProps)
   const updateBlock = useConfigStore((s) => s.updateBlock)
@@ -400,6 +400,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
   const [media, setMedia] = useState<{ projectId: string; revision: number; images: MediaAsset[] } | null>(null)
   const [itemMenu, setItemMenu] = useState<{ index: number; x: number; y: number } | null>(null)
   const [expandedNavIndex, setExpandedNavIndex] = useState<number | null>(null)
+  const [focusedNumericKey, setFocusedNumericKey] = useState<string | null>(null)
   const imageItems = field.type === 'array-items' && ((field.key === 'images' && (block.type === 'gallery' || block.type === 'image' || block.type === 'collage')) || (field.key === 'items' && block.type === 'features') || (field.key === 'members' && block.type === 'team') || (field.key === 'resources' && block.type === 'footer') || /^section[1-4](Items|Objects)$/.test(field.key))
   const documentItems = field.type === 'array-items' && block.type === 'documentLibrary' && field.key === 'items'
   const mediaItems = imageItems || documentItems
@@ -717,11 +718,11 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
 
       return (
         <div className="mb-2.5">
-          <label className="block text-[11.5px] text-text-2 mb-1 font-medium">{field.label}</label>
+          {!onlyItemId && <label className="block text-[11.5px] text-text-2 mb-1 font-medium">{field.label}</label>}
           {block.type === 'collage' && <p className="mb-1 text-[10px] text-text-3">Select an image on the collage and drag it to move; drag its white corner to resize. Set layer order here; larger numbers appear in front. Positions and sizes are percentages.</p>}
           {block.type === 'navbar' && field.key === 'navItems' && <p className="mb-1 text-[10px] text-text-3">Drag links on the Navbar to change their order.</p>}
           {imageItems && block.type === 'features' && <p className="mb-1 text-[10px] text-text-3">Feature images appear in the alternating layout.</p>}
-          {items.map((item, i) => (
+          {items.map((item, i) => onlyItemId && item.id !== onlyItemId ? null : (
             <div key={i} className="bg-bg-2 border border-border-default rounded p-2 mb-1.5" onContextMenu={event => {
               if (event.target instanceof Element && event.target.closest('input,textarea,select')) return
               event.preventDefault(); event.stopPropagation(); setItemMenu({ index: i, x: Math.max(0, Math.min(event.clientX, window.innerWidth - 160)), y: Math.max(0, Math.min(event.clientY, window.innerHeight - 125)) })
@@ -737,7 +738,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
                 useConfigStore.getState().editBlockItems(block.id, field.key, source.index, i)
               } catch (error) { toast.error(error instanceof Error ? error.message : 'The item could not be moved.') }
             }}>
-              <div className="flex items-center justify-between mb-1.5">
+              {!onlyItemId && <div className="flex items-center justify-between mb-1.5">
                 <button type="button" draggable aria-label={`Drag ${field.label} item ${i + 1}`} title="Drag to reorder" className="cursor-grab rounded border border-border-default px-1.5 py-0.5 text-[10px] text-text-1 active:cursor-grabbing" onDragStart={event => {
                   event.dataTransfer.setData('application/x-webstudio-property-item', JSON.stringify({ block: block.id, field: field.key, index: i })); event.dataTransfer.effectAllowed = 'move'
                 }}>Item {i + 1} ↕</button>
@@ -754,7 +755,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
                   Remove
                 </button>
                 </div>
-              </div>
+              </div>}
               {block.type === 'collage' && <div className="mb-2 flex gap-1">
                 {(['Send to back', 'Bring to front'] as const).map(direction => <button key={direction} type="button" className="rounded border border-border-default px-2 py-1 text-[10px]" onClick={() => {
                   const order = items.map((value, index) => ({ index, layer: Math.max(1, Math.min(1000, Number(value.layer) || index + 1)) })).sort((a, b) => a.layer - b.layer || a.index - b.index).filter(entry => entry.index !== i)
@@ -780,13 +781,15 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
                   onChange(updated)
                 }}>Remove</button></div>)}
               </div>}
-              {Object.entries(mediaItems && !(imageKey in item) ? { ...item, [imageKey]: '' } : item).filter(([key]) => !(mediaItems && key === 'assetId') && !(/^section[1-4]Objects$/.test(field.key) && (key === 'id' || key === 'type' || key === 'parentId' || key === 'images' || key === 'sourceCollageProps'))).map(([key, val]) => (
+              {Object.entries(onlyItemId ? { ...({ text: ['text', 'fontSize', 'textColor'], image: ['src', 'alt', 'url'], button: ['text', 'url', 'textColor', 'fontSize'], panel: ['text', 'src', 'alt', 'color', 'textColor', 'fontSize'], collage: [], divider: ['textColor'] } as Record<string, string[]>)[item.type || '']?.reduce<Record<string, string>>((values, key) => ({ ...values, [key]: item[key] ?? '' }), {}), x: item.x ?? '0', y: item.y ?? '0', width: item.width ?? '30', height: item.height ?? '80', layer: item.layer ?? '1' } : mediaItems && !(imageKey in item) ? { ...item, [imageKey]: '' } : item).filter(([key]) => !(mediaItems && key === 'assetId') && !(/^section[1-4]Objects$/.test(field.key) && (key === 'id' || key === 'type' || key === 'parentId' || key === 'images' || key === 'sourceCollageProps'))).map(([key, val]) => (
                 <div key={key} className="mb-1">
                   <label className="block text-[10px] text-text-3 mb-0.5">{block.type === 'collage' || /^section[1-4]Objects$/.test(field.key) ? ({ src: 'Image', alt: 'Image description', text: 'Text', url: 'Link', color: 'Panel background color', textColor: 'Text color', fontSize: 'Font size (px)', x: 'Left (%)', y: 'Top (px)', width: 'Width (%)', height: 'Height (px)', layer: 'Layer order' } as Record<string, string>)[key] ?? key : key}</label>
                   <input
                     type="text"
                     aria-label={`${field.label} item ${i + 1} ${key}`}
-                    value={String(/^section[1-4]Objects$/.test(field.key) && key === 'text' && typeof item.id === 'string' ? block.props[`sectionObject_${item.id}`] ?? val : val)}
+                    value={String(onlyItemId && ['x', 'y', 'width', 'height', 'layer'].includes(key) && focusedNumericKey !== key && Number.isFinite(Number(val)) ? Math.round(Number(val) * 100) / 100 : /^section[1-4]Objects$/.test(field.key) && key === 'text' && typeof item.id === 'string' ? block.props[`sectionObject_${item.id}`] ?? val : val)}
+                    onFocus={() => { if (onlyItemId) setFocusedNumericKey(key) }}
+                    onBlur={() => setFocusedNumericKey(null)}
                     onChange={(e) => {
                       const updated = [...items]
                       updated[i] = { ...updated[i], [key]: e.target.value }
@@ -889,6 +892,7 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
   const selectImage = useEditorStore(state => state.selectImage)
   const selectedTextKey = useEditorStore(state => state.selectedTextKey)
   const selectedSection = useEditorStore(state => state.selectedSection)
+  const selectedObject = useEditorStore(state => state.selectedSectionObject)
   const theme = useConfigStore(state => state.config.theme)
   const selectText = useEditorStore(state => state.selectText)
   const schema = Object.hasOwn(blockFields, block.type) ? blockFields[block.type] : undefined
@@ -917,6 +921,22 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
     void Promise.resolve().then(() => { if (active) { setImageNames(names); setTextNames(labels) } })
     return () => { active = false }
   }, [block])
+
+  const objectKey = selectedObject?.blockId === block.id ? `section${selectedObject.section}Objects` : ''
+  const objectItems = objectKey && Array.isArray(block.props[objectKey]) ? block.props[objectKey] as Record<string, unknown>[] : []
+  const object = objectItems.find(item => item.id === selectedObject?.id)
+  if (selectedObject && object) {
+    const type = typeof object.type === 'string' ? object.type : 'object'
+    const label = type.charAt(0).toUpperCase() + type.slice(1)
+    return <div data-selected-object-properties={selectedObject.id}>
+      <div className="border-b border-border-default px-3.5 py-3">
+        <div className="text-xs font-semibold text-text-0">{label} Properties</div>
+        <div className="mt-1 text-[10px] text-text-3">Section {selectedObject.section}</div>
+        <button type="button" className="mt-2 rounded border border-border-default px-2 py-1 text-xs" onClick={() => useEditorStore.getState().selectSectionObject(null)}>Section / Block Properties</button>
+      </div>
+      <div className="px-3.5 py-3"><PropertyField key={selectedObject.id} block={block} onlyItemId={selectedObject.id} field={{ key: objectKey, label: `${label} properties`, type: 'array-items' }} /></div>
+    </div>
+  }
 
   return (
     <>
