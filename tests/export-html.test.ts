@@ -60,11 +60,23 @@ describe('exportSiteToHTML', () => {
     expect(html).toContain('position:absolute;inset:0;pointer-events:none')
     expect(html).toMatch(/<a href="\/church"[^>]*><img[^>]*src="assets\/photo.png"/)
   })
-  it('preserves the optional stacked phone layout for section objects in exported pages', () => {
-    const block = { id: 'mobile', type: 'content' as const, variant: 'prose', props: { body: 'Intro', stackSectionObjectsOnMobile: true, section1Objects: [{ id: 'photo', type: 'image', src: 'assets/photo.png', x: 10, y: 20, width: 40, height: 120, layer: 1 }] } }
+  it('automatically enables responsive layout for section objects in exported pages', () => {
+    const block = { id: 'mobile', type: 'content' as const, variant: 'prose', props: { body: 'Intro', section1Objects: [{ id: 'photo', type: 'image', src: 'assets/photo.png', x: 10, y: 20, width: 40, height: 120, layer: 1 }] } }
     const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
     expect(html).toContain('ws-stack-mobile')
     expect(html).toContain('data-section-object="photo"')
+  })
+  it('keeps panel contents grouped in responsive order without changing desktop coordinates', () => {
+    const block = { id: 'responsive-panel', type: 'content' as const, variant: 'prose', props: { body: '', section1Objects: [
+      { id: 'child', type: 'text', text: 'Panel text', parentId: 'panel', x: 65, y: 120, width: 20, height: 70, layer: 3 },
+      { id: 'photo', type: 'image', src: 'assets/photo.png', x: 0, y: 10, width: 50, height: 160, layer: 1 },
+      { id: 'panel', type: 'panel', text: 'Panel title', color: '#ffe5e5', x: 60, y: 30, width: 30, height: 160, layer: 2 },
+    ] } }
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
+    expect(html).toMatch(/data-section-object="photo"[^>]*style="[^"]*left:0%;top:10px;[^\"]*order:0/)
+    expect(html).toMatch(/data-section-object="panel"[^>]*style="[^"]*left:60%;top:30px;[^\"]*order:1/)
+    expect(html).toMatch(/data-section-object="child"[^>]*data-ws-parented="true"[^>]*style="[^"]*left:65%;top:120px;[^\"]*order:2/)
+    expect(html).toContain('--ws-parent-background:#ffe5e5')
   })
   it('exports multiple linked section items and a resource footer without unsafe links', () => {
     const section = { id: 'section', type: 'content' as const, variant: 'prose', props: { body: 'Intro', sectionCount: 2, section1Items: [{ src: 'assets/one.png', alt: 'One', text: 'First', url: '/first' }, { src: 'assets/two.png', alt: 'Two', text: 'Second', url: 'javascript:alert(1)' }], section2Items: [{ text: 'Third', src: '', alt: '', url: '#third' }] } }
