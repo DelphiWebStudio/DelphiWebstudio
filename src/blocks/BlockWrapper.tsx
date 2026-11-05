@@ -231,9 +231,10 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       dragRef.current = null
       if (heroLayout) { element.removeAttribute('data-ws-hero-resizing'); element.style.removeProperty('--ws-hero-height') }
       if (panelLayout) element.style.removeProperty('--ws-panel-height')
+      if (block.type === 'divider') element.style.removeProperty('--ws-strip-height')
       useConfigStore.getState().updateBlockProps(block.id, drag.kind === 'move'
         ? { layoutLeft: Math.round(nextLeft), layoutTop: Math.round(nextTop) }
-        : { layoutLeft: Math.round(nextLeft), layoutTop: Math.round(nextTop), layoutWidth: Math.round(nextWidth), layoutHeight: Math.round(nextHeight) })
+        : { layoutLeft: Math.round(nextLeft), layoutTop: Math.round(nextTop), layoutWidth: Math.round(nextWidth), layoutHeight: Math.round(nextHeight), ...(block.type === 'divider' ? { height: Math.round(nextHeight) } : {}) })
     } else if (drag.kind === 'move') {
       element.style.marginLeft = `${nextLeft}%`
       element.style.marginTop = `${nextTop}px`
@@ -242,7 +243,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       element.style.marginTop = `${nextTop}px`
       element.style.width = `${nextWidth}%`
       if (navbarLayout) element.style.height = `${nextHeight}px`
-      else if (!imageLayout) { element.style.minHeight = `${nextHeight}px`; if (heroLayout) element.style.setProperty('--ws-hero-height', `${nextHeight}px`); if (panelLayout) element.style.setProperty('--ws-panel-height', `${nextHeight}px`) }
+      else if (!imageLayout) { element.style.minHeight = `${nextHeight}px`; if (heroLayout) element.style.setProperty('--ws-hero-height', `${nextHeight}px`); if (panelLayout) element.style.setProperty('--ws-panel-height', `${nextHeight}px`); if (block.type === 'divider') element.style.setProperty('--ws-strip-height', `${nextHeight}px`) }
       else {
         const image = element.querySelector('img')
         if (image) image.style.height = `${nextHeight}px`
@@ -486,6 +487,15 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
           useConfigStore.getState().updateBlockProps(block.id, { [key]: [...items, { id, type: 'text', text: 'Text', x: Math.max(0, Math.min(70, contextMenu.objectX || 0)), y: Math.max(0, contextMenu.objectY || 0), width: 30, height: 80, layer: Math.max(0, ...items.map(item => Number(item.layer) || 0)) + 1 }] })
           const editor = useEditorStore.getState(); editor.selectBlock(block.id); editor.selectSection(section); editor.setNewTextObjectId(id); setContextMenu(null)
         }}>Add text</button>
+        <button type="button" role="menuitem" className="flex w-full rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100" onClick={() => {
+          const section = contextMenu.section || 1
+          const current = useConfigStore.getState().getActivePageBlocks().find(value => value.id === block.id)
+          if (!current) return
+          const key = `section${section}Objects`, items = Array.isArray(current.props[key]) ? current.props[key] as Record<string, unknown>[] : []
+          const id = `object-${crypto.randomUUID()}`
+          useConfigStore.getState().updateBlockProps(block.id, { [key]: [...items, { id, type: 'divider', x: Math.max(0, Math.min(50, contextMenu.objectX || 0)), y: Math.max(0, contextMenu.objectY || 0), width: 50, height: 24, layer: Math.max(0, ...items.map(item => Number(item.layer) || 0)) + 1 }] })
+          const editor = useEditorStore.getState(); editor.selectBlock(block.id); editor.selectSection(section); editor.selectSectionObject({ blockId: block.id, section, id }); setContextMenu(null)
+        }}>Add divider</button>
         {copiedSectionObject && copiedSectionObject.projectId === useEditorStore.getState().activeProjectId && <button type="button" role="menuitem" className="flex w-full rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100" onClick={() => { if (contextMenu) pasteSectionObject(contextMenu.section || 1, contextMenu.objectX || 0, contextMenu.objectY || 0); setContextMenu(null) }}>Paste object</button>}
         {block.type === 'collage' && <button type="button" role="menuitem" className="flex w-full rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100" onClick={() => { setContextMenu(null); const editor = useEditorStore.getState(); editor.setMovingCollage({ blockId: block.id, projectId: editor.activeProjectId, pageId: useConfigStore.getState().activePageId }); toast('Click the destination section. Press Escape to cancel.') }}>Move collage into a section…</button>}
         {contextMenu.item && <>

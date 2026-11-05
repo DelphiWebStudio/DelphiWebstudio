@@ -79,9 +79,9 @@ describe('exportSiteToHTML', () => {
       { id: 'panel', type: 'panel', text: 'Panel title', color: '#ffe5e5', x: 60, y: 30, width: 30, height: 160, layer: 2 },
     ] } }
     const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
-    expect(html).toMatch(/data-section-object="photo"[^>]*style="[^"]*left:0%;top:10px;[^\"]*order:0/)
-    expect(html).toMatch(/data-section-object="panel"[^>]*style="[^"]*left:60%;top:30px;[^\"]*order:1/)
-    expect(html).toMatch(/data-section-object="child"[^>]*data-ws-parented="true"[^>]*style="[^"]*left:65%;top:120px;[^\"]*order:2/)
+    expect(html).toMatch(/data-section-object="photo"[^>]*style="[^"]*left:0%;top:10px;[^"]*order:0/)
+    expect(html).toMatch(/data-section-object="panel"[^>]*style="[^"]*left:60%;top:30px;[^"]*order:1/)
+    expect(html).toMatch(/data-section-object="child"[^>]*data-ws-parented="true"[^>]*style="[^"]*left:65%;top:120px;[^"]*order:2/)
     expect(html).toContain('--ws-parent-background:#ffe5e5')
   })
   it('retains image proportions and identifies an empty parent panel for responsive layout', () => {
