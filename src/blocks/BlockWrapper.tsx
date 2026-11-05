@@ -322,6 +322,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       onContextMenu={event => {
         event.preventDefault()
         event.stopPropagation()
+        useEditorStore.getState().selectSectionObject(null)
         onSelect()
         const element = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-ws-item-field][data-ws-item-index]') : null
         const field = element?.dataset.wsItemField ?? '', itemIndex = Number(element?.dataset.wsItemIndex), items = block.props[field]
@@ -478,6 +479,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         style={{ left: contextMenu.x, top: contextMenu.y }}
         onClick={event => event.stopPropagation()} onContextMenu={event => event.preventDefault()}
       >
+        <button type="button" role="menuitem" className="flex w-full rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100" onClick={() => { setContextMenu(null); useEditorStore.getState().selectSectionObject(null); onSelect(); document.querySelector<HTMLButtonElement>('[aria-label="Expand right panel"]')?.click(); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('[data-properties-tab]')?.click()) }}>Properties</button>
         <button type="button" role="menuitem" className="flex w-full rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100" onClick={() => {
           const section = contextMenu.section || 1
           const current = useConfigStore.getState().getActivePageBlocks().find(value => value.id === block.id)
