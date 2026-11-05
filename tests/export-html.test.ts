@@ -66,6 +66,12 @@ describe('exportSiteToHTML', () => {
     expect(html).toContain('ws-stack-mobile')
     expect(html).toContain('data-section-object="photo"')
   })
+  it('exports added section space even when the section has no positioned objects', () => {
+    const block = { id: 'extra-space', type: 'content' as const, variant: 'prose', props: { body: 'Content', section1ExtraSpace: 64 } }
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
+    expect(html).toContain('padding-bottom:64px')
+    expect(html).toContain('Content')
+  })
   it('keeps panel contents grouped in responsive order without changing desktop coordinates', () => {
     const block = { id: 'responsive-panel', type: 'content' as const, variant: 'prose', props: { body: '', section1Objects: [
       { id: 'child', type: 'text', text: 'Panel text', parentId: 'panel', x: 65, y: 120, width: 20, height: 70, layer: 3 },

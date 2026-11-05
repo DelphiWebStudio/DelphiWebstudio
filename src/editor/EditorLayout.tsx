@@ -163,8 +163,8 @@ function EditorEmptyState() {
 export function EditorLayout() {
   useAutoSaveToProject()
   useGenerationOrchestration()
-  const [leftCollapsed, setLeftCollapsed] = useState(false)
-  const [rightCollapsed, setRightCollapsed] = useState(false)
+  const [leftCollapsed, setLeftCollapsed] = useState(true)
+  const [rightCollapsed, setRightCollapsed] = useState(true)
   const previewMode = useEditorStore((s) => s.previewMode)
   const mode = useEditorStore((s) => s.mode)
   const activeProjectId = useEditorStore((s) => s.activeProjectId)

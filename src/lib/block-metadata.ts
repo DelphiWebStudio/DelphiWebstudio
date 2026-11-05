@@ -151,9 +151,9 @@ export const blockMetadata: BlockMeta[] = [
   },
   {
     type: 'divider',
-    label: 'Divider',
-    description: 'Visual separator between sections',
-    category: 'Layout',
+    label: 'Strip',
+    description: 'Separator or blank space between sections',
+    category: 'Media',
     variants: ['line', 'space', 'dots'],
     defaultProps: { height: 60, width: 'full' },
   },
