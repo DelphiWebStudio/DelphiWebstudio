@@ -290,10 +290,8 @@ export function CanvasToolbar() {
       if (portableProjectsEnabled) {
         const media = activeProjectId ? await new ProjectMediaLibrary().list(activeProjectId) : []
         downloadHTML(await exportSiteZip(config, { settings: activeProject?.settings }, media), `${filename}.zip`)
-        toast('Website ZIP download requested.')
       } else {
         downloadHTML(await exportToHTML(config, { settings: activeProject?.settings }), `${filename}.html`)
-        toast('HTML download requested.')
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Export failed')

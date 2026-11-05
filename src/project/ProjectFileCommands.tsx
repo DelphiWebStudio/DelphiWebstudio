@@ -253,8 +253,7 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
         link.download = revision.filename
         link.click()
       } finally { URL.revokeObjectURL(url) }
-      if (verified) toast('Revision download requested. Choose a new filename if prompted.')
-      else toast.warning('Older revision has no checksum. Download requested; open the file to verify it.')
+      if (!verified) toast.warning('Older revision has no checksum. Download requested; open the file to verify it.')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'The local revision could not be downloaded.')
     } finally { setCheckingRevision(null) }
@@ -368,7 +367,7 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
       const currentProject = useProjectsStore.getState().projects.find(item => item.id === project.id)
       if (!currentProject || useEditorStore.getState().activeProjectId !== project.id || useConfigStore.getState().config !== config || currentProject.name !== project.name || (currentProject.mediaRevision ?? 0) !== (project.mediaRevision ?? 0) || JSON.stringify(currentProject.settings ?? {}) !== JSON.stringify(project.settings ?? {})) {
         toast.warning('An earlier snapshot was prepared. Newer changes remain in the draft; save again to include them.')
-      } else toast('Project file download requested. Choose a destination if prompted.')
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Project could not be saved.')
     } finally {
