@@ -298,6 +298,7 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
         fields: [
           { key: 'src', label: 'Image URL', type: 'image' },
           { key: 'alt', label: 'Alt Text', type: 'text' },
+          { key: 'imageLink', label: 'Image link', type: 'link' },
           { key: 'title', label: 'Title', type: 'text' },
           { key: 'subtitle', label: 'Subtitle', type: 'text' },
           { key: 'imageSide', label: 'Image Side', type: 'select', options: ['left', 'right'] },
@@ -394,6 +395,8 @@ function PropertyField({ field, block, onlyItemId }: { field: FieldDef; block: B
   const updateBlockProps = useConfigStore((s) => s.updateBlockProps)
   const updateBlock = useConfigStore((s) => s.updateBlock)
   const pages = useConfigStore((s) => s.config.pages)
+  const pageBlocks = useConfigStore((s) => s.config.pages?.find(page => page.id === s.activePageId)?.blocks ?? s.config.blocks)
+  const anchorNames = pageBlocks.flatMap(candidate => [candidate.props.anchorName, ...[1, 2, 3, 4].flatMap(section => Array.isArray(candidate.props[`section${section}Objects`]) ? (candidate.props[`section${section}Objects`] as Record<string, unknown>[]).map(item => item?.anchorName) : [])]).filter((name): name is string => typeof name === 'string' && /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(name))
   const projectId = useEditorStore((s) => s.activeProjectId)
   const siteSearchEnabled = useProjectsStore((s) => s.projects.find(project => project.id === projectId)?.settings?.siteSearch === 'on')
   const mediaRevision = useProjectsStore((s) => s.projects.find(project => project.id === projectId)?.mediaRevision ?? 0)
@@ -473,6 +476,7 @@ function PropertyField({ field, block, onlyItemId }: { field: FieldDef; block: B
           <label className="block text-[11.5px] text-text-2 mb-1 font-medium">{field.label}</label>
           <input type="text" aria-label={field.label} value={current} onChange={event => onChange(event.target.value)}
             className="w-full px-2 py-1.5 rounded border border-border-default bg-bg-2 text-text-0 text-xs outline-none focus:border-green" />
+          {anchorNames.length > 0 && <select aria-label={`Choose an anchor for ${field.label}`} value={anchorNames.includes(current.slice(1)) && current.startsWith('#') ? current : ''} onChange={event => { if (event.target.value) onChange(event.target.value) }} className="mt-1 w-full rounded border border-border-default bg-bg-2 p-1 text-xs"><option value="">Choose a location on this page...</option>{[...new Set(anchorNames)].map(name => <option key={name} value={`#${name}`}>{name}</option>)}</select>}
           {portableProjectsEnabled && availablePages.length > 0 && <select aria-label={`Choose a page for ${field.label}`} value={selected}
             onChange={event => { if (event.target.value) onChange(event.target.value) }}
             className="mt-1 w-full px-2 py-1.5 rounded border border-border-default bg-bg-2 text-text-0 text-xs outline-none focus:border-green">
@@ -781,9 +785,9 @@ function PropertyField({ field, block, onlyItemId }: { field: FieldDef; block: B
                   onChange(updated)
                 }}>Remove</button></div>)}
               </div>}
-              {Object.entries(onlyItemId ? { ...({ text: ['text', 'fontSize', 'textColor'], image: ['src', 'alt', 'url'], button: ['text', 'url', 'textColor', 'fontSize'], panel: ['text', 'src', 'alt', 'color', 'textColor', 'fontSize'], collage: [], divider: ['textColor'] } as Record<string, string[]>)[item.type || '']?.reduce<Record<string, string>>((values, key) => ({ ...values, [key]: item[key] ?? '' }), {}), x: item.x ?? '0', y: item.y ?? '0', width: item.width ?? '30', height: item.height ?? '80', layer: item.layer ?? '1' } : mediaItems && !(imageKey in item) ? { ...item, [imageKey]: '' } : item).filter(([key]) => !(mediaItems && key === 'assetId') && !(/^section[1-4]Objects$/.test(field.key) && (key === 'id' || key === 'type' || key === 'parentId' || key === 'images' || key === 'sourceCollageProps'))).map(([key, val]) => (
+              {Object.entries(onlyItemId ? { ...({ text: ['text', 'fontSize', 'textColor'], image: ['src', 'alt', 'url'], button: ['text', 'url', 'textColor', 'fontSize'], panel: ['text', 'src', 'alt', 'color', 'textColor', 'fontSize'], collage: [], divider: ['textColor'] } as Record<string, string[]>)[item.type || '']?.reduce<Record<string, string>>((values, key) => ({ ...values, [key]: item[key] ?? '' }), {}), anchorName: item.anchorName ?? '', x: item.x ?? '0', y: item.y ?? '0', width: item.width ?? '30', height: item.height ?? '80', layer: item.layer ?? '1' } : mediaItems && !(imageKey in item) ? { ...item, [imageKey]: '' } : item).filter(([key]) => !(mediaItems && key === 'assetId') && !(/^section[1-4]Objects$/.test(field.key) && (key === 'id' || key === 'type' || key === 'parentId' || key === 'images' || key === 'sourceCollageProps'))).map(([key, val]) => (
                 <div key={key} className="mb-1">
-                  <label className="block text-[10px] text-text-3 mb-0.5">{block.type === 'collage' || /^section[1-4]Objects$/.test(field.key) ? ({ src: 'Image', alt: 'Image description', text: 'Text', url: 'Link', color: 'Panel background color', textColor: 'Text color', fontSize: 'Font size (px)', x: 'Left (%)', y: 'Top (px)', width: 'Width (%)', height: 'Height (px)', layer: 'Layer order' } as Record<string, string>)[key] ?? key : key}</label>
+                  <label className="block text-[10px] text-text-3 mb-0.5">{block.type === 'collage' || /^section[1-4]Objects$/.test(field.key) ? ({ src: 'Image', alt: 'Image description', text: 'Text', url: 'Link', anchorName: 'Anchor name (jump destination)', color: 'Panel background color', textColor: 'Text color', fontSize: 'Font size (px)', x: 'Left (%)', y: 'Top (px)', width: 'Width (%)', height: 'Height (px)', layer: 'Layer order' } as Record<string, string>)[key] ?? key : key}</label>
                   <input
                     type="text"
                     aria-label={`${field.label} item ${i + 1} ${key}`}
@@ -799,6 +803,8 @@ function PropertyField({ field, block, onlyItemId }: { field: FieldDef; block: B
                     }}
                     className="w-full px-1.5 py-1 rounded border border-border-subtle bg-bg-3 text-text-0 text-[11px] outline-none focus:border-green"
                   />
+                  {onlyItemId && key === 'anchorName' && !!val && (!/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(val) || anchorNames.filter(name => name === val).length > 1) && <p role="alert" className="text-xs text-status-red">Use a unique name starting with a letter; use only letters, numbers, hyphens or underscores.</p>}
+                  {onlyItemId && key === 'url' && anchorNames.length > 0 && <select aria-label={`Choose an anchor for ${field.label}`} value={String(val).startsWith('#') && anchorNames.includes(String(val).slice(1)) ? String(val) : ''} onChange={event => { if (!event.target.value) return; const updated = [...items]; updated[i] = { ...updated[i], url: event.target.value }; onChange(updated) }} className="mt-1 w-full rounded border border-border-default bg-bg-2 p-1 text-xs"><option value="">Choose a location on this page...</option>{[...new Set(anchorNames)].map(name => <option key={name} value={`#${name}`}>{name}</option>)}</select>}
                   {/^section[1-4]Objects$/.test(field.key) && (key === 'color' || key === 'textColor') && <WindowsColorInput label={key === 'color' ? 'Choose panel background color' : 'Choose object text color'} value={typeof val === 'string' && /^#[0-9a-f]{6}$/i.test(val) ? val : key === 'color' ? '#ffffff' : '#111111'} onChange={value => { const updated = [...items]; updated[i] = { ...updated[i], [key]: value }; onChange(updated) }} className="mt-1 block h-7 w-full rounded border border-border-default" />}
                   {(block.type === 'navbar' || block.type === 'footer') && field.key === 'navItems' && key === 'url' && portableProjectsEnabled && (pages ?? []).some(page => page.webstudioArticle?.status !== 'draft') && <select
                     aria-label={`Choose a page for ${field.label} item ${i + 1}`}
@@ -893,6 +899,7 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
   const selectedTextKey = useEditorStore(state => state.selectedTextKey)
   const selectedSection = useEditorStore(state => state.selectedSection)
   const selectedObject = useEditorStore(state => state.selectedSectionObject)
+  const pageBlocks = useConfigStore(state => state.config.pages?.find(page => page.id === state.activePageId)?.blocks ?? state.config.blocks)
   const theme = useConfigStore(state => state.config.theme)
   const selectText = useEditorStore(state => state.selectText)
   const schema = Object.hasOwn(blockFields, block.type) ? blockFields[block.type] : undefined
@@ -951,6 +958,11 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
       </div>
 
       {/* Property sections */}
+      <Section title="Anchor (jump destination)">
+        <label className="block text-xs text-text-2">Anchor name<input aria-label="Block anchor name" value={typeof block.props.anchorName === 'string' ? block.props.anchorName : ''} onChange={event => updateBlockProps(block.id, { anchorName: event.target.value })} placeholder="e.g. parish-mass-times" className="mt-1 w-full rounded border border-border-default bg-bg-2 p-1 text-xs" /></label>
+        <p className="mt-1 text-[10px] text-text-3">Give this block a unique name, then choose it as the destination of an image or link on this page. Start with a letter; use letters, numbers, hyphens or underscores.</p>
+        {typeof block.props.anchorName === 'string' && block.props.anchorName !== '' && (!/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(block.props.anchorName) || pageBlocks.flatMap(candidate => [candidate.props.anchorName, ...[1, 2, 3, 4].flatMap(section => Array.isArray(candidate.props[`section${section}Objects`]) ? (candidate.props[`section${section}Objects`] as Record<string, unknown>[]).map(item => item?.anchorName) : [])]).filter(name => name === block.props.anchorName).length > 1) && <p role="alert" className="mt-1 text-xs text-status-red">Choose a valid, unique anchor name.</p>}
+      </Section>
       {block.type === 'hero' && <Section title="Hero text position">
         <p className="mb-2 text-xs text-text-3">Use these buttons if text moves out of view. Select the text to move or resize its box.</p>
         {(['headline', 'subheadline'] as const).map(field => block.props[`${field}Hidden`] === true && <button key={field} type="button" className="mb-2 mr-2 rounded border border-border-default px-2 py-1 text-xs" onClick={() => updateBlockProps(block.id, { [`${field}Hidden`]: false })}>Restore {field} text box</button>)}
