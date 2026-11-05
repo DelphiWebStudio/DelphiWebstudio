@@ -78,6 +78,17 @@ describe('exportSiteToHTML', () => {
     expect(html).toMatch(/data-section-object="child"[^>]*data-ws-parented="true"[^>]*style="[^"]*left:65%;top:120px;[^\"]*order:2/)
     expect(html).toContain('--ws-parent-background:#ffe5e5')
   })
+  it('retains image proportions and identifies an empty parent panel for responsive layout', () => {
+    const block = { id: 'responsive-portrait', type: 'content' as const, variant: 'prose', props: { body: '', section1Objects: [
+      { id: 'panel', type: 'panel', text: '', color: '#ffe5e5', x: 69, y: 30, width: 18, height: 200, layer: 1 },
+      { id: 'portrait', type: 'image', parentId: 'panel', src: 'assets/portrait.jpg', x: 70.3, y: 38, width: 16.33, height: 180, layer: 2 },
+    ] } }
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
+    expect(html).toContain('data-ws-empty-panel="true"')
+    expect(html).toContain('--ws-grid-column:9;--ws-grid-span:2;--ws-item-width:16.33')
+    expect(html).toContain('left:70.3%;top:38px;width:16.33%')
+    expect(block.props.section1Objects[1].width).toBe(16.33)
+  })
   it('exports multiple linked section items and a resource footer without unsafe links', () => {
     const section = { id: 'section', type: 'content' as const, variant: 'prose', props: { body: 'Intro', sectionCount: 2, section1Items: [{ src: 'assets/one.png', alt: 'One', text: 'First', url: '/first' }, { src: 'assets/two.png', alt: 'Two', text: 'Second', url: 'javascript:alert(1)' }], section2Items: [{ text: 'Third', src: '', alt: '', url: '#third' }] } }
     const footer = { id: 'footer', type: 'footer' as const, variant: 'resources', props: { logo: 'Resources', resources: [{ src: 'assets/resource.png', alt: 'Resource', title: 'Giving', description: 'Support us', url: 'https://example.org' }], resourceButtons: [{ label: 'Contact', url: '/contact' }, { label: 'Unsafe', url: 'javascript:alert(1)' }] } }

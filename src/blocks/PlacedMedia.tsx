@@ -1,4 +1,4 @@
-import { useRef, useState, type PointerEvent } from 'react'
+import { useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { useConfigStore } from '@/store/configStore'
 import { useEditorStore } from '@/store/editorStore'
@@ -87,7 +87,7 @@ export function PlacedMedia({ block, editable = false }: { block: BlockConfig; e
   return <>
     {items.filter(item => item && typeof item.id === 'string' && typeof item.src === 'string' && typeof item.mime === 'string').map(item => {
       const x = number(item.x, 0, 0, 99), y = number(item.y, 0, 0, 99), width = number(item.width, 25, 1, 100 - x)
-      return <div key={item.id} data-placed-media={item.id} style={{ position: 'absolute', left: `${x}%`, top: `${y}%`, width: `${width}%`, zIndex: 10, ...(editable && selected === item.id ? { outline: '1px solid white' } : {}), ...(editable ? { cursor: 'move', touchAction: 'none' } : {}) }}
+      return <div key={item.id} data-placed-media={item.id} style={{ position: 'absolute', left: `${x}%`, top: `${y}%`, width: `${width}%`, '--ws-item-width': width, zIndex: 10, ...(editable && selected === item.id ? { outline: '1px solid white' } : {}), ...(editable ? { cursor: 'move', touchAction: 'none' } : {}) } as CSSProperties}
         onPointerDown={event => begin(event, item, false)} onPointerMove={event => move(event)} onPointerUp={event => move(event, true)} onPointerCancel={() => { drag.current = null; setGuides({}) }}
         onClick={event => { if (editable) { event.preventDefault(); event.stopPropagation(); setSelected(item.id); useEditorStore.getState().selectBlock(block.id) } }}
         onContextMenu={event => { if (editable) { event.preventDefault(); event.stopPropagation(); setSelected(item.id); setMenu({ id: item.id, x: event.clientX, y: event.clientY }) } }}>
