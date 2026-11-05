@@ -456,12 +456,12 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       }}
       style={{ ...layoutStyle, transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}
     >
-      {isSelected && <button type="button" draggable data-webstudio-block-drag-handle aria-label={`Move ${block.type} block`} title="Drag to reorder this block; Alt+Up or Alt+Down also moves it" className="absolute top-1 left-1 z-30 rounded border border-gray-400 bg-white px-1.5 py-0.5 text-xs text-black cursor-grab active:cursor-grabbing" onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()} onKeyDown={event => {
+      {isSelected && <div role="button" tabIndex={0} draggable data-webstudio-block-drag-handle aria-label={`Move ${block.type} block`} title="Drag the top edge to reorder this block; Alt+Up or Alt+Down also moves it" className="absolute top-0 left-2 right-2 z-10 h-2 cursor-move" onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()} onKeyDown={event => {
         if (!event.altKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return
         event.preventDefault(); event.stopPropagation()
         const next = index + (event.key === 'ArrowUp' ? -1 : 1)
         if (next >= 0 && next < blocks.length) moveBlock(index, next)
-      }}>Move</button>}
+      }} />}
       {/* Block type tag */}
       {hiddenOnCurrentWidth && <span className="absolute top-8 left-1.5 text-[10px] bg-bg-2 border border-border-default rounded px-1.5 py-0.5 z-10">Hidden at this width in preview and export</span>}
       {!resizableLayout && <span
