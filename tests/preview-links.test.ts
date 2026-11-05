@@ -70,7 +70,8 @@ describe('preview link and image fidelity', () => {
     const nav = html.slice(html.indexOf('<nav'), html.indexOf('</nav>'))
     expect(nav.indexOf('First')).toBeLessThan(nav.indexOf('Community'))
     expect(nav.indexOf('Community')).toBeLessThan(nav.indexOf('Second'))
-    expect(nav).toContain('@2xl:flex')
+    expect(nav).toContain('flex-wrap')
+    expect(nav).not.toContain('hidden @2xl:flex')
     expect(nav).not.toContain('Get Started')
     block.props.links = []
     expect(renderToStaticMarkup(createElement(NavbarBlock, { block }))).not.toContain('<button')

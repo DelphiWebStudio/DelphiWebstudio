@@ -87,6 +87,7 @@ describe('exportSiteToHTML', () => {
     expect(html).toContain('data-ws-empty-panel="true"')
     expect(html).toContain('data-ws-responsive-column="0"')
     expect(html).toContain('data-ws-responsive-column="1"')
+    expect(html).toMatch(/data-ws-object-group="true" data-ws-group-panel="true"[^>]*>[\s\S]*?data-section-object="panel"[\s\S]*?data-section-object="portrait"/)
     expect(html).toContain('--ws-grid-column:9;--ws-grid-span:2;--ws-item-width:16.33')
     expect(html).toContain('left:70.3%;top:38px;width:16.33%')
     expect(block.props.section1Objects[1].width).toBe(16.33)

@@ -1,5 +1,4 @@
 import type { BlockConfig } from '../types'
-import { Menu } from 'lucide-react'
 import { useEditorStore } from '@/store/editorStore'
 
 interface NavbarProps {
@@ -16,7 +15,7 @@ function NavbarDefault({ props, editable }: { props: NavbarProps; editable: bool
   const navItems = Array.isArray(props.navItems) ? props.navItems.filter(item => item && typeof item.label === 'string' && typeof item.url === 'string') : []
 
   return (
-    <nav className="px-6 @md:px-10 py-4 flex flex-wrap gap-3 items-center justify-between">
+    <nav data-ws-navbar className="px-6 @md:px-10 py-4 flex flex-wrap gap-3 items-center justify-between">
       {/* Logo */}
       {(logoImage || logo) && <div className="flex min-w-0 items-center gap-2">
         {logoImage && <img src={logoImage} alt={logo} className="h-8 w-auto max-w-[96px] shrink-0 object-contain" />}
@@ -24,7 +23,7 @@ function NavbarDefault({ props, editable }: { props: NavbarProps; editable: bool
       </div>}
 
       {/* Desktop nav links */}
-      <div className="hidden @2xl:flex flex-wrap items-center gap-6">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3 [overflow-wrap:anywhere]">
         {navItems.map((item, i) => <a key={`nav-${i}`} href={item.url || undefined} draggable={editable} title={editable ? 'Drag to reorder' : undefined} data-ws-nav-index={i} className="text-[13px] text-text-2 hover:text-text-0">{item.label}</a>)}
         {links.map((link, i) => (
           <span
@@ -42,7 +41,6 @@ function NavbarDefault({ props, editable }: { props: NavbarProps; editable: bool
         {ctaText && <a href={ctaUrl || undefined} className="px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold hover:bg-green-dim transition-colors">
           {ctaText}
         </a>}
-        {navItems.length > 0 && <details className="@2xl:hidden relative"><summary aria-label="Navigation menu" className="w-9 h-9 rounded-lg border border-border-default flex items-center justify-center text-text-2 cursor-pointer"><Menu size={16} /></summary><div className="absolute right-0 z-10 w-56 max-h-[60vh] overflow-y-auto [overflow-wrap:anywhere] p-3 bg-bg-1 border border-border-default rounded-lg flex flex-col gap-3">{navItems.map((item, i) => <a key={i} href={item.url || undefined} draggable={editable} title={editable ? 'Drag to reorder' : undefined} data-ws-nav-index={i} className="text-sm text-text-2">{item.label}</a>)}</div></details>}
       </div>
     </nav>
   )
@@ -56,9 +54,9 @@ function NavbarCentered({ props, editable }: { props: NavbarProps; editable: boo
   const rightLinks = links.slice(mid)
 
   return (
-    <nav className="px-6 @md:px-10 py-4 flex flex-wrap gap-3 items-center justify-between">
+    <nav data-ws-navbar className="px-6 @md:px-10 py-4 flex flex-wrap gap-3 items-center justify-between">
       {/* Left links */}
-      <div className="hidden @2xl:flex flex-wrap items-center gap-6 flex-1">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3 flex-1 [overflow-wrap:anywhere]">
         {navItems.map((item, i) => <a key={`nav-${i}`} href={item.url || undefined} draggable={editable} title={editable ? 'Drag to reorder' : undefined} data-ws-nav-index={i} className="text-[13px] text-text-2 hover:text-text-0">{item.label}</a>)}
         {leftLinks.map((link, i) => (
           <span key={i} draggable={editable} title={editable ? 'Drag to reorder' : undefined} data-ws-nav-index={navItems.length + i} className="text-[13px] text-text-2 hover:text-text-0 transition-colors cursor-pointer">
@@ -74,7 +72,7 @@ function NavbarCentered({ props, editable }: { props: NavbarProps; editable: boo
       </div>}
 
       {/* Right links + CTA */}
-      <div className="hidden @2xl:flex flex-wrap items-center gap-6 flex-1 justify-end">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3 flex-1 justify-end [overflow-wrap:anywhere]">
         {rightLinks.map((link, i) => (
           <span key={i} draggable={editable} title={editable ? 'Drag to reorder' : undefined} data-ws-nav-index={navItems.length + mid + i} className="text-[13px] text-text-2 hover:text-text-0 transition-colors cursor-pointer">
             {link}
@@ -85,9 +83,6 @@ function NavbarCentered({ props, editable }: { props: NavbarProps; editable: boo
         </a>}
       </div>
 
-      {ctaText && <a href={ctaUrl || undefined} className="@2xl:hidden px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold">{ctaText}</a>}
-      {/* Mobile menu */}
-      {navItems.length > 0 && <details className="@2xl:hidden relative"><summary aria-label="Navigation menu" className="w-9 h-9 rounded-lg border border-border-default flex items-center justify-center text-text-2 cursor-pointer"><Menu size={16} /></summary><div className="absolute right-0 z-10 w-56 max-h-[60vh] overflow-y-auto [overflow-wrap:anywhere] p-3 bg-bg-1 border border-border-default rounded-lg flex flex-col gap-3">{navItems.map((item, i) => <a key={i} href={item.url || undefined} draggable={editable} title={editable ? 'Drag to reorder' : undefined} data-ws-nav-index={i} className="text-sm text-text-2">{item.label}</a>)}</div></details>}
     </nav>
   )
 }
