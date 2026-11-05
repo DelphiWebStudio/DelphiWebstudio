@@ -9,7 +9,7 @@ function Placeholder({ className, height }: { className?: string; height?: numbe
   )
 }
 
-export function ImageBlock({ block }: { block: BlockConfig }) {
+export function ImageBlock({ block, editable = false }: { block: BlockConfig; editable?: boolean }) {
   const { variant, props } = block
   const src = props.src as string | undefined
   const alt = (props.alt as string) || ''
@@ -23,6 +23,7 @@ export function ImageBlock({ block }: { block: BlockConfig }) {
   const imageHeight = Number.isFinite(requestedHeight) && requestedHeight > 0
     ? Math.max(40, Math.min(2000, requestedHeight)) : undefined
   const imageFit = props.imageFit === 'contain' || props.imageFit === 'fill' ? props.imageFit : 'cover'
+  const imageLink = typeof props.imageLink === 'string' && /^(https?:\/\/|\/(?!\/)|#)/i.test(props.imageLink) ? props.imageLink : ''
 
   if (variant === 'side-by-side') {
     const imgEl = src
@@ -33,7 +34,7 @@ export function ImageBlock({ block }: { block: BlockConfig }) {
       <div className="px-6 py-12 @lg:px-16 @lg:py-16">
         <div className={`grid grid-cols-1 @lg:grid-cols-2 gap-8 @lg:gap-12 items-center ${imageSide === 'right' ? '' : ''}`}>
           <div className={`reveal-scale reveal-d1 ${imageSide === 'right' ? '@lg:order-2' : ''}`}>
-            {imgEl}
+            {src && imageLink ? <a href={imageLink} onClick={editable ? event => event.preventDefault() : undefined}>{imgEl}</a> : imgEl}
           </div>
           <div className={`reveal-fade-up reveal-d2 ${imageSide === 'right' ? '@lg:order-1' : ''}`}>
             {title && <h2 className="text-2xl font-display font-semibold mb-3">{title}</h2>}
@@ -70,7 +71,7 @@ export function ImageBlock({ block }: { block: BlockConfig }) {
   return (
     <div className="reveal-scale reveal-d1 relative">
       {src
-        ? <img src={src} alt={alt} draggable={false} style={{ ...(imageHeight ? { height: imageHeight, objectFit: props.imageFit === 'cover' || props.imageFit === 'fill' ? props.imageFit : 'contain' } : {}) }} className="w-full h-auto" />
+        ? imageLink ? <a href={imageLink} onClick={editable ? event => event.preventDefault() : undefined}><img src={src} alt={alt} draggable={false} style={{ ...(imageHeight ? { height: imageHeight, objectFit: props.imageFit === 'cover' || props.imageFit === 'fill' ? props.imageFit : 'contain' } : {}) }} className="w-full h-auto" /></a> : <img src={src} alt={alt} draggable={false} style={{ ...(imageHeight ? { height: imageHeight, objectFit: props.imageFit === 'cover' || props.imageFit === 'fill' ? props.imageFit : 'contain' } : {}) }} className="w-full h-auto" />
         : <Placeholder height={imageHeight} className="w-full h-64 @lg:h-96" />
       }
       {(title || subtitle) && (

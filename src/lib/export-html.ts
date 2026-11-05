@@ -1223,6 +1223,7 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
   const hasContact = config.blocks.some((b) => b.type === 'contact')
 
   const blocksHtml = `<main id="main-content" tabindex="-1" class="@container">${config.blocks.map((block, index) => {
+    const anchor = typeof block.props.anchorName === 'string' && /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(block.props.anchorName) ? ` id="${block.props.anchorName}"` : ''
     const classes = (['mobile', 'tablet', 'desktop'] as const).filter(device => block.webstudioHiddenOn?.[device] === true).map(device => `ws-hidden-${device}`)
     const effectiveBlock = block.type === 'contact' && !(typeof block.props.recipientEmail === 'string' && block.props.recipientEmail.trim())
       ? { ...block, props: { ...block.props, recipientEmail: settings?.webmasterEmail ?? '' } } : block
@@ -1300,9 +1301,9 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
       const layer = Number.isFinite(layerValue) && layerValue > 0 ? Math.max(1, Math.min(100, Math.round(layerValue))) : 1
       const panelHeight = Number(block.props.layoutHeight)
       const minimumHeight = block.type === 'panel' && Number.isFinite(panelHeight) && panelHeight > 0 ? `;min-height:${Math.max(40, Math.min(2000, panelHeight))}px` : ''
-      return `<div data-ws-scope="${scope}"${classes.length ? ` class="${classes.join(' ')}"` : ''} style="position:relative;width:${width}%;margin-left:${left}%;margin-top:${top}px;z-index:${layer}${minimumHeight}${heroHeight ? `;min-height:${heroHeight}px` : ''}${otherHeight ? `;min-height:${otherHeight}px` : ''}">${content}${placed}</div>`
+      return `<div${anchor} data-ws-scope="${scope}"${classes.length ? ` class="${classes.join(' ')}"` : ''} style="position:relative;width:${width}%;margin-left:${left}%;margin-top:${top}px;z-index:${layer}${minimumHeight}${heroHeight ? `;min-height:${heroHeight}px` : ''}${otherHeight ? `;min-height:${otherHeight}px` : ''}">${content}${placed}</div>`
     }
-    if (customStyle || placed || block.type === 'navbar') return `<div data-ws-scope="${scope}"${block.type === 'navbar' ? ' data-ws-navbar-block="true"' : ''}${classes.length ? ` class="${classes.join(' ')}"` : ''}${placed ? ' style="position:relative"' : ''}>${content}${placed}</div>`
+    if (customStyle || placed || block.type === 'navbar' || anchor) return `<div${anchor} data-ws-scope="${scope}"${block.type === 'navbar' ? ' data-ws-navbar-block="true"' : ''}${classes.length ? ` class="${classes.join(' ')}"` : ''}${placed ? ' style="position:relative"' : ''}>${content}${placed}</div>`
     return classes.length ? `<div class="${classes.join(' ')}">${html}</div>` : html
   }).join('\n\n')}</main>`
   const documentLibraryScript = config.blocks.some(block => block.type === 'documentLibrary') ? `<script>document.querySelectorAll('[data-document-library]').forEach(function(library){var search=library.querySelector('[data-library-search]');search.addEventListener('input',function(){var query=search.value.toLocaleLowerCase();library.querySelectorAll('[data-library-item]').forEach(function(item){item.style.display=item.textContent.toLocaleLowerCase().includes(query)?'':'none';});});});</script>` : ''

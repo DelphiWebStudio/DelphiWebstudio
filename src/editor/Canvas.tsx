@@ -136,6 +136,12 @@ export function Canvas() {
             const href = link.getAttribute('href') ?? ''
             if (link.hasAttribute('download') && href.startsWith('blob:')) return
             e.preventDefault()
+            if (href.startsWith('#')) {
+              const destination = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('[id]')).find(element => element.id === href.slice(1))
+              if (destination) destination.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              else toast('That anchor was not found on this page.')
+              return
+            }
             const path = href.split(/[?#]/, 1)[0].replace(/\/$/, '') || '/'
             const target = pages?.find(page => page.path === path && page.webstudioArticle?.status !== 'draft')
             if (target && href.startsWith('/')) { setActivePage(target.id); selectBlock(null) }

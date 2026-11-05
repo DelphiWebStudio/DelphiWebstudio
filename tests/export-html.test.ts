@@ -19,6 +19,23 @@ const baseConfig: SiteConfig = {
 }
 
 describe('exportSiteToHTML', () => {
+  it('exports named block and object destinations with linked images', () => {
+    const source = { id: 'source', type: 'content' as const, variant: 'prose', props: { body: '', section1Objects: [
+      { id: 'photo', type: 'image', src: 'assets/mass.jpg', alt: 'Parish masses', url: '#mass-times', x: 0, y: 0, width: 30, height: 120, layer: 1 },
+      { id: 'heading', type: 'text', text: 'Mass details', anchorName: 'mass-heading', x: 40, y: 0, width: 30, height: 60, layer: 2 },
+    ] } }
+    const target = { id: 'target', type: 'content' as const, variant: 'prose', props: { body: 'Mass times', anchorName: 'mass-times' } }
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [source, target] })
+    expect(html).toContain('href="#mass-times"')
+    expect(html).toContain('id="mass-times"')
+    expect(html).toContain('id="mass-heading"')
+    expect(html).not.toContain('id="photo"')
+  })
+  it('links a standalone image to a named destination', () => {
+    const image = { id: 'image', type: 'image' as const, variant: 'hero-image', props: { src: 'assets/mass.jpg', alt: 'Parish masses', imageLink: '#mass-times' } }
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [image] })
+    expect(html).toMatch(/<a href="#mass-times"><img[^>]*alt="Parish masses"/)
+  })
   it('preserves a resized content block and its chosen background in export', () => {
     const block = { id: 'content', type: 'content' as const, variant: 'prose', props: { body: 'Hello', layoutWidth: 65, layoutHeight: 220, layoutLeft: 10, blockBackgroundColor: '#ffffff' } }
     const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })

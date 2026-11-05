@@ -18,6 +18,7 @@ interface Props {
 }
 
 export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect, children }: Props) {
+  const anchorName = typeof block.props.anchorName === 'string' && /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(block.props.anchorName) ? block.props.anchorName : undefined
   const blocks = useConfigStore((s) => {
     const pages = s.config.pages
     if (!pages || pages.length === 0) return s.config.blocks
@@ -173,6 +174,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
     return (
       <div
         ref={revealRef}
+        id={anchorName}
         className={isRevealed ? 'scroll-revealed' : ''}
         style={layoutStyle}
         data-ws-scope={scope}
@@ -254,6 +256,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
   return (
     <div
       ref={revealRef}
+      id={anchorName}
       data-webstudio-block-id={block.id}
       data-ws-scope={scope}
       data-ws-navbar-block={navbarLayout ? 'true' : undefined}

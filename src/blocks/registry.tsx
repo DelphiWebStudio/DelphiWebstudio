@@ -96,7 +96,7 @@ export function RenderBlock({ block, editable = false }: { block: BlockConfig; e
   const Renderer = Object.hasOwn(blockRenderers, block.type) ? blockRenderers[block.type] : PlaceholderBlock
   return (
     <BlockErrorBoundary blockType={block.type}>
-      {block.type === 'collage' ? <CollageBlock block={block} editable={editable} /> : block.type === 'hero' ? <HeroBlock block={block} editable={editable} /> : block.type === 'content' ? <ContentBlock block={block} editable={editable} /> : block.type === 'panel' ? <PanelBlock block={block} editable={editable} /> : <Renderer block={block} />}
+      {block.type === 'collage' ? <CollageBlock block={block} editable={editable} /> : block.type === 'hero' ? <HeroBlock block={block} editable={editable} /> : block.type === 'content' ? <ContentBlock block={block} editable={editable} /> : block.type === 'panel' ? <PanelBlock block={block} editable={editable} /> : block.type === 'image' ? <ImageBlock block={block} editable={editable} /> : <Renderer block={block} />}
     </BlockErrorBoundary>
   )
 }
