@@ -154,7 +154,7 @@ export const blockMetadata: BlockMeta[] = [
     label: 'Strip',
     description: 'Separator or blank space between sections',
     category: 'Media',
-    variants: ['line', 'space', 'dots'],
+    variants: ['space', 'line', 'dots'],
     defaultProps: { height: 60, width: 'full' },
   },
   {

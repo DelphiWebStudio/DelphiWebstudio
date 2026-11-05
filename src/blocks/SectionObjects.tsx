@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { useConfigStore } from '@/store/configStore'
 import { useEditorStore } from '@/store/editorStore'
@@ -6,11 +6,11 @@ import type { BlockConfig } from './types'
 import { RichText } from './RichText'
 import { CollageBlock } from './collage/CollageBlock'
 
-type SectionObject = { id: string; type: 'text' | 'image' | 'button' | 'panel' | 'collage'; images?: unknown[]; parentId?: string; text?: string; src?: string; alt?: string; url?: string; color?: string; textColor?: string; fontSize?: number; x: number; y: number; width: number; height: number; layer: number }
+type SectionObject = { id: string; type: 'text' | 'image' | 'button' | 'panel' | 'collage' | 'divider'; images?: unknown[]; parentId?: string; text?: string; src?: string; alt?: string; url?: string; color?: string; textColor?: string; fontSize?: number; x: number; y: number; width: number; height: number; layer: number }
 
 export function SectionObjects({ block, section, editable }: { block: BlockConfig; section: number; editable: boolean }) {
   const key = `section${section}Objects`
-  const objects = Array.isArray(block.props[key]) ? block.props[key] as SectionObject[] : []
+  const objects = useMemo(() => Array.isArray(block.props[key]) ? block.props[key] as SectionObject[] : [], [block.props, key])
   const responsiveOrder = objects.filter(item => item && typeof item.id === 'string').slice().sort((a, b) => {
     const parentA = objects.find(item => item?.id === a.parentId && item.type === 'panel')
     const parentB = objects.find(item => item?.id === b.parentId && item.type === 'panel')
@@ -24,10 +24,11 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
   const newTextObjectId = useEditorStore(state => state.newTextObjectId)
   useEffect(() => {
     if (!newTextObjectId || !objects.some(item => item.id === newTextObjectId)) return
-    useEditorStore.getState().setNewTextObjectId(null)
-    setSelected(newTextObjectId)
-    setEditing(newTextObjectId)
     const timer = window.setTimeout(() => {
+      useEditorStore.getState().selectSectionObject({ blockId: block.id, section, id: newTextObjectId })
+      setEditing(newTextObjectId)
+      useEditorStore.getState().setNewTextObjectId(null)
+      requestAnimationFrame(() => {
       const element = document.querySelector<HTMLElement>(`[data-section-object="${newTextObjectId}"] [contenteditable="true"]`)
       if (!element) return
       element.focus()
@@ -36,9 +37,10 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
       range.selectNodeContents(element)
       selection?.removeAllRanges()
       selection?.addRange(range)
+      })
     }, 0)
-    void timer
-  }, [newTextObjectId, objects])
+    return () => window.clearTimeout(timer)
+  }, [newTextObjectId, objects, block.id, section])
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null)
   const [guides, setGuides] = useState<{ vertical?: { x: number; top: number; height: number }; horizontal?: { y: number; left: number; width: number } }>({})
   const drag = useRef<{ id: string; startX: number; startY: number; grabX: number; grabY: number; x: number; y: number; width: number; height: number; parentWidth: number; resize: false | string; imageAspect?: number } | null>(null)
@@ -124,7 +126,7 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
       useConfigStore.getState().updateBlockProps(block.id, { [key]: saved.map(item => item.id === state.id ? { ...item, x, y, width, height, ...(parentId ? { parentId } : { parentId: undefined }) } : !state.resize && moving?.type === 'panel' && item.parentId === state.id ? { ...item, x: item.x + x - state.x, y: item.y + y - state.y } : item) })
     }
   }
-  const visibleObjects = objects.filter(item => item && typeof item.id === 'string' && ['text', 'image', 'button', 'panel', 'collage'].includes(item.type))
+  const visibleObjects = objects.filter(item => item && typeof item.id === 'string' && ['text', 'image', 'button', 'panel', 'collage', 'divider'].includes(item.type))
   const renderedObjects = new Map(visibleObjects.map(item => {
       const x = Math.max(0, Math.min(95, Number(item.x) || 0)), y = Math.max(0, Number(item.y) || 0)
       const width = Math.max(5, Math.min(100 - x, Number(item.width) || 30)), height = Math.max(24, Number(item.height) || 80)
@@ -145,6 +147,7 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
         {editable && item.type === 'image' && !item.src && <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', border: '1px dashed #8290a0', color: '#8290a0' }}>Choose an image in Properties</div>}
         {editable && item.type === 'collage' && (!item.images || item.images.length === 0) && selected !== item.id && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', border: '1px dashed #8290a0', color: '#8290a0' }}>Select collage and add images in Properties</div>}
         {item.type === 'collage' && <CollageBlock block={{ ...block, props: { ...block.props, images: item.images ?? [] } }} editable={editable && selected === item.id} sectionObject={{ section, id: item.id }} />}
+        {item.type === 'divider' && <div aria-label="Divider" style={{ display: 'flex', alignItems: 'center', width: '100%', height: '100%' }}><div style={{ width: '100%', borderTop: `1px solid ${/^#[0-9a-f]{6}$/i.test(item.textColor || '') ? item.textColor : '#808080'}` }} /></div>}
         {(item.type === 'text' || item.type === 'panel') && <RichText blockId={block.id} field={`sectionObject_${item.id}`} text={typeof block.props[`sectionObject_${item.id}`] === 'string' ? block.props[`sectionObject_${item.id}`] as string : item.text || ''} value={block.props[`sectionObject_${item.id}Rich`]} editable={editable && editing === item.id} multiline onDeleteBox={item.type === 'text' ? () => { const current = useConfigStore.getState().getActivePageBlocks().find(value => value.id === block.id); const saved = Array.isArray(current?.props[key]) ? current.props[key] as SectionObject[] : []; const index = saved.findIndex(value => value.id === item.id); if (index >= 0) useConfigStore.getState().editBlockItems(block.id, key, index, index, 'remove'); setEditing(null); setSelected(null) } : undefined} />}
         {item.type === 'button' && (link ? <a href={link} onClick={editable ? event => event.preventDefault() : undefined} className="inline-block rounded border border-current px-4 py-2">{item.text || 'Button'}</a> : <span className="inline-block rounded border border-current px-4 py-2">{item.text || 'Button'}</span>)}
         {editable && selected === item.id && (item.type === 'collage' || item.type === 'text' || item.type === 'panel') && <button type="button" aria-label={`Move ${item.type}`} title="Drag to move this object" style={{ position: 'absolute', left: 4, top: 4, zIndex: 1001, background: 'white', color: 'black', border: '1px solid black', padding: '1px 4px', cursor: 'move', touchAction: 'none' }} onPointerDown={event => { const parent = event.currentTarget.closest<HTMLElement>('[data-section-object-area]'); const object = event.currentTarget.parentElement; if (!parent?.clientWidth || !object) return; const bounds = object.getBoundingClientRect(); event.preventDefault(); event.stopPropagation(); drag.current = { id: item.id, startX: event.clientX, startY: event.clientY, grabX: event.clientX - bounds.left, grabY: event.clientY - bounds.top, x, y, width, height, parentWidth: parent.clientWidth, resize: false }; event.currentTarget.setPointerCapture(event.pointerId) }} onPointerMove={event => move(event)} onPointerUp={event => move(event, true)} onPointerCancel={() => { drag.current = null; setGuides({}) }}>Move</button>}
