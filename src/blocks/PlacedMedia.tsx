@@ -8,7 +8,9 @@ type Item = { id: string; assetId: string; src: string; name: string; mime: stri
 
 export function PlacedMedia({ block, editable = false }: { block: BlockConfig; editable?: boolean }) {
   const items = Array.isArray(block.props.placedMedia) ? block.props.placedMedia as Item[] : []
-  const [selected, setSelected] = useState<string | null>(null)
+  const selectedMedia = useEditorStore(state => state.selectedPlacedMedia)
+  const selected = selectedMedia?.blockId === block.id ? selectedMedia.id : null
+  const setSelected = (id: string | null) => { if (id) useEditorStore.getState().selectBlock(block.id); useEditorStore.getState().selectPlacedMedia(id ? { blockId: block.id, id } : null) }
   const [guides, setGuides] = useState<{ vertical?: { x: number; top: number; height: number }; horizontal?: { y: number; left: number; width: number } }>({})
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null)
   const drag = useRef<{ id: string; resize: boolean; startX: number; startY: number; grabX: number; grabY: number; x: number; y: number; width: number; parentWidth: number; parentHeight: number } | null>(null)

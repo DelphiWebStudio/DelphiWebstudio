@@ -71,6 +71,22 @@ export function Canvas() {
       onPointerDownCapture={event => {
         // React portals bubble through the canvas even though their menus are outside it.
         if (!(event.target instanceof Node) || !event.currentTarget.contains(event.target)) return
+        if (event.altKey && event.button === 0 && !previewMode) {
+          const layers = Array.from(new Set(document.elementsFromPoint(event.clientX, event.clientY).map(element => element.closest<HTMLElement>('[data-section-object], [data-placed-media], [data-ws-item-field][data-ws-item-index]')).filter((element): element is HTMLElement => !!element && event.currentTarget.contains(element))))
+          if (layers.length > 1) {
+            const editor = useEditorStore.getState(), current = editor.selectedSectionObject, media = editor.selectedPlacedMedia, composite = editor.selectedCompositeItem
+            const index = layers.findIndex(element => { const blockId = element.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id'); return (element.dataset.sectionObject === current?.id && blockId === current?.blockId) || (element.dataset.placedMedia === media?.id && blockId === media?.blockId) || (element.dataset.wsItemField === composite?.field && Number(element.dataset.wsItemIndex) === composite?.index && blockId === composite?.blockId) })
+            const target = layers[(index + 1) % layers.length]
+            const id = target.dataset.sectionObject, mediaId = target.dataset.placedMedia, field = target.dataset.wsItemField, itemIndex = Number(target.dataset.wsItemIndex), blockId = target.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id'), section = Number(target.closest<HTMLElement>('[data-editor-section]')?.dataset.editorSection)
+            if (blockId && ((id && section >= 1 && section <= 4) || mediaId || (field && Number.isInteger(itemIndex) && itemIndex >= 0))) {
+              selectBlock(blockId)
+              if (id) { editor.selectSection(section); editor.selectSectionObject({ blockId, section, id }) }
+              else if (mediaId) editor.selectPlacedMedia({ blockId, id: mediaId })
+              else if (field) editor.selectCompositeItem({ blockId, field, index: itemIndex })
+              target.focus({ preventScroll: true }); event.preventDefault(); event.stopPropagation(); return
+            }
+          }
+        }
         if (event.target instanceof Element && !event.target.closest('[data-section-object]')) useEditorStore.getState().selectSectionObject(null)
         if (event.target instanceof Element && !event.target.closest('[data-ws-item-field]')) useEditorStore.getState().selectCompositeItem(null)
         if (event.target instanceof Element && !event.target.closest('[data-placed-media]')) useEditorStore.getState().selectPlacedMedia(null)
@@ -107,7 +123,7 @@ export function Canvas() {
           const newBlockId = `block-${crypto.randomUUID()}`
           const bounds = event.currentTarget.getBoundingClientRect()
           const x = bounds.width ? Math.max(0, Math.min(70, (event.clientX - bounds.left) / bounds.width * 100)) : 0
-          useConfigStore.getState().addBlock({ id: newBlockId, type: 'content', variant: meta.variants[0], props: { ...structuredClone(meta.defaultProps), title: '', body: '', section1Objects: [{ id, type: isPanel ? 'panel' : 'text', text: isPanel ? 'Panel' : 'Text', color: isPanel ? '#b9aeb6' : '', textColor: isPanel ? '#111111' : '', fontSize: '', x, y: 0, width: 30, height: isPanel ? 160 : 80, layer: 1 }] } })
+          useConfigStore.getState().addBlock({ id: newBlockId, type: 'content', variant: meta.variants[0], props: { ...structuredClone(meta.defaultProps), title: '', body: '', section1Objects: [{ id, type: isPanel ? 'panel' : 'text', text: isPanel ? 'Panel' : 'Text', color: isPanel ? '#b9aeb6' : '', textColor: '#000000', fontSize: '', x, y: 0, width: 30, height: isPanel ? 160 : 80, layer: 1 }] } })
           selectBlock(newBlockId)
           useEditorStore.getState().selectSection(1)
           if (isPanel) useEditorStore.getState().selectSectionObject({ blockId: newBlockId, section: 1, id })
@@ -127,7 +143,7 @@ export function Canvas() {
         const x = Math.max(0, Math.min(70, (event.clientX - bounds.left) / bounds.width * 100))
         const y = Math.max(0, event.clientY - bounds.top)
         const layer = Math.max(0, ...items.map(item => Number(item.layer) || 0)) + 1
-        useConfigStore.getState().updateBlockProps(block.id, { [key]: [...items, { id, type: isPanel ? 'panel' : 'text', text: isPanel ? 'Panel' : 'Text', color: isPanel ? '#b9aeb6' : '', textColor: isPanel ? '#111111' : '', fontSize: '', x, y, width: 30, height: isPanel ? 160 : 80, layer, ...(!isPanel && parent ? { parentId: parent.id } : {}) }] })
+        useConfigStore.getState().updateBlockProps(block.id, { [key]: [...items, { id, type: isPanel ? 'panel' : 'text', text: isPanel ? 'Panel' : 'Text', color: isPanel ? '#b9aeb6' : '', textColor: '#000000', fontSize: '', x, y, width: 30, height: isPanel ? 160 : 80, layer, ...(!isPanel && parent ? { parentId: parent.id } : {}) }] })
         selectBlock(block.id)
         useEditorStore.getState().selectSection(sectionNumber)
         if (isPanel) useEditorStore.getState().selectSectionObject({ blockId: block.id, section: sectionNumber, id })
