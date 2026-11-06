@@ -5,11 +5,12 @@ program DesktopProjectReplacementSmoke;
 { Run only in a fresh isolated folder and profile with editor\fixture.json
   and editor\fixture.zip containing the five-page project fixtures. }
 uses Winapi.Windows, Winapi.Messages, Winapi.CommDlg, Winapi.CommCtrl, Winapi.Dlgs,
-  System.SysUtils, System.Classes, System.IOUtils, System.Zip, Vcl.Forms, Vcl.Edge, Vcl.Dialogs,
+  System.SysUtils, System.Classes, System.IOUtils, System.Zip, Vcl.Forms, Vcl.Edge, Vcl.Dialogs, Vcl.ExtCtrls,
   WebStudio.Main in 'WebStudio.Main.pas';
 type TDriver = class
   Phase: Integer;
   Folder, JsonTarget, ZipTarget: string;
+  ConfirmTimer: TTimer;
   procedure SaveShown(Sender: TObject);
   procedure ConfirmShown(Sender: TObject);
 end;
@@ -22,10 +23,14 @@ begin
   PostMessage(Window, WM_COMMAND, IDOK, 0);
 end;
 procedure TDriver.ConfirmShown(Sender: TObject);
+var Window: HWND;
 begin
+  Window := FindWindow('#32770', 'Replace project');
+  if Window = 0 then Exit;
+  ConfirmTimer.Enabled := False;
   if Phase = 3 then TFile.WriteAllText(JsonTarget, 'concurrent change');
-  if Phase = 1 then PostMessage(TTaskDialog(Sender).Handle, TDM_CLICK_BUTTON, IDNO, 0)
-  else PostMessage(TTaskDialog(Sender).Handle, TDM_CLICK_BUTTON, IDYES, 0);
+  if Phase = 1 then PostMessage(Window, WM_COMMAND, IDNO, 0)
+  else PostMessage(Window, WM_COMMAND, IDYES, 0);
 end;
 var Folder, Value, Recovery, Hint, Script: string; Deadline: UInt64; Driver: TDriver;
   Archive: TZipFile; Actual, Expected: TBytes; Phase: Integer;
@@ -34,11 +39,11 @@ begin
   if not TFile.Exists(TPath.Combine(Folder, 'editor\fixture.json')) or
     not TFile.Exists(TPath.Combine(Folder, 'editor\fixture.zip')) or
     TFile.Exists(TPath.Combine(Folder, 'existing.webstudio.json')) or
-    TFile.Exists(TPath.Combine(Folder, 'existing.webstudio.zip')) then
+    TFile.Exists(TPath.Combine(Folder, 'existing.zip')) then
     raise Exception.Create('A fresh isolated folder and project fixtures are required.');
   Driver := TDriver.Create; Driver.Folder := Folder;
   Driver.JsonTarget := TPath.Combine(Folder, 'existing.webstudio.json');
-  Driver.ZipTarget := TPath.Combine(Folder, 'existing.webstudio.zip');
+  Driver.ZipTarget := TPath.Combine(Folder, 'existing.zip');
   TFile.WriteAllText(Driver.JsonTarget, 'original project');
   TFile.WriteAllText(Driver.ZipTarget, 'original zip project');
   Application.Initialize; Application.ShowMainForm := False; Application.CreateForm(TMainForm, MainForm);
@@ -48,9 +53,13 @@ begin
     if MainForm.StatusLabel.Caption <> 'Local editor loaded.' then raise Exception.Create('Test editor did not load.');
     if Winapi.Windows.Failed(MainForm.EditorBrowser.ControllerInterface.Set_IsVisible(1)) then raise Exception.Create('Could not activate WebView.');
     MainForm.ProjectSaveDialog.InitialDir := Folder; MainForm.ProjectSaveDialog.OnShow := Driver.SaveShown;
-    MainForm.ReplaceConfirmDialog.OnDialogCreated := Driver.ConfirmShown;
+    Driver.ConfirmTimer := TTimer.Create(nil);
+    Driver.ConfirmTimer.Enabled := False;
+    Driver.ConfirmTimer.Interval := 50;
+    Driver.ConfirmTimer.OnTimer := Driver.ConfirmShown;
     for Phase := 1 to 6 do begin
       Driver.Phase := Phase; MainForm.StatusLabel.Caption := 'Waiting for test save'; MainForm.StatusLabel.Hint := '';
+      Driver.ConfirmTimer.Enabled := True;
       if Phase = 4 then Script := 'fetch("/fixture.zip").then(r=>r.blob()).then(b=>{const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="sample.webstudio.zip";a.click()})'
       else if Phase = 5 then Script := '(()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["invalid"]));a.download="sample.webstudio.json";a.click()})()'
       else if Phase = 6 then Script := '(()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["invalid"]));a.download="sample.webstudio.zip";a.click()})()'
@@ -70,7 +79,7 @@ begin
         try
           Archive.Open(Recovery, zmRead);
           if Phase = 2 then begin Archive.Read('existing.webstudio.json', Actual); Expected := TFile.ReadAllBytes(TPath.Combine(Folder, 'editor\fixture.json')) end
-          else begin Archive.Read('existing.webstudio.zip', Actual); Expected := TFile.ReadAllBytes(TPath.Combine(Folder, 'editor\fixture.zip')) end;
+          else begin Archive.Read('existing.zip', Actual); Expected := TFile.ReadAllBytes(TPath.Combine(Folder, 'editor\fixture.zip')) end;
         finally Archive.Free end;
         if ((Phase = 2) and (TEncoding.UTF8.GetString(Actual) <> 'original project')) or
           ((Phase = 4) and (TEncoding.UTF8.GetString(Actual) <> 'original zip project')) then raise Exception.Create('Recovery ZIP differs from original.');
@@ -88,5 +97,5 @@ begin
       end;
     end;
     Writeln('Confirmed JSON and ZIP replacement, cancellation, changed target and invalid staged JSON and ZIP passed.');
-  finally Driver.Free; MainForm.Free end;
+  finally Driver.ConfirmTimer.Free; Driver.Free; MainForm.Free end;
 end.
