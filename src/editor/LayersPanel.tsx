@@ -265,7 +265,18 @@ export function LayersPanel() {
                     const name = typeof item.alt === 'string' && item.alt ? item.alt : typeof item.text === 'string' ? item.text : ''
                     const label = `${String(item.type || 'Object')}${name ? `: ${name.slice(0, 32)}` : ''}`
                     const active = selectedSectionObject?.blockId === block.id && selectedSectionObject.section === section && selectedSectionObject.id === id
-                    return <div key={id} className="flex items-center"><button type="button" className={`min-w-0 flex-1 truncate rounded px-2 py-1 text-left ${active ? 'bg-green-glow text-green' : 'hover:bg-bg-3'}`} onClick={() => {
+                    return <div key={id} className="flex items-center" onDragOver={event => { if (event.dataTransfer.types.includes('application/x-webstudio-layer')) { event.preventDefault(); event.dataTransfer.dropEffect = 'move' } }} onDrop={event => {
+                      const source = event.dataTransfer.getData('application/x-webstudio-layer')
+                      let dragged: { blockId?: string; section?: number; id?: string }
+                      try { dragged = JSON.parse(source) as typeof dragged } catch { return }
+                      if (dragged.blockId !== block.id || dragged.section !== section || dragged.id === id) return
+                      event.preventDefault(); event.stopPropagation()
+                      const ordered = items.map((value, position) => ({ value, position })).sort((a, b) => (Number(b.value.layer) || 1) - (Number(a.value.layer) || 1) || b.position - a.position)
+                      const from = ordered.findIndex(entry => entry.value.id === dragged.id), to = ordered.findIndex(entry => entry.value.id === id)
+                      if (from < 0 || to < 0) return
+                      const [entry] = ordered.splice(from, 1); ordered.splice(to, 0, entry)
+                      useConfigStore.getState().updateBlockProps(block.id, { [`section${section}Objects`]: items.map(value => ({ ...value, layer: ordered.length - ordered.findIndex(entry => entry.value.id === value.id) })) })
+                    }}><button type="button" draggable onDragStart={event => { event.stopPropagation(); event.dataTransfer.setData('application/x-webstudio-layer', JSON.stringify({ blockId: block.id, section, id })); event.dataTransfer.effectAllowed = 'move' }} className={`min-w-0 flex-1 truncate rounded px-2 py-1 text-left ${active ? 'bg-green-glow text-green' : 'hover:bg-bg-3'}`} onClick={() => {
                       selectBlock(block.id); const editor = useEditorStore.getState(); editor.selectSection(section); editor.selectSectionObject({ blockId: block.id, section, id })
                       requestAnimationFrame(() => Array.from(document.querySelectorAll<HTMLElement>('[data-section-object]')).find(element => element.dataset.sectionObject === id && element.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id') === block.id)?.scrollIntoView({ block: 'nearest', inline: 'nearest' }))
                     }}>{label}</button>{(['forward', 'backward'] as const).map(direction => <button type="button" key={direction} aria-label={`Move ${label} ${direction}`} className="px-1 hover:bg-bg-3" onClick={() => {
