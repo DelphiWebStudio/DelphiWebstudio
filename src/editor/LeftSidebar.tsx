@@ -89,6 +89,16 @@ function ComponentsPanel() {
           toast('Click where you want to place the text. Press Escape to cancel.')
         }}><Type size={16} /> Add text</button>
         <p className="px-2 py-1 text-[11px] text-text-3">Click Add text, then click a section or panel on the page.</p>
+        {(['horizontal', 'vertical'] as const).map(orientation => <details key={orientation} className="px-1.5 py-2 border-b border-border-default">
+          <summary className="cursor-pointer text-xs font-semibold text-text-1">{orientation === 'horizontal' ? 'Horizontal lines' : 'Vertical lines'}</summary>
+          <div className={`mt-2 grid gap-1 ${orientation === 'vertical' ? 'grid-cols-4' : 'grid-cols-1'}`}>
+            {([{ name: 'Thin solid', style: 'solid', thickness: 1 }, { name: 'Thick solid', style: 'solid', thickness: 5 }, { name: 'Dashed', style: 'dashed', thickness: 3 }, { name: 'Dotted', style: 'dotted', thickness: 3 }, { name: 'Double', style: 'double', thickness: 5 }] as const).map(line => <button key={line.name} type="button" aria-label={`Add ${orientation} ${line.name.toLowerCase()} line`} title={`${line.name} ${orientation} line`} className="flex min-h-9 items-center justify-center rounded border border-border-default bg-bg-2 px-2 py-1 hover:border-blue-400" onClick={() => {
+              if (useEditorStore.getState().previewMode) { toast('Exit Preview to add a line'); return }
+              useEditorStore.getState().setTextPlacement({ projectId: useEditorStore.getState().activeProjectId, pageId: useConfigStore.getState().activePageId, kind: 'divider', lineOrientation: orientation, lineStyle: line.style, lineThickness: line.thickness })
+              toast('Click where you want to place the line. Press Escape to cancel.')
+            }}><span aria-hidden="true" style={orientation === 'horizontal' ? { display: 'block', width: '100%', borderTop: `${line.thickness}px ${line.style} #d5e2ef` } : { display: 'block', height: 30, borderLeft: `${line.thickness}px ${line.style} #d5e2ef` }} /></button>)}
+          </div>
+        </details>)}
         <details className="px-1.5 pt-2.5 pb-2 border-b border-border-default">
           <summary className="text-[10px] font-semibold uppercase text-text-2 cursor-pointer">Reusable sections</summary>
           <p className="text-[11px] text-text-3 mt-1">Select a section on the page to save a copy for this project.</p>

@@ -23,7 +23,7 @@ interface EditorState {
   selectedPlacedMedia: { blockId: string; id: string } | null
   selectPlacedMedia: (value: EditorState['selectedPlacedMedia']) => void
   copiedSectionObject: { token: string; projectId: string | null; item: Record<string, unknown>; text?: unknown; rich?: unknown } | null
-  textPlacement: { projectId: string | null; pageId: string | null; kind?: 'text' | 'panel' } | null
+  textPlacement: { projectId: string | null; pageId: string | null; kind?: 'text' | 'panel' | 'divider'; lineOrientation?: 'horizontal' | 'vertical'; lineStyle?: 'solid' | 'dashed' | 'dotted' | 'double'; lineThickness?: number } | null
   newTextObjectId: string | null
   movingCollage: { blockId: string; projectId: string | null; pageId: string } | null
   setMovingCollage: (value: EditorState['movingCollage']) => void

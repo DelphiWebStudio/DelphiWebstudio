@@ -4,7 +4,7 @@ unit WebStudio.Main;
 interface
 
 uses
-  Winapi.Windows, Winapi.WebView2, System.SysUtils, System.Classes,
+  Winapi.Windows, Winapi.Messages, Winapi.WebView2, System.SysUtils, System.Classes,
   Vcl.Controls, Vcl.Forms, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Edge, Vcl.Dialogs, Vcl.Menus,
   WebStudio.Bridge;
 
@@ -65,6 +65,8 @@ type
     FLocalAIWorking: Boolean;
     FProjectDirty: Boolean;
     FEditorActive: Boolean;
+    FCloseAfterSave: Boolean;
+    FCloseSaveToken: string;
     FBridgeSession: TDesktopSession;
   end;
 
@@ -244,6 +246,7 @@ begin
           end;
         except
           on E: Exception do begin
+            if (FSaveToken <> '') and (FSaveToken = FOwner.FCloseSaveToken) then begin FOwner.FCloseAfterSave := False; FOwner.FCloseSaveToken := '' end;
             if Assigned(FOwner.RecoveryOpenDialog) then FOwner.RecoveryOpenDialog.InitialDir := TPath.GetDirectoryName(FStagedPath);
             if FReplaceExisting then begin
               FOwner.StatusLabel.Hint := E.Message + sLineBreak + 'Staged file: ' + FStagedPath;
@@ -259,6 +262,7 @@ begin
       FOwner.StatusLabel.Hint := '';
       FOwner.StatusLabel.Caption := 'Download completed: ' + FFileName;
     end else if State = COREWEBVIEW2_DOWNLOAD_STATE_INTERRUPTED then begin
+      if (FSaveToken <> '') and (FSaveToken = FOwner.FCloseSaveToken) then begin FOwner.FCloseAfterSave := False; FOwner.FCloseSaveToken := '' end;
       if FStagedPath <> '' then begin
         if Assigned(FOwner.RecoveryOpenDialog) then FOwner.RecoveryOpenDialog.InitialDir := TPath.GetDirectoryName(FStagedPath);
         FOwner.StatusLabel.Hint := FStagedPath;
@@ -313,8 +317,10 @@ begin
       case MessageDlg('Save your project before exiting?', mtConfirmation, [mbYes, mbNo, mbCancel], 0) of
         mrYes: begin
           CanClose := False;
+          FCloseAfterSave := True;
+          FCloseSaveToken := '';
           SaveProjectItemClick(Sender);
-          StatusLabel.Caption := 'Choose where to save. After the save finishes, close the application again.';
+          StatusLabel.Caption := 'Choose where to save. The editor will close after a successful save.';
         end;
         mrCancel: CanClose := False;
       end;
@@ -454,6 +460,25 @@ begin
       if not (Parsed is TJSONObject) then Exit;
       Obj := TJSONObject(Parsed);
       if Obj.TryGetValue<string>('kind', Kind) then begin
+        if (Kind = 'project.save.failed') and
+           ((SourceText = 'https://webstudio.local/index.html') or SourceText.StartsWith('https://webstudio.local/index.html#/')) and
+           (Obj.Count = 2) and (Obj.GetValue('version') is TJSONNumber) and (Obj.GetValue('version').Value = '1') then begin
+          FCloseAfterSave := False;
+          FCloseSaveToken := '';
+        end;
+        if Kind = 'project.save.confirmed' then begin
+          if ((SourceText = 'https://webstudio.local/index.html') or SourceText.StartsWith('https://webstudio.local/index.html#/')) and
+             (Obj.Count = 4) and (Obj.GetValue('version') is TJSONNumber) and (Obj.GetValue('version').Value = '1') and
+             (Obj.GetValue('token') is TJSONString) and Obj.TryGetValue<string>('token', RequestId) and
+             (Obj.GetValue('clean') is TJSONBool) and FCloseAfterSave and (FCloseSaveToken <> '') and (RequestId = FCloseSaveToken) then begin
+            FCloseAfterSave := False;
+            FCloseSaveToken := '';
+            FProjectDirty := Obj.GetValue('clean').Value <> 'true';
+            if FProjectDirty then StatusLabel.Caption := 'The project changed during saving. Save again before exiting.'
+            else PostMessage(Handle, WM_CLOSE, 0, 0);
+          end;
+          Exit;
+        end;
         if Kind = 'project.dirty' then begin
           if ((SourceText = 'https://webstudio.local/index.html') or SourceText.StartsWith('https://webstudio.local/index.html#/')) and
              (Obj.Count = 4) and (Obj.GetValue('version') is TJSONNumber) and (Obj.GetValue('version').Value = '1') and
@@ -787,6 +812,7 @@ begin
     SaveToken := SaveMatch.Groups[1].Value;
     SuggestedName := Copy(SuggestedName, 1, Length(SuggestedName) - Length(SaveMatch.Value)) + SaveMatch.Groups[2].Value;
   end;
+  if FCloseAfterSave and (SaveToken <> '') then FCloseSaveToken := SaveToken;
   ProjectSuffix := '';
   if LowerCase(SuggestedName).EndsWith('.webstudio.json') then ProjectSuffix := '.webstudio.json'
   else if LowerCase(SuggestedName).EndsWith('.webstudio.zip') then ProjectSuffix := '.webstudio.zip';
@@ -815,12 +841,14 @@ begin
                 FillChar(ConfirmedOriginal, SizeOf(ConfirmedOriginal), 0);
                 if LowerCase(SuggestedName).EndsWith('.webstudio.json') or LowerCase(SuggestedName).EndsWith('.webstudio.zip') then begin
                   if not SameText(TPath.GetExtension(SelectedPath), TPath.GetExtension(SuggestedName)) then begin
+                    FCloseAfterSave := False; FCloseSaveToken := '';
                     DownloadArgs.Set_Cancel(1);
                     StatusLabel.Caption := 'Project requires the ' + TPath.GetExtension(SuggestedName) + ' extension. Save again with that extension.';
                     FDownloadPending := False;
                     Exit;
                   end;
                   if TDirectory.Exists(SelectedPath) then begin
+                    FCloseAfterSave := False; FCloseSaveToken := '';
                     DownloadArgs.Set_Cancel(1);
                     StatusLabel.Caption := 'Choose a project filename, not a folder.';
                     FDownloadPending := False;
@@ -834,6 +862,7 @@ begin
                     finally CloseHandle(SelectedHandle) end;
                     ReplaceConfirmDialog.FooterText := SelectedPath;
                     if not ReplaceConfirmDialog.Execute(OwnerWindow) or (ReplaceConfirmDialog.ModalResult <> mrYes) then begin
+                      FCloseAfterSave := False; FCloseSaveToken := '';
                       DownloadArgs.Set_Cancel(1);
                       StatusLabel.Caption := 'Replacement canceled; existing project was not changed.';
                       FDownloadPending := False;
@@ -849,12 +878,14 @@ begin
                 if Winapi.Windows.Failed(DownloadArgs.Set_ResultFilePath(PWideChar(SelectedPath))) or
                   Winapi.Windows.Failed(DownloadArgs.Set_Handled(1)) then begin
                   DownloadArgs.Set_Cancel(1);
+                  FCloseAfterSave := False; FCloseSaveToken := '';
                   StatusLabel.Caption := 'The download could not start.';
                 end else begin
                   StateHandler := TDownloadStateHandler.Create(Self, OwnerWindow, ExtractFileName(ActiveDialog.FileName), StagedPath, ActiveDialog.FileName, SaveToken,
                     ReplaceExisting, ConfirmedOriginal);
                   if Winapi.Windows.Failed(Operation.add_StateChanged(StateHandler, StateToken)) then begin
                     if StagedPath <> '' then begin
+                      FCloseAfterSave := False; FCloseSaveToken := '';
                       DownloadArgs.Set_Cancel(1);
                       StatusLabel.Caption := 'Project save could not start. Try again.';
                     end else StatusLabel.Caption := 'Download started; completion status is unavailable.';
@@ -863,9 +894,11 @@ begin
               end else begin
                 DownloadArgs.Set_Cancel(1);
                 StatusLabel.Caption := 'Download canceled.';
+                if SaveToken = FCloseSaveToken then begin FCloseAfterSave := False; FCloseSaveToken := '' end;
               end;
             except
               DownloadArgs.Set_Cancel(1);
+              if SaveToken = FCloseSaveToken then begin FCloseAfterSave := False; FCloseSaveToken := '' end;
               if IsWindow(OwnerWindow) and (FindControl(OwnerWindow) = Self) and
                 not (csDestroying in ComponentState) then
                 StatusLabel.Caption := 'Download could not start. Try again.';
