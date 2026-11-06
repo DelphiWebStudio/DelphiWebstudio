@@ -484,7 +484,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         style={{ left: contextMenu.x, top: contextMenu.y }}
         onClick={event => event.stopPropagation()} onContextMenu={event => event.preventDefault()}
       >
-        <button type="button" role="menuitem" className="flex w-full rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100" onClick={() => { setContextMenu(null); useEditorStore.getState().selectSectionObject(null); onSelect(); document.querySelector<HTMLButtonElement>('[aria-label="Expand right panel"]')?.click(); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('[data-properties-tab]')?.click()) }}>Properties</button>
+        <button type="button" role="menuitem" className="flex w-full rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100" onClick={() => { const item = contextMenu.item; setContextMenu(null); useEditorStore.getState().selectSectionObject(null); onSelect(); useEditorStore.getState().selectCompositeItem(item ? { blockId: block.id, ...item } : null); document.querySelector<HTMLButtonElement>('[aria-label="Expand right panel"]')?.click(); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('[data-properties-tab]')?.click()) }}>Properties</button>
         <button type="button" role="menuitem" className="flex w-full rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100" onClick={() => {
           const section = contextMenu.section || 1
           const current = useConfigStore.getState().getActivePageBlocks().find(value => value.id === block.id)

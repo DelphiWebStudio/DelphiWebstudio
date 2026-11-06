@@ -55,7 +55,7 @@ export function RightSidebar({ collapsed = false, onClose }: { collapsed?: boole
   }, [collapsed, selectedBlockId, objectKey, activeTab]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div ref={windowRef} id="editor-right-panel" role="dialog" aria-label="Editor settings" aria-modal="false" className={collapsed ? 'hidden' : 'fixed z-[100] flex flex-col rounded-lg border border-border-default bg-bg-1 shadow-2xl'} style={{ width: 'min(360px, calc(100vw - 24px))', maxHeight: 'min(720px, calc(100vh - 16px))', right: 16, top: 72 }}>
+    <div ref={windowRef} id="editor-right-panel" role="dialog" aria-label="Editor settings" aria-modal="false" className={collapsed ? 'hidden' : 'fixed z-[100] flex flex-col rounded-lg border border-border-default bg-bg-1 shadow-2xl'} style={{ width: 'min(340px, calc(100vw - 24px))', maxHeight: 'min(600px, calc(100vh - 16px))', right: 16, top: 72, color: '#172033', '--color-bg-1': '#ffffff', '--color-bg-2': '#f7f9fc', '--color-bg-3': '#eaf1f9', '--color-bg-4': '#dce9f7', '--color-border-default': '#cbd5e1', '--color-border-subtle': '#dce3eb', '--color-text-0': '#172033', '--color-text-1': '#253550', '--color-text-2': '#45566f', '--color-text-3': '#62738b', '--color-green': '#1769ca', '--color-green-dim': '#1457a8', '--color-green-glow': '#e8f1ff' } as React.CSSProperties}>
       <div className="flex shrink-0 items-center justify-between rounded-t-lg border-b border-border-default bg-bg-2 px-3 py-2" style={{ cursor: 'move', touchAction: 'none' }} title="Drag to move the settings window" onPointerDown={event => {
         if (event.button !== 0 || (event.target instanceof Element && event.target.closest('button'))) return
         const rect = windowRef.current?.getBoundingClientRect(); if (!rect) return

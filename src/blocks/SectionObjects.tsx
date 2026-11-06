@@ -183,7 +183,7 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
           element.focus()
           element.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x, clientY: y }))
         })
-      } else { setMenu(null); document.querySelector<HTMLButtonElement>('[aria-label="Expand right panel"]')?.click(); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('[data-properties-tab]')?.click()) }
+      } else { useEditorStore.getState().selectBlock(block.id); useEditorStore.getState().selectSection(section); setSelected(menu.id); setMenu(null); document.querySelector<HTMLButtonElement>('[aria-label="Expand right panel"]')?.click(); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('[data-properties-tab]')?.click()) }
     }}>Properties</button>
     <button type="button" role="menuitem" className="block w-full rounded px-3 py-1 text-left hover:bg-blue-100" onClick={() => {
       const current = useConfigStore.getState().getActivePageBlocks().find(value => value.id === block.id)
