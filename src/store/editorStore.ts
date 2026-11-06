@@ -11,6 +11,10 @@ interface EditorState {
   selectedSection: number
   selectedSectionObject: { blockId: string; section: number; id: string } | null
   selectSectionObject: (value: EditorState['selectedSectionObject']) => void
+  selectedCompositeItem: { blockId: string; field: string; index: number } | null
+  selectCompositeItem: (value: EditorState['selectedCompositeItem']) => void
+  selectedPlacedMedia: { blockId: string; id: string } | null
+  selectPlacedMedia: (value: EditorState['selectedPlacedMedia']) => void
   copiedSectionObject: { token: string; projectId: string | null; item: Record<string, unknown>; text?: unknown; rich?: unknown } | null
   textPlacement: { projectId: string | null; pageId: string | null; kind?: 'text' | 'panel' } | null
   newTextObjectId: string | null
@@ -60,7 +64,11 @@ export const useEditorStore = create<EditorState>()((set) => ({
   selectedTextKey: '',
   selectedSection: 0,
   selectedSectionObject: null,
-  selectSectionObject: (selectedSectionObject) => set({ selectedSectionObject }),
+  selectSectionObject: (selectedSectionObject) => set({ selectedSectionObject, ...(selectedSectionObject ? { selectedCompositeItem: null, selectedPlacedMedia: null } : {}) }),
+  selectedCompositeItem: null,
+  selectCompositeItem: (selectedCompositeItem) => set({ selectedCompositeItem, ...(selectedCompositeItem ? { selectedSectionObject: null, selectedPlacedMedia: null } : {}) }),
+  selectedPlacedMedia: null,
+  selectPlacedMedia: (selectedPlacedMedia) => set({ selectedPlacedMedia, ...(selectedPlacedMedia ? { selectedSectionObject: null, selectedCompositeItem: null } : {}) }),
   copiedSectionObject: null,
   textPlacement: null,
   newTextObjectId: null,
@@ -82,7 +90,7 @@ export const useEditorStore = create<EditorState>()((set) => ({
   isGenerating: false,
   generationPrompt: null,
   generationError: null,
-  selectBlock: (id) => set(state => ({ selectedBlockId: id, ...(state.selectedBlockId !== id ? { selectedImageIndex: 0, selectedTextKey: '', selectedSection: 0, selectedSectionObject: null } : {}) })),
+  selectBlock: (id) => set(state => ({ selectedBlockId: id, ...(state.selectedBlockId !== id ? { selectedImageIndex: 0, selectedTextKey: '', selectedSection: 0, selectedSectionObject: null, selectedCompositeItem: null, selectedPlacedMedia: null } : {}) })),
   selectImage: (index) => set({ selectedImageIndex: Math.max(0, Math.floor(index)) }),
   selectText: (key) => set({ selectedTextKey: key }),
   selectSection: (section) => set({ selectedSection: Math.max(1, Math.min(4, Math.floor(section))) }),

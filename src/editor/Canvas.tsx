@@ -70,6 +70,8 @@ export function Canvas() {
       style={{ width: `${previewWidth}px`, ...cssVars, color: 'var(--color-text-0)', backgroundColor: 'var(--color-bg-1)', outlineColor: 'var(--color-border-default)', overflowWrap: 'anywhere' } as React.CSSProperties}
       onPointerDownCapture={event => {
         if (event.target instanceof Element && !event.target.closest('[data-section-object]')) useEditorStore.getState().selectSectionObject(null)
+        if (event.target instanceof Element && !event.target.closest('[data-ws-item-field]')) useEditorStore.getState().selectCompositeItem(null)
+        if (event.target instanceof Element && !event.target.closest('[data-placed-media]')) useEditorStore.getState().selectPlacedMedia(null)
         if (movingCollage && event.button === 0 && !previewMode) {
           event.preventDefault(); event.stopPropagation()
           const editor = useEditorStore.getState()

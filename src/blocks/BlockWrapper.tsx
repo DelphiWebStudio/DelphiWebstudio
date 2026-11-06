@@ -330,6 +330,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         const element = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-ws-item-field][data-ws-item-index]') : null
         const field = element?.dataset.wsItemField ?? '', itemIndex = Number(element?.dataset.wsItemIndex), items = block.props[field]
         const item = element && Array.isArray(items) && Number.isInteger(itemIndex) && itemIndex >= 0 && itemIndex < items.length ? { field, index: itemIndex } : undefined
+        useEditorStore.getState().selectCompositeItem(item ? { blockId: block.id, ...item } : null)
         const sectionElement = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-editor-section]') : null
         const section = Number(sectionElement?.dataset.editorSection) || 1
         const bounds = sectionElement?.querySelector<HTMLElement>(`[data-section-object-area="${section}"]`)?.getBoundingClientRect()
