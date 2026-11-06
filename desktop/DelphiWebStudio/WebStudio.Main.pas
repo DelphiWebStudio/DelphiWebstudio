@@ -860,8 +860,8 @@ begin
                     if SelectedHandle = INVALID_HANDLE_VALUE then RaiseLastOSError;
                     try if not GetFileInformationByHandle(SelectedHandle, ConfirmedOriginal) then RaiseLastOSError
                     finally CloseHandle(SelectedHandle) end;
-                    ReplaceConfirmDialog.FooterText := SelectedPath;
-                    if not ReplaceConfirmDialog.Execute(OwnerWindow) or (ReplaceConfirmDialog.ModalResult <> mrYes) then begin
+                    if MessageBox(OwnerWindow, PChar(ReplaceConfirmDialog.Text + sLineBreak + sLineBreak + SelectedPath),
+                      PChar(ReplaceConfirmDialog.Caption), MB_YESNO or MB_ICONWARNING or MB_DEFBUTTON2) <> IDYES then begin
                       FCloseAfterSave := False; FCloseSaveToken := '';
                       DownloadArgs.Set_Cancel(1);
                       StatusLabel.Caption := 'Replacement canceled; existing project was not changed.';
