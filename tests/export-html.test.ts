@@ -19,6 +19,15 @@ const baseConfig: SiteConfig = {
 }
 
 describe('exportSiteToHTML', () => {
+  it('preserves bulleted text and its formatting in the exported page', () => {
+    const block = { id: 'bullets', type: 'content' as const, variant: 'prose', props: { body: '', section1Objects: [
+      { id: 'schedule', type: 'text', text: '', x: 0, y: 0, width: 40, height: 80, layer: 1 },
+    ], sectionObject_schedule: '• Monday\n• Tuesday', sectionObject_scheduleRich: [{ text: '• Monday', bold: true }, { text: '\n• Tuesday' }] } }
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
+    expect(html).toContain('• Monday')
+    expect(html).toContain('• Tuesday')
+    expect(html).toContain('font-weight:bold')
+  })
   it('reserves the saved height of a long text object near the bottom of a block', () => {
     const block = { id: 'long-text', type: 'content' as const, variant: 'prose', props: { body: '', blockBackgroundColor: '#ffffff', section1Objects: [
       { id: 'schedule', type: 'text', text: 'First line\nSecond line\nThird line', x: 5, y: 300, width: 40, height: 240, layer: 1 },

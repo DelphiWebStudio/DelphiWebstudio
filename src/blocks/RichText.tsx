@@ -38,6 +38,10 @@ export function RichText({ blockId, field, text, value, editable = false, multil
       if (!(node instanceof HTMLElement)) return
       if (node.tagName === 'BR') { output.push({ text: '\n', ...style }); return }
       const next = { ...style }
+      if (node.tagName === 'LI') {
+        if (output.length && !output[output.length - 1].text.endsWith('\n')) output.push({ text: '\n' })
+        if (!node.textContent?.trimStart().startsWith('• ')) output.push({ text: '• ', ...style })
+      }
       if (node.style.textAlign === 'left' || node.style.textAlign === 'center' || node.style.textAlign === 'right' || node.style.textAlign === 'justify') next.align = node.style.textAlign
       const font = node.style.fontFamily.replace(/["']/g, '').trim()
       if (font && /^[\p{L}\p{N} ,._-]{1,100}$/u.test(font)) next.font = font
@@ -331,6 +335,30 @@ export function RichText({ blockId, field, text, value, editable = false, multil
           apply({ textAlign: align, display: 'block' }); setMenu({ ...menu })
         }}>{align}</button>)}
       </div>
+      {multiline && <div className="order-3 mt-3 border-t border-gray-200 pt-3"><button type="button" aria-label="Add bullets" disabled={!savedRange.current} className="rounded border border-gray-400 px-3 py-1 disabled:opacity-40" onMouseDown={event => event.preventDefault()} onClick={() => {
+        if (!root.current || !savedRange.current || !root.current.contains(savedRange.current.commonAncestorContainer)) return
+        const range = savedRange.current
+        if (range.collapsed) return
+        const fragment = range.extractContents()
+        const walker = document.createTreeWalker(fragment, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT)
+        let startOfLine = true
+        let node: Node | null
+        while ((node = walker.nextNode())) {
+          if (node instanceof HTMLElement && node.tagName === 'BR') { startOfLine = true; continue }
+          if (node instanceof HTMLElement && ['DIV', 'P', 'LI'].includes(node.tagName)) { startOfLine = true; continue }
+          if (node.nodeType !== Node.TEXT_NODE || !node.textContent) continue
+          const original = node.textContent
+          let updated = ''
+          for (let i = 0; i < original.length; i++) {
+            const character = original[i]
+            if (startOfLine && character !== '\n') { if (character !== '•') updated += '• '; startOfLine = false }
+            updated += character
+            if (character === '\n') startOfLine = true
+          }
+          node.textContent = updated
+        }
+        range.insertNode(fragment); dirty.current = true; close()
+      }}>• Bullets</button></div>}
       {!savedRange.current || savedRange.current.collapsed ? <p className="order-1 mb-2 text-xs">Select text to format it.</p> : <div className="order-1">
         {window.location.origin === 'https://webstudio.local' ? <label className="mb-3 block text-xs text-gray-700">Font<button type="button" aria-label="Choose Windows font" className="mt-1 w-full rounded border border-gray-400 p-2 text-left text-sm text-black" onMouseDown={event => event.preventDefault()} onClick={async () => {
           const node = savedRange.current?.startContainer
