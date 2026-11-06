@@ -1011,7 +1011,7 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
             <p className="mt-1 text-[10px] text-text-3">Select an image and press Enter to add space below this section.</p><div className="mt-1 flex flex-wrap gap-1">
             {(['text', 'image', 'button', 'panel', 'collage', 'divider'] as const).map(type => <button key={type} type="button" className="rounded border border-border-default px-2 py-1 text-xs" onClick={() => {
               const items = Array.isArray(block.props[key]) ? block.props[key] : []
-              updateBlockProps(block.id, { [key]: [...items, { id: `object-${crypto.randomUUID()}`, type, text: type === 'text' ? 'Text' : type === 'button' ? 'Button' : type === 'panel' ? 'Panel' : '', src: '', alt: '', url: '', color: '#ffffff', textColor: '', fontSize: '', ...(type === 'collage' ? { images: [] } : {}), x: 0, y: items.length * 90, width: 30, height: type === 'collage' ? 180 : 80, layer: items.length + 1 }] })
+              updateBlockProps(block.id, { [key]: [...items, { id: `object-${crypto.randomUUID()}`, type, text: type === 'text' ? 'Text' : type === 'button' ? 'Button' : type === 'panel' ? 'Panel' : '', src: '', alt: '', url: '', color: '#ffffff', textColor: ['text', 'button', 'panel'].includes(type) ? '#000000' : '', fontSize: '', ...(type === 'collage' ? { images: [] } : {}), x: 0, y: items.length * 90, width: 30, height: type === 'collage' ? 180 : 80, layer: items.length + 1 }] })
             }}>Add {type}</button>)}
           </div><PropertyField block={block} field={{ key, label: `Section ${number} objects`, type: 'array-items' }} /></div>
         })}

@@ -496,7 +496,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
           if (!current) return
           const key = `section${section}Objects`, items = Array.isArray(current.props[key]) ? current.props[key] as Record<string, unknown>[] : []
           const id = `object-${crypto.randomUUID()}`
-          useConfigStore.getState().updateBlockProps(block.id, { [key]: [...items, { id, type: 'text', text: 'Text', x: Math.max(0, Math.min(70, contextMenu.objectX || 0)), y: Math.max(0, contextMenu.objectY || 0), width: 30, height: 80, layer: Math.max(0, ...items.map(item => Number(item.layer) || 0)) + 1 }] })
+          useConfigStore.getState().updateBlockProps(block.id, { [key]: [...items, { id, type: 'text', text: 'Text', textColor: '#000000', x: Math.max(0, Math.min(70, contextMenu.objectX || 0)), y: Math.max(0, contextMenu.objectY || 0), width: 30, height: 80, layer: Math.max(0, ...items.map(item => Number(item.layer) || 0)) + 1 }] })
           const editor = useEditorStore.getState(); editor.selectBlock(block.id); editor.selectSection(section); editor.setNewTextObjectId(id); setContextMenu(null)
         }}>Add text</button>
         <button type="button" role="menuitem" className="flex w-full rounded px-3 py-1.5 text-left hover:bg-blue-100 focus:bg-blue-100" onClick={() => {
