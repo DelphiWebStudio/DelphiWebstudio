@@ -25,6 +25,15 @@ describe('selected object properties', () => {
     expect(block.props.section2Objects[1].x).toBe(34.66208946124076)
   })
 
+  it('keeps link and anchor settings out of the selected image properties', () => {
+    const block = { id: 'image-block', type: 'content' as const, variant: 'prose', props: { section1Objects: [{ id: 'photo', type: 'image', src: '/photo.jpg', alt: 'Photo', anchorName: 'photo-anchor', url: '#mass-times', x: 5, y: 4, width: 30, height: 80, layer: 1 }] } }
+    useEditorStore.getInitialState().selectedSectionObject = { blockId: block.id, section: 1, id: 'photo' }
+    const html = renderToStaticMarkup(createElement(PropertiesPanel, { block }))
+    expect(html).toContain('Photo')
+    expect(html).not.toContain('photo-anchor')
+    expect(html).not.toContain('#mass-times')
+  })
+
   it('shows only the selected composite item', () => {
     const block = { id: 'gallery', type: 'gallery' as const, variant: 'grid', props: { images: [{ src: '/first.jpg', alt: 'First image' }, { src: '/second.jpg', alt: 'Second image' }] } }
     useEditorStore.getInitialState().selectedCompositeItem = { blockId: block.id, field: 'images', index: 1 }
