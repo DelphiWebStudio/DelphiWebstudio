@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { MousePointer2 } from 'lucide-react'
 import { useEditorStore } from '@/store/editorStore'
 import { useConfigStore } from '@/store/configStore'
@@ -10,10 +10,11 @@ type Tab = 'properties' | 'design'
 export function RightSidebar({ collapsed = false, onClose }: { collapsed?: boolean; onClose?: () => void }) {
   const selectedBlockId = useEditorStore((s) => s.selectedBlockId)
   const selectedObject = useEditorStore((s) => s.selectedSectionObject)
+  const selectedCompositeItem = useEditorStore((s) => s.selectedCompositeItem)
+  const selectedPlacedMedia = useEditorStore((s) => s.selectedPlacedMedia)
   const scrollRef = useRef<HTMLDivElement>(null)
   const windowRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<{ x: number; y: number; left: number; top: number } | null>(null)
-  const [position, setPosition] = useState<{ left: number; top: number } | null>(null)
   const mode = useEditorStore((s) => s.mode)
   const blocks = useConfigStore((s) => {
     const pages = s.config.pages
@@ -22,7 +23,7 @@ export function RightSidebar({ collapsed = false, onClose }: { collapsed?: boole
     return page.blocks
   })
   const selectedBlock = blocks.find((b) => b.id === selectedBlockId)
-  const objectKey = selectedObject ? `${selectedObject.blockId}:${selectedObject.section}:${selectedObject.id}` : ''
+  const objectKey = selectedObject ? `${selectedObject.blockId}:${selectedObject.section}:${selectedObject.id}` : selectedCompositeItem ? `${selectedCompositeItem.blockId}:${selectedCompositeItem.field}:${selectedCompositeItem.index}` : selectedPlacedMedia ? `${selectedPlacedMedia.blockId}:${selectedPlacedMedia.id}` : ''
   const [selection, setSelection] = useState<{ blockId: string | null; objectKey: string; tab: Tab }>({
     blockId: null, objectKey: '', tab: mode === 'designer' ? 'design' : 'properties',
   })
@@ -34,8 +35,27 @@ export function RightSidebar({ collapsed = false, onClose }: { collapsed?: boole
     ? 'properties'
     : selection.tab
 
+  useLayoutEffect(() => {
+    const windowElement = windowRef.current
+    if (collapsed || !windowElement) return
+    const blockElement = Array.from(document.querySelectorAll<HTMLElement>('[data-webstudio-block-id]')).find(element => element.dataset.webstudioBlockId === selectedBlockId)
+    const target = selectedObject ? Array.from(blockElement?.querySelectorAll<HTMLElement>('[data-section-object]') ?? []).find(element => element.dataset.sectionObject === selectedObject.id) ?? blockElement : selectedCompositeItem ? Array.from(blockElement?.querySelectorAll<HTMLElement>('[data-ws-item-field]') ?? []).find(element => element.dataset.wsItemField === selectedCompositeItem.field && Number(element.dataset.wsItemIndex) === selectedCompositeItem.index) ?? blockElement : selectedPlacedMedia ? Array.from(blockElement?.querySelectorAll<HTMLElement>('[data-placed-media]') ?? []).find(element => element.dataset.placedMedia === selectedPlacedMedia.id) ?? blockElement : blockElement
+    const targetBounds = target?.getBoundingClientRect(), bounds = windowElement.getBoundingClientRect(), gap = 12
+    let left = window.innerWidth - bounds.width - gap, top = 72
+    if (targetBounds && activeTab === 'properties') {
+      if (targetBounds.right + gap + bounds.width <= window.innerWidth) left = targetBounds.right + gap
+      else if (targetBounds.left - gap >= bounds.width) left = targetBounds.left - gap - bounds.width
+      else if (targetBounds.bottom + gap + bounds.height <= window.innerHeight) { left = targetBounds.left; top = targetBounds.bottom + gap }
+      else if (targetBounds.top - gap >= bounds.height) { left = targetBounds.left; top = targetBounds.top - gap - bounds.height }
+      top = top === 72 ? targetBounds.top : top
+    }
+    windowElement.style.right = 'auto'
+    windowElement.style.left = `${Math.max(0, Math.min(left, window.innerWidth - bounds.width))}px`
+    windowElement.style.top = `${Math.max(0, Math.min(top, window.innerHeight - bounds.height))}px`
+  }, [collapsed, selectedBlockId, objectKey, activeTab]) // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
-    <div ref={windowRef} id="editor-right-panel" role="dialog" aria-label="Editor settings" aria-modal="false" className={collapsed ? 'hidden' : 'fixed z-[100] flex flex-col rounded-lg border border-border-default bg-bg-1 shadow-2xl'} style={{ width: 'min(360px, calc(100vw - 24px))', maxHeight: `min(720px, calc(100vh - ${position?.top ?? 72}px - 16px))`, left: position?.left, right: position ? undefined : 16, top: position?.top ?? 72 }}>
+    <div ref={windowRef} id="editor-right-panel" role="dialog" aria-label="Editor settings" aria-modal="false" className={collapsed ? 'hidden' : 'fixed z-[100] flex flex-col rounded-lg border border-border-default bg-bg-1 shadow-2xl'} style={{ width: 'min(360px, calc(100vw - 24px))', maxHeight: 'min(720px, calc(100vh - 16px))', right: 16, top: 72 }}>
       <div className="flex shrink-0 items-center justify-between rounded-t-lg border-b border-border-default bg-bg-2 px-3 py-2" style={{ cursor: 'move', touchAction: 'none' }} title="Drag to move the settings window" onPointerDown={event => {
         if (event.button !== 0 || (event.target instanceof Element && event.target.closest('button'))) return
         const rect = windowRef.current?.getBoundingClientRect(); if (!rect) return
@@ -43,9 +63,9 @@ export function RightSidebar({ collapsed = false, onClose }: { collapsed?: boole
         event.currentTarget.setPointerCapture(event.pointerId); event.preventDefault()
       }} onPointerMove={event => {
         const drag = dragRef.current; const rect = windowRef.current?.getBoundingClientRect(); if (!drag || !rect) return
-        setPosition({ left: Math.max(0, Math.min(window.innerWidth - rect.width, drag.left + event.clientX - drag.x)), top: Math.max(0, Math.min(window.innerHeight - 160, drag.top + event.clientY - drag.y)) })
+        if (windowRef.current) { windowRef.current.style.right = 'auto'; windowRef.current.style.left = `${Math.max(0, Math.min(window.innerWidth - rect.width, drag.left + event.clientX - drag.x))}px`; windowRef.current.style.top = `${Math.max(0, Math.min(window.innerHeight - 160, drag.top + event.clientY - drag.y))}px` }
       }} onPointerUp={() => { dragRef.current = null }} onPointerCancel={() => { dragRef.current = null }}>
-        <span className="text-xs font-semibold text-text-0">{activeTab === 'design' ? 'Site design' : selectedObject ? 'Object settings' : selectedBlock ? `${selectedBlock.type} settings` : 'Settings'}</span>
+        <span className="text-xs font-semibold text-text-0">{activeTab === 'design' ? 'Site design' : selectedObject || selectedCompositeItem || selectedPlacedMedia ? 'Object settings' : selectedBlock ? `${selectedBlock.type} settings` : 'Settings'}</span>
         <button type="button" aria-label="Close settings" onClick={onClose} className="rounded px-2 py-1 text-base text-text-1 hover:bg-bg-3">×</button>
       </div>
       {/* Tabs */}

@@ -390,7 +390,7 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
   },
 }
 
-function PropertyField({ field, block, onlyItemId }: { field: FieldDef; block: BlockConfig; onlyItemId?: string }) {
+function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: FieldDef; block: BlockConfig; onlyItemId?: string; onlyItemIndex?: number }) {
   const textArea = useRef<HTMLTextAreaElement>(null)
   const updateBlockProps = useConfigStore((s) => s.updateBlockProps)
   const updateBlock = useConfigStore((s) => s.updateBlock)
@@ -726,7 +726,7 @@ function PropertyField({ field, block, onlyItemId }: { field: FieldDef; block: B
           {block.type === 'collage' && <p className="mb-1 text-[10px] text-text-3">Select an image on the collage and drag it to move; drag its white corner to resize. Set layer order here; larger numbers appear in front. Positions and sizes are percentages.</p>}
           {block.type === 'navbar' && field.key === 'navItems' && <p className="mb-1 text-[10px] text-text-3">Drag links on the Navbar to change their order.</p>}
           {imageItems && block.type === 'features' && <p className="mb-1 text-[10px] text-text-3">Feature images appear in the alternating layout.</p>}
-          {items.map((item, i) => onlyItemId && item.id !== onlyItemId ? null : (
+          {items.map((item, i) => (onlyItemId && item.id !== onlyItemId) || (onlyItemIndex !== undefined && i !== onlyItemIndex) ? null : (
             <div key={i} className="bg-bg-2 border border-border-default rounded p-2 mb-1.5" onContextMenu={event => {
               if (event.target instanceof Element && event.target.closest('input,textarea,select')) return
               event.preventDefault(); event.stopPropagation(); setItemMenu({ index: i, x: Math.max(0, Math.min(event.clientX, window.innerWidth - 160)), y: Math.max(0, Math.min(event.clientY, window.innerHeight - 125)) })
@@ -853,7 +853,7 @@ function PropertyField({ field, block, onlyItemId }: { field: FieldDef; block: B
               setItemMenu(null)
             }}>Remove</button>
           </div>, document.body)}
-          {!/^section[1-4]Objects$/.test(field.key) && <button
+          {onlyItemIndex === undefined && !/^section[1-4]Objects$/.test(field.key) && <button
             onClick={() => {
               if (block.type === 'navbar' && field.key === 'navItems' && Array.isArray(block.props.links) && block.props.links.length > 0 && block.props.links.every(link => typeof link === 'string')) {
                 updateBlockProps(block.id, { navItems: [...items, ...block.props.links.map(label => ({ label, url: '' })), createEmptyItem()], links: [] })
@@ -872,8 +872,8 @@ function PropertyField({ field, block, onlyItemId }: { field: FieldDef; block: B
   }
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  const [open, setOpen] = useState(true)
+function Section({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen)
   return (
     <div className="border-b border-border-subtle">
       <button
@@ -899,6 +899,8 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
   const selectedTextKey = useEditorStore(state => state.selectedTextKey)
   const selectedSection = useEditorStore(state => state.selectedSection)
   const selectedObject = useEditorStore(state => state.selectedSectionObject)
+  const selectedCompositeItem = useEditorStore(state => state.selectedCompositeItem)
+  const selectedPlacedMedia = useEditorStore(state => state.selectedPlacedMedia)
   const pageBlocks = useConfigStore(state => state.config.pages?.find(page => page.id === state.activePageId)?.blocks ?? state.config.blocks)
   const theme = useConfigStore(state => state.config.theme)
   const selectText = useEditorStore(state => state.selectText)
@@ -945,6 +947,22 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
     </div>
   }
 
+  if (selectedCompositeItem?.blockId === block.id && Array.isArray(block.props[selectedCompositeItem.field]) && (block.props[selectedCompositeItem.field] as unknown[])[selectedCompositeItem.index]) {
+    return <div data-selected-composite-properties={selectedCompositeItem.field} className="px-3.5 py-3">
+      <div className="mb-2 text-xs font-semibold">Item properties</div>
+      <button type="button" className="mb-3 rounded border border-border-default px-2 py-1 text-xs" onClick={() => useEditorStore.getState().selectCompositeItem(null)}>Block properties</button>
+      <PropertyField block={block} onlyItemIndex={selectedCompositeItem.index} field={{ key: selectedCompositeItem.field, label: 'Selected item', type: 'array-items' }} />
+    </div>
+  }
+
+  const placedItems = Array.isArray(block.props.placedMedia) ? block.props.placedMedia as Record<string, unknown>[] : []
+  const placed = selectedPlacedMedia?.blockId === block.id ? placedItems.find(item => item.id === selectedPlacedMedia.id) : undefined
+  if (placed) return <div data-selected-media-properties={String(placed.id)} className="px-3.5 py-3">
+    <div className="mb-3 text-xs font-semibold">Media properties</div>
+    {([['name', 'Description'], ['x', 'Left (%)'], ['y', 'Top (%)'], ['width', 'Width (%)']] as const).map(([key, label]) => <label key={key} className="mb-2 block text-xs">{label}<input aria-label={label} type={key === 'name' ? 'text' : 'number'} value={String(placed[key] ?? '')} onChange={event => updateBlockProps(block.id, { placedMedia: placedItems.map(item => item.id === placed.id ? { ...item, [key]: key === 'name' ? event.target.value : Number(event.target.value) } : item) })} className="mt-1 w-full rounded border border-border-default bg-bg-2 p-1" /></label>)}
+    <button type="button" className="mt-2 rounded border border-border-default px-2 py-1 text-xs" onClick={() => useEditorStore.getState().selectPlacedMedia(null)}>Block properties</button>
+  </div>
+
   return (
     <>
       {/* Header */}
@@ -958,7 +976,7 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
       </div>
 
       {/* Property sections */}
-      <Section title="Anchor (jump destination)">
+      <Section title="Anchor (jump destination)" defaultOpen={false}>
         <label className="block text-xs text-text-2">Anchor name<input aria-label="Block anchor name" value={typeof block.props.anchorName === 'string' ? block.props.anchorName : ''} onChange={event => updateBlockProps(block.id, { anchorName: event.target.value })} placeholder="e.g. parish-mass-times" className="mt-1 w-full rounded border border-border-default bg-bg-2 p-1 text-xs" /></label>
         <p className="mt-1 text-[10px] text-text-3">Give this block a unique name, then choose it as the destination of an image or link on this page. Start with a letter; use letters, numbers, hyphens or underscores.</p>
         {typeof block.props.anchorName === 'string' && block.props.anchorName !== '' && (!/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(block.props.anchorName) || pageBlocks.flatMap(candidate => [candidate.props.anchorName, ...[1, 2, 3, 4].flatMap(section => Array.isArray(candidate.props[`section${section}Objects`]) ? (candidate.props[`section${section}Objects`] as Record<string, unknown>[]).map(item => item?.anchorName) : [])]).filter(name => name === block.props.anchorName).length > 1) && <p role="alert" className="mt-1 text-xs text-status-red">Choose a valid, unique anchor name.</p>}
@@ -976,7 +994,7 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
         <p className="mt-1 text-[10px] text-text-3">{block.props.blockBackgroundColor ? 'Custom block color' : 'Using the block’s default background'}</p>
         <button type="button" onClick={() => updateBlockProps(block.id, { blockBackgroundColor: '' })} className="mt-2 rounded border border-border-default px-2 py-1 text-xs">Reset background</button>
       </Section>
-      <Section title="Sections across">
+      <Section title="Sections across" defaultOpen={false}>
         <label className="block text-xs text-text-2">Number of sections
           <select aria-label="Number of sections" value={Math.min(4, Math.max(1, Number(block.props.sectionCount) || 1))} onChange={event => updateBlockProps(block.id, { sectionCount: Number(event.target.value) })} className="mt-1 w-full rounded border border-border-default bg-bg-2 p-1 text-xs">
             {[1, 2, 3, 4].map(count => <option key={count} value={count}>{count}</option>)}
@@ -986,7 +1004,7 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
         <button type="button" onClick={() => updateBlockProps(block.id, { sectionWidths: [] })} className="mt-2 rounded border border-border-default px-2 py-1 text-xs">Reset section widths</button>
         <label className="mt-2 flex items-center gap-2 text-xs"><input type="checkbox" checked={block.props.snapSectionObjects === true} onChange={event => updateBlockProps(block.id, { snapSectionObjects: event.target.checked })} /> Snap section objects to alignment guides</label>
         <p className="mt-1 text-[10px] text-text-3">On narrow screens, stack objects below the section content. Desktop positions stay unchanged.</p>
-        {Array.from({ length: Math.min(4, Math.max(1, Number(block.props.sectionCount) || 1)) }, (_, index) => {
+        <details className="mt-2"><summary className="cursor-pointer text-xs">Manage section contents</summary>{Array.from({ length: Math.min(4, Math.max(1, Number(block.props.sectionCount) || 1)) }, (_, index) => {
           const number = index + 1, key = `section${number}Objects`
           return <div key={key} className="mt-3 border-t border-border-default pt-2"><div className="text-xs font-semibold">Section {number} objects</div>
             <label className="mt-1 block text-xs text-text-2">Extra space below (px)<input type="number" min="0" max="4000" aria-label={`Section ${number} extra space below`} value={String(block.props[`section${number}ExtraSpace`] ?? 0)} onChange={event => updateBlockProps(block.id, { [`section${number}ExtraSpace`]: Math.max(0, Math.min(4000, Number(event.target.value) || 0)) })} className="mt-1 w-full rounded border border-border-default bg-bg-2 px-2 py-1 text-xs" /></label>
@@ -1012,6 +1030,7 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
             {block.props[`section${number}Panel`] === true && <label className="mt-2 block text-xs">Panel color <WindowsColorInput label={`Section ${number} panel color`} value={typeof block.props[`section${number}Color`] === 'string' && /^#[0-9a-f]{6}$/i.test(block.props[`section${number}Color`] as string) ? block.props[`section${number}Color`] as string : '#b9aeb6'} onChange={value => updateBlockProps(block.id, { [`section${number}Color`]: value })} className="mt-1 block h-9 w-full rounded border border-border-default p-1" /></label>}
           </div>
         })}
+        </details>
       </Section>
       {schema?.sections.map((section) => (
         <Section key={section.title} title={section.title}>

@@ -16,6 +16,8 @@ export function RichText({ blockId, field, text, value, editable = false, multil
   const savedRange = useRef<Range | null>(null)
   const menuActive = useRef(false)
   const menuElement = useRef<HTMLDivElement>(null)
+  const menuDrag = useRef<{ x: number; y: number; left: number; top: number } | null>(null)
+  const menuMoved = useRef(false)
   const moveRef = useRef<{ startX: number; startY: number; x: number; y: number } | null>(null)
   const resizeRef = useRef<{ startX: number; startY: number; width: number; height: number; maxWidth: number; direction: string } | null>(null)
   const [resizeSize, setResizeSize] = useState<{ width: number; height: number } | null>(null)
@@ -123,8 +125,14 @@ export function RichText({ blockId, field, text, value, editable = false, multil
     const element = menuElement.current
     if (!menu || !element) return
     const bounds = element.getBoundingClientRect()
-    element.style.left = `${Math.max(0, Math.min(menu.x, window.innerWidth - bounds.width))}px`
-    element.style.top = `${Math.max(0, Math.min(menu.y, window.innerHeight - bounds.height))}px`
+    if (!menuMoved.current) {
+      const target = (root.current?.closest('[data-section-object]') ?? root.current)?.getBoundingClientRect()
+      const gap = 12
+      const x = target && target.right + gap + bounds.width <= window.innerWidth ? target.right + gap : target && target.left - gap >= bounds.width ? target.left - gap - bounds.width : menu.x
+      const y = target && x === menu.x && target.bottom + gap + bounds.height <= window.innerHeight ? target.bottom + gap : target && x === menu.x && target.top - gap >= bounds.height ? target.top - gap - bounds.height : target?.top ?? menu.y
+      element.style.left = `${Math.max(0, Math.min(x, window.innerWidth - bounds.width))}px`
+      element.style.top = `${Math.max(0, Math.min(y, window.innerHeight - bounds.height))}px`
+    }
     element.style.maxHeight = `${window.innerHeight}px`
     element.style.overflowY = 'auto'
   }, [menu])
@@ -212,6 +220,7 @@ export function RichText({ blockId, field, text, value, editable = false, multil
         savedRange.current = range && root.current?.contains(range.commonAncestorContainer) ? range.cloneRange() : null
         menuActive.current = true
         setClipboardError('')
+        menuMoved.current = false
         setMenu({ x: Math.max(0, Math.min(event.clientX, window.innerWidth - 320)), y: Math.max(0, Math.min(event.clientY, window.innerHeight - 200)) })
       }}
       onDragStart={event => {
@@ -279,7 +288,7 @@ export function RichText({ blockId, field, text, value, editable = false, multil
       {guides.horizontal && <div style={{ position: 'fixed', left: guides.horizontal.left, top: guides.horizontal.y, width: guides.horizontal.width, height: 1, background: '#1683e5' }} />}
     </div>, document.body)}
     {menu && createPortal(<div ref={menuElement} data-rich-menu role="dialog" aria-label="Text settings" className="fixed z-[10001] flex w-80 max-w-[calc(100vw-16px)] flex-col rounded border border-gray-300 bg-white p-4 text-sm font-normal text-black shadow-xl" style={{ left: menu.x, top: menu.y }} onContextMenu={event => event.preventDefault()} onClick={event => event.stopPropagation()}>
-      <div className="order-first mb-4 flex items-center justify-between border-b border-gray-200 pb-3"><strong className="text-base">Text settings</strong><button type="button" aria-label="Close text settings" className="rounded px-2 text-lg hover:bg-gray-100" onClick={close}>×</button></div>
+      <div className="order-first mb-4 flex items-center justify-between border-b border-gray-200 pb-3" style={{ cursor: 'move', touchAction: 'none' }} title="Drag to move the settings window" onPointerDown={event => { if (event.button !== 0 || (event.target instanceof Element && event.target.closest('button'))) return; const bounds = menuElement.current?.getBoundingClientRect(); if (!bounds) return; menuDrag.current = { x: event.clientX, y: event.clientY, left: bounds.left, top: bounds.top }; event.currentTarget.setPointerCapture(event.pointerId); event.preventDefault() }} onPointerMove={event => { const drag = menuDrag.current, element = menuElement.current; if (!drag || !element) return; menuMoved.current = true; element.style.left = `${Math.max(0, Math.min(window.innerWidth - element.offsetWidth, drag.left + event.clientX - drag.x))}px`; element.style.top = `${Math.max(0, Math.min(window.innerHeight - 80, drag.top + event.clientY - drag.y))}px` }} onPointerUp={() => { menuDrag.current = null }} onPointerCancel={() => { menuDrag.current = null }}><strong className="text-base">Text settings</strong><button type="button" aria-label="Close text settings" className="rounded px-2 text-lg hover:bg-gray-100" onClick={close}>×</button></div>
       <details className="order-4 mt-3 border-t border-gray-200 pt-2"><summary className="cursor-pointer text-xs">More actions</summary>
       <button type="button" className="mt-2 block w-full rounded border border-gray-400 px-2 py-1 text-left" onClick={() => { close(); document.querySelector<HTMLButtonElement>('[aria-label="Expand right panel"]')?.click(); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('[data-properties-tab]')?.click()) }}>Block properties</button>
       {(onDeleteBox || position) && <button type="button" className="mt-2 block w-full rounded border border-gray-400 px-2 py-1 text-left" onClick={() => { menuActive.current = false; dirty.current = false; setMenu(null); if (onDeleteBox) onDeleteBox(); else useConfigStore.getState().updateBlockProps(blockId, { [`${field}Hidden`]: true }) }}>Delete text box</button>}
