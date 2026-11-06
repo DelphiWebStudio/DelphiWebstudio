@@ -19,6 +19,15 @@ const baseConfig: SiteConfig = {
 }
 
 describe('exportSiteToHTML', () => {
+  it('exports styled horizontal and vertical decorative lines', () => {
+    const block = { id: 'lines', type: 'content' as const, variant: 'prose', props: { body: '', section1Objects: [
+      { id: 'horizontal', type: 'divider', lineOrientation: 'horizontal', lineStyle: 'dotted', lineThickness: 3, textColor: '#123456', x: 0, y: 0, width: 40, height: 24, layer: 1 },
+      { id: 'vertical', type: 'divider', lineOrientation: 'vertical', lineStyle: 'dashed', lineThickness: 5, textColor: '#aabbcc', x: 50, y: 0, width: 5, height: 140, layer: 2 },
+    ] } }
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
+    expect(html).toContain('border-top:3px dotted #123456')
+    expect(html).toContain('border-left:5px dashed #aabbcc')
+  })
   it('exports named block and object destinations with linked images', () => {
     const source = { id: 'source', type: 'content' as const, variant: 'prose', props: { body: '', section1Objects: [
       { id: 'photo', type: 'image', src: 'assets/mass.jpg', alt: 'Parish masses', url: '#mass-times', x: 0, y: 0, width: 30, height: 120, layer: 1 },

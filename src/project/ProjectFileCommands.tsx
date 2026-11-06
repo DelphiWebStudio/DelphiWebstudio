@@ -22,7 +22,8 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
   const [staticPreview, setStaticPreview] = useState<(ReturnType<typeof importStaticHtml> & { source: { path: string; text: string }[]; images: File[]; skippedFiles: string[]; originalProjectId: string | null; originalConfig: typeof config }) | null>(null)
   const [opening, setOpening] = useState(false)
   const [saving, setSaving] = useState(false)
-  const pendingSaves = useRef(new Map<string, { projectId: string; signature: string; document: ReturnType<typeof createProjectFile> }>())
+  const pendingSaves = useRef(new Map<string, { projectId: string; signature: string; document: ReturnType<typeof createProjectFile>; inputVersion: number }>())
+  const inputVersion = useRef(0)
   const [savingRawDraft, setSavingRawDraft] = useState(false)
   const [revisions, setRevisions] = useState<ProjectRevision[]>([])
   const [revisionsError, setRevisionsError] = useState(false)
@@ -43,7 +44,7 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
     if (!webview) return
     webview.postMessage({ version: 1, kind: 'project.dirty', editing: window.location.hash.startsWith('#/editor'), dirty: !project || !(savedSnapshot?.projectId === project.id && savedSnapshot.signature === signature) })
     const input = (event: Event) => {
-      if (event.target instanceof Element && event.target.closest('[data-ws-content]')) webview.postMessage({ version: 1, kind: 'project.dirty', editing: true, dirty: true })
+      if (event.target instanceof Element && event.target.closest('[data-ws-content]')) { inputVersion.current++; webview.postMessage({ version: 1, kind: 'project.dirty', editing: true, dirty: true }) }
     }
     const receive = (event: MessageEvent) => {
       if (event.data?.version !== 1 || event.data?.kind !== 'project.save.complete' || typeof event.data.token !== 'string') return
@@ -51,7 +52,10 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
       if (!pending) return
       pendingSaves.current.delete(event.data.token)
       useProjectsStore.getState().saveProjectFile(pending.projectId, pending.document)
-      useEditorStore.getState().setSavedProjectSnapshot({ projectId: pending.projectId, signature: pending.signature })
+      useEditorStore.getState().setSavedProjectSnapshot(inputVersion.current === pending.inputVersion ? { projectId: pending.projectId, signature: pending.signature } : null)
+      const current = useProjectsStore.getState().projects.find(item => item.id === pending.projectId)
+      const currentSignature = current ? JSON.stringify({ config: useConfigStore.getState().config, name: current.name, settings: current.settings ?? {}, mediaRevision: current.mediaRevision ?? 0 }) : ''
+      webview.postMessage({ version: 1, kind: 'project.save.confirmed', token: event.data.token, clean: currentSignature === pending.signature && useEditorStore.getState().activeProjectId === pending.projectId && inputVersion.current === pending.inputVersion })
     }
     webview.addEventListener('message', receive)
     document.addEventListener('input', input, true)
@@ -389,7 +393,7 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
       const token = crypto.randomUUID()
       if (window.location.origin === 'https://webstudio.local') {
         if (pendingSaves.current.size >= 8) pendingSaves.current.delete(pendingSaves.current.keys().next().value!)
-        pendingSaves.current.set(token, { projectId: project.id, signature: JSON.stringify({ config, name: project.name, settings: project.settings ?? {}, mediaRevision: project.mediaRevision ?? 0 }), document: projectDocument })
+        pendingSaves.current.set(token, { projectId: project.id, signature: JSON.stringify({ config, name: project.name, settings: project.settings ?? {}, mediaRevision: project.mediaRevision ?? 0 }), document: projectDocument, inputVersion: inputVersion.current })
         link.download = filename.replace(/\.webstudio\.(json|zip)$/i, `--ws-save-${token}.webstudio.$1`)
       } else link.download = filename
       link.click()
@@ -399,6 +403,7 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
         toast.warning('An earlier snapshot was prepared. Newer changes remain in the draft; save again to include them.')
       }
     } catch (error) {
+      if (!checkpoint) (window as Window & { chrome?: { webview?: { postMessage: (message: unknown) => void } } }).chrome?.webview?.postMessage({ version: 1, kind: 'project.save.failed' })
       toast.error(error instanceof Error ? error.message : 'Project could not be saved.')
     } finally {
       toast.dismiss(preparationToast)

@@ -153,7 +153,8 @@ export function Canvas() {
         event.preventDefault(); event.stopPropagation()
         useEditorStore.getState().setTextPlacement(null)
         const isPanel = textPlacement.kind === 'panel'
-        if (textPlacement.projectId !== useEditorStore.getState().activeProjectId || textPlacement.pageId !== useConfigStore.getState().activePageId) { toast.error(`The page changed. Select Add ${isPanel ? 'panel' : 'text'} again.`); return }
+        const isLine = textPlacement.kind === 'divider'
+        if (textPlacement.projectId !== useEditorStore.getState().activeProjectId || textPlacement.pageId !== useConfigStore.getState().activePageId) { toast.error(`The page changed. Select Add ${isLine ? 'line' : isPanel ? 'panel' : 'text'} again.`); return }
         const section = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-editor-section]') : null
         const sectionNumber = Number(section?.dataset.editorSection)
         const blockId = section?.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id')
@@ -166,10 +167,10 @@ export function Canvas() {
           const newBlockId = `block-${crypto.randomUUID()}`
           const bounds = event.currentTarget.getBoundingClientRect()
           const x = bounds.width ? Math.max(0, Math.min(70, (event.clientX - bounds.left) / bounds.width * 100)) : 0
-          useConfigStore.getState().addBlock({ id: newBlockId, type: 'content', variant: meta.variants[0], props: { ...structuredClone(meta.defaultProps), title: '', body: '', section1Objects: [{ id, type: isPanel ? 'panel' : 'text', text: isPanel ? 'Panel' : 'Text', color: isPanel ? '#b9aeb6' : '', textColor: '#000000', fontSize: '', x, y: 0, width: 30, height: isPanel ? 160 : 80, layer: 1 }] } })
+          useConfigStore.getState().addBlock({ id: newBlockId, type: 'content', variant: meta.variants[0], props: { ...structuredClone(meta.defaultProps), title: '', body: '', section1Objects: [{ id, type: isLine ? 'divider' : isPanel ? 'panel' : 'text', text: isPanel ? 'Panel' : isLine ? '' : 'Text', color: isPanel ? '#b9aeb6' : '', textColor: '#000000', fontSize: '', x, y: 0, width: isLine && textPlacement.lineOrientation === 'vertical' ? 5 : 30, height: isLine ? (textPlacement.lineOrientation === 'vertical' ? 140 : 24) : isPanel ? 160 : 80, layer: 1, ...(isLine ? { lineOrientation: textPlacement.lineOrientation, lineStyle: textPlacement.lineStyle, lineThickness: textPlacement.lineThickness } : {}) }] } })
           selectBlock(newBlockId)
           useEditorStore.getState().selectSection(1)
-          if (isPanel) useEditorStore.getState().selectSectionObject({ blockId: newBlockId, section: 1, id })
+          if (isPanel || isLine) useEditorStore.getState().selectSectionObject({ blockId: newBlockId, section: 1, id })
           else useEditorStore.getState().setNewTextObjectId(id)
           return
         }
@@ -186,10 +187,10 @@ export function Canvas() {
         const x = Math.max(0, Math.min(70, (event.clientX - bounds.left) / bounds.width * 100))
         const y = Math.max(0, event.clientY - bounds.top)
         const layer = Math.max(0, ...items.map(item => Number(item.layer) || 0)) + 1
-        useConfigStore.getState().updateBlockProps(block.id, { [key]: [...items, { id, type: isPanel ? 'panel' : 'text', text: isPanel ? 'Panel' : 'Text', color: isPanel ? '#b9aeb6' : '', textColor: '#000000', fontSize: '', x, y, width: 30, height: isPanel ? 160 : 80, layer, ...(!isPanel && parent ? { parentId: parent.id } : {}) }] })
+        useConfigStore.getState().updateBlockProps(block.id, { [key]: [...items, { id, type: isLine ? 'divider' : isPanel ? 'panel' : 'text', text: isPanel ? 'Panel' : isLine ? '' : 'Text', color: isPanel ? '#b9aeb6' : '', textColor: '#000000', fontSize: '', x, y, width: isLine && textPlacement.lineOrientation === 'vertical' ? 5 : 30, height: isLine ? (textPlacement.lineOrientation === 'vertical' ? 140 : 24) : isPanel ? 160 : 80, layer, ...(!isPanel && parent ? { parentId: parent.id } : {}), ...(isLine ? { lineOrientation: textPlacement.lineOrientation, lineStyle: textPlacement.lineStyle, lineThickness: textPlacement.lineThickness } : {}) }] })
         selectBlock(block.id)
         useEditorStore.getState().selectSection(sectionNumber)
-        if (isPanel) useEditorStore.getState().selectSectionObject({ blockId: block.id, section: sectionNumber, id })
+        if (isPanel || isLine) useEditorStore.getState().selectSectionObject({ blockId: block.id, section: sectionNumber, id })
         else useEditorStore.getState().setNewTextObjectId(id)
       }}
       onPointerMove={event => {
@@ -290,7 +291,7 @@ export function Canvas() {
       aria-label={`Site preview, ${blocks.length} blocks, ${viewport} viewport`}
     >
       {marquee && <div aria-hidden="true" style={{ position: 'fixed', left: Math.min(marquee.x, marquee.endX), top: Math.min(marquee.y, marquee.endY), width: Math.abs(marquee.endX - marquee.x), height: Math.abs(marquee.endY - marquee.y), border: '1px solid #0078d4', background: 'rgba(0,120,212,.12)', pointerEvents: 'none', zIndex: 10000 }} />}
-      {(textPlacement || movingCollage) && <div className="absolute left-0 top-0 z-50 bg-blue-700 px-3 py-2 text-sm text-white" style={{ pointerEvents: 'none' }}>{movingCollage ? 'Click the destination section for the collage.' : textPlacement?.kind === 'panel' ? 'Click inside a section to place the panel.' : 'Click inside a section or on a panel to place text.'} Press Esc to cancel.</div>}
+      {(textPlacement || movingCollage) && <div className="absolute left-0 top-0 z-50 bg-blue-700 px-3 py-2 text-sm text-white" style={{ pointerEvents: 'none' }}>{movingCollage ? 'Click the destination section for the collage.' : textPlacement?.kind === 'divider' ? 'Click inside a section to place the line.' : textPlacement?.kind === 'panel' ? 'Click inside a section to place the panel.' : 'Click inside a section or on a panel to place text.'} Press Esc to cancel.</div>}
       {!previewMode && viewport === 'desktop' && <div aria-hidden="true" className="absolute inset-y-0 left-1/2 z-30 pointer-events-none" style={{ width: 'min(1100px, calc(100% - 32px))', transform: 'translateX(-50%)', borderLeft: '1px dashed #8996a2', borderRight: '1px dashed #8996a2' }} />}
       {activeArticle && (activeArticle.author || activeArticle.summary || activeArticle.tags?.length) && <header className="px-6 py-3 text-text-1">
         {activeArticle.author && <p className="text-sm">By {activeArticle.author}</p>}
