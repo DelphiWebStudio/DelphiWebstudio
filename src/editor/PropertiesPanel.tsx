@@ -53,8 +53,8 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
         title: 'Content',
         fields: [
           { key: 'logo', label: 'Logo Text', type: 'text' },
-          { key: 'logoImage', label: 'Logo Image URL', type: 'image' },
           { key: 'ctaText', label: 'CTA Button', type: 'text' },
+          { key: 'logoImage', label: 'Logo Image URL', type: 'image' },
           { key: 'ctaUrl', label: 'CTA Destination', type: 'link' },
           { key: 'links', label: 'Legacy text-only labels', type: 'array-strings' },
           { key: 'navItems', label: 'Navigation destinations', type: 'array-items' },
@@ -785,8 +785,8 @@ function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: Fie
                   onChange(updated)
                 }}>Remove</button></div>)}
               </div>}
-              {Object.entries(onlyItemId ? { ...({ text: ['text', 'fontSize', 'textColor'], image: ['src', 'alt', 'url'], button: ['text', 'url', 'textColor', 'fontSize'], panel: ['text', 'src', 'alt', 'color', 'textColor', 'fontSize'], collage: [], divider: ['textColor'] } as Record<string, string[]>)[item.type || '']?.reduce<Record<string, string>>((values, key) => ({ ...values, [key]: item[key] ?? '' }), {}), anchorName: item.anchorName ?? '', x: item.x ?? '0', y: item.y ?? '0', width: item.width ?? '30', height: item.height ?? '80', layer: item.layer ?? '1' } : mediaItems && !(imageKey in item) ? { ...item, [imageKey]: '' } : item).filter(([key]) => !(mediaItems && key === 'assetId') && !(/^section[1-4]Objects$/.test(field.key) && (key === 'id' || key === 'type' || key === 'parentId' || key === 'images' || key === 'sourceCollageProps'))).map(([key, val]) => (
-                <div key={key} className="mb-1">
+              <div className={onlyItemId ? 'grid grid-cols-2 gap-x-2' : undefined}>{Object.entries(onlyItemId ? { ...({ text: ['text', 'fontSize', 'textColor'], image: ['src', 'alt', 'url'], button: ['text', 'url', 'textColor', 'fontSize'], panel: ['text', 'src', 'alt', 'color', 'textColor', 'fontSize'], collage: [], divider: ['textColor'] } as Record<string, string[]>)[item.type || '']?.reduce<Record<string, string>>((values, key) => ({ ...values, [key]: item[key] ?? '' }), {}), anchorName: item.anchorName ?? '', x: item.x ?? '0', y: item.y ?? '0', width: item.width ?? '30', height: item.height ?? '80', layer: item.layer ?? '1' } : mediaItems && !(imageKey in item) ? { ...item, [imageKey]: '' } : item).filter(([key]) => !(mediaItems && key === 'assetId') && !(/^section[1-4]Objects$/.test(field.key) && (key === 'id' || key === 'type' || key === 'parentId' || key === 'images' || key === 'sourceCollageProps'))).map(([key, val]) => (
+                <div key={key} className={`mb-1 min-w-0 ${onlyItemId && !['x', 'y', 'width', 'height', 'layer', 'fontSize'].includes(key) ? 'col-span-2' : ''}`}>
                   <label className="block text-[10px] text-text-3 mb-0.5">{block.type === 'collage' || /^section[1-4]Objects$/.test(field.key) ? ({ src: 'Image', alt: 'Image description', text: 'Text', url: 'Link', anchorName: 'Anchor name (jump destination)', color: 'Panel background color', textColor: 'Text color', fontSize: 'Font size (px)', x: 'Left (%)', y: 'Top (px)', width: 'Width (%)', height: 'Height (px)', layer: 'Layer order' } as Record<string, string>)[key] ?? key : key}</label>
                   <input
                     type="text"
@@ -836,7 +836,7 @@ function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: Fie
                     {images.map(image => <option key={image.id} value={image.path}>{image.name}</option>)}
                   </select>}
                 </div>
-              ))}
+              ))}</div>
             </div>
           ))}
           {itemMenu && createPortal(<div data-property-item-menu role="menu" aria-label={`${field.label} item actions`} className="fixed z-[10001] w-40 rounded border border-gray-400 bg-white p-1 text-sm text-black shadow-lg" style={{ left: itemMenu.x, top: itemMenu.y }}>
@@ -959,7 +959,7 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
   const placed = selectedPlacedMedia?.blockId === block.id ? placedItems.find(item => item.id === selectedPlacedMedia.id) : undefined
   if (placed) return <div data-selected-media-properties={String(placed.id)} className="px-3.5 py-3">
     <div className="mb-3 text-xs font-semibold">Media properties</div>
-    {([['name', 'Description'], ['x', 'Left (%)'], ['y', 'Top (%)'], ['width', 'Width (%)']] as const).map(([key, label]) => <label key={key} className="mb-2 block text-xs">{label}<input aria-label={label} type={key === 'name' ? 'text' : 'number'} value={String(placed[key] ?? '')} onChange={event => updateBlockProps(block.id, { placedMedia: placedItems.map(item => item.id === placed.id ? { ...item, [key]: key === 'name' ? event.target.value : Number(event.target.value) } : item) })} className="mt-1 w-full rounded border border-border-default bg-bg-2 p-1" /></label>)}
+    <div className="grid grid-cols-2 gap-x-2">{([['name', 'Description'], ['x', 'Left (%)'], ['y', 'Top (%)'], ['width', 'Width (%)']] as const).map(([key, label]) => <label key={key} className={`mb-2 block min-w-0 text-xs ${key === 'name' ? 'col-span-2' : ''}`}>{label}<input aria-label={label} type={key === 'name' ? 'text' : 'number'} value={String(placed[key] ?? '')} onChange={event => updateBlockProps(block.id, { placedMedia: placedItems.map(item => item.id === placed.id ? { ...item, [key]: key === 'name' ? event.target.value : Number(event.target.value) } : item) })} className="mt-1 w-full rounded border border-border-default bg-bg-2 p-1" /></label>)}</div>
     <button type="button" className="mt-2 rounded border border-border-default px-2 py-1 text-xs" onClick={() => useEditorStore.getState().selectPlacedMedia(null)}>Block properties</button>
   </div>
 
@@ -1034,9 +1034,9 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
       </Section>
       {schema?.sections.map((section) => (
         <Section key={section.title} title={section.title}>
-          {section.fields.filter(field => !(block.type === 'footer' && ((block.variant === 'minimal' && ['logo', 'logoImage'].includes(field.key)) || (block.variant !== 'multi-column' && field.key === 'description')))).map((field) => (
-            <PropertyField key={field.key} field={field} block={block} />
-          ))}
+          <div className="grid grid-cols-2 gap-x-2">{section.fields.filter(field => !(block.type === 'footer' && ((block.variant === 'minimal' && ['logo', 'logoImage'].includes(field.key)) || (block.variant !== 'multi-column' && field.key === 'description')))).map((field) => (
+            <div key={field.key} className={`min-w-0 ${['logo', 'ctaText', 'layoutWidth', 'layoutHeight', 'layoutLeft', 'layoutTop', 'layoutLayer'].includes(field.key) || field.type === 'checkbox' ? '' : 'col-span-2'}`}><PropertyField field={field} block={block} /></div>
+          ))}</div>
         </Section>
       )) || (
         <div className="p-3.5 text-[11px] text-text-3">

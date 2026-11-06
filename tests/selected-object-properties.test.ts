@@ -19,6 +19,9 @@ describe('selected object properties', () => {
     expect(html).toContain('34.66')
     expect(html).not.toContain('First item')
     expect(html).toContain('Section / Block Properties')
+    expect(html).toContain('grid grid-cols-2 gap-x-2')
+    expect(html).toContain('Left (%)')
+    expect(html).toContain('Height (px)')
     expect(block.props.section2Objects[1].x).toBe(34.66208946124076)
   })
 

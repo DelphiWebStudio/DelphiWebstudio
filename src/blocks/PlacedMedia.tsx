@@ -33,6 +33,14 @@ export function PlacedMedia({ block, editable = false }: { block: BlockConfig; e
   function move(event: PointerEvent<HTMLElement>, finish = false) {
     const state = drag.current
     if (!state) return
+    if (finish && !state.resize && Math.hypot(event.clientX - state.startX, event.clientY - state.startY) < 3) {
+      const element = event.currentTarget.closest<HTMLElement>('[data-placed-media]')
+      if (element) { element.style.left = `${state.x}%`; element.style.top = `${state.y}%` }
+      drag.current = null
+      setGuides({})
+      event.stopPropagation()
+      return
+    }
     const dx = (event.clientX - state.startX) / state.parentWidth * 100
     const dy = (event.clientY - state.startY) / state.parentHeight * 100
     const x = state.resize ? state.x : Math.max(0, Math.min(100 - state.width, state.x + dx))
