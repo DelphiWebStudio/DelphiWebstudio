@@ -60,8 +60,15 @@ export function RichText({ blockId, field, text, value, editable = false, multil
     const plain = output.map(item => item.text).join('')
     const current = useConfigStore.getState().getActivePageBlocks().find(block => block.id === blockId)
     dirty.current = false
-    if (!current || (current.props[field] === plain && JSON.stringify(current.props[`${field}Rich`]) === JSON.stringify(output))) return
-    useConfigStore.getState().updateBlockProps(blockId, { [field]: plain, [`${field}Rich`]: output })
+    if (!current) return
+    const object = element.closest<HTMLElement>('[data-section-object][data-ws-object-type="text"]')
+    const section = object?.closest<HTMLElement>('[data-editor-section]')
+    const key = section ? `section${section.dataset.editorSection}Objects` : ''
+    const items = key && Array.isArray(current.props[key]) ? current.props[key] as { id: string; height: number }[] : []
+    const measuredHeight = object ? Math.ceil(Math.max(object.scrollHeight, element.scrollHeight)) : 0
+    const needsHeight = items.some(item => item.id === object?.dataset.sectionObject && measuredHeight > (Number(item.height) || 80))
+    if (!needsHeight && current.props[field] === plain && JSON.stringify(current.props[`${field}Rich`]) === JSON.stringify(output)) return
+    useConfigStore.getState().updateBlockProps(blockId, { [field]: plain, [`${field}Rich`]: output, ...(needsHeight ? { [key]: items.map(item => item.id === object?.dataset.sectionObject ? { ...item, height: measuredHeight } : item) } : {}) })
   }
 
   function apply(style: Partial<CSSStyleDeclaration>) {
@@ -187,7 +194,7 @@ export function RichText({ blockId, field, text, value, editable = false, multil
     <Outer data-text-position={position ? field : undefined} className={position && editable ? 'group/text relative inline-block' : undefined} style={position ? { display: 'inline-block', position: 'relative', maxWidth: '100%', overflowWrap: 'anywhere', transform: `translate(${x}px, ${y}px)`, ...(position.width && position.width > 0 ? { width: `${position.width}px` } : {}), ...(position.height && position.height > 0 ? { minHeight: `${position.height}px` } : {}), ...(textAlign ? { textAlign } : {}) } : { ...(fill && editable ? { display: 'flex', flex: '1 1 auto' } : {}), ...(textAlign ? { display: fill && editable ? 'flex' : 'block', width: '100%', textAlign } : {}) }}>
     <Tag ref={(element: HTMLElement | null) => { root.current = element }} data-rich-text data-rich-editor={editable ? field : undefined} role={editable ? 'textbox' : undefined} aria-label={editable ? `Edit ${field}` : undefined} aria-multiline={editable && multiline ? true : undefined} contentEditable={editable || undefined} suppressContentEditableWarning style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', ...(editable ? { display: 'inline-block', minWidth: '2em', minHeight: '1em', cursor: 'text' } : {}), ...(editable && multiline ? { display: 'block', minHeight: '3em', ...(fill ? { flex: 1 } : {}) } : {}) }}
       onBlur={() => { if (!menuActive.current && !draggedText) save() }}
-      onInput={() => { dirty.current = true; if (position) requestAnimationFrame(() => { const element = root.current; const section = element?.closest<HTMLElement>('[data-editor-section]'); if (!element || !section) return; const bounds = element.getBoundingClientRect(), area = section.getBoundingClientRect(); const correction = bounds.left < area.left ? area.left - bounds.left : bounds.right > area.right ? area.right - bounds.right : 0; if (Math.abs(correction) > 1) updatePosition(x + correction, y) }) }}
+      onInput={() => { dirty.current = true; requestAnimationFrame(() => { const element = root.current; const section = element?.closest<HTMLElement>('[data-editor-section]'); if (!element || !section) return; const object = element.closest<HTMLElement>('[data-section-object][data-ws-object-type="text"]'); if (object) { const bottom = object.offsetTop + Math.max(object.scrollHeight, element.scrollHeight); section.style.minHeight = `${Math.max(section.offsetHeight, bottom)}px` }; if (position) { const bounds = element.getBoundingClientRect(), area = section.getBoundingClientRect(); const correction = bounds.left < area.left ? area.left - bounds.left : bounds.right > area.right ? area.right - bounds.right : 0; if (Math.abs(correction) > 1) updatePosition(x + correction, y) } }) }}
       onCopy={event => {
         const selection = window.getSelection()
         if (!selection || selection.isCollapsed || !root.current?.contains(selection.getRangeAt(0).commonAncestorContainer)) return

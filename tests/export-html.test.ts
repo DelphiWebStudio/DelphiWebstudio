@@ -19,6 +19,15 @@ const baseConfig: SiteConfig = {
 }
 
 describe('exportSiteToHTML', () => {
+  it('reserves the saved height of a long text object near the bottom of a block', () => {
+    const block = { id: 'long-text', type: 'content' as const, variant: 'prose', props: { body: '', blockBackgroundColor: '#ffffff', section1Objects: [
+      { id: 'schedule', type: 'text', text: 'First line\nSecond line\nThird line', x: 5, y: 300, width: 40, height: 240, layer: 1 },
+    ] } }
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
+    expect(html).toContain('min-height:540px')
+    expect(html).toContain('min-height:240px')
+    expect(html).toContain('background-color:#ffffff')
+  })
   it('exports styled horizontal and vertical decorative lines', () => {
     const block = { id: 'lines', type: 'content' as const, variant: 'prose', props: { body: '', section1Objects: [
       { id: 'horizontal', type: 'divider', lineOrientation: 'horizontal', lineStyle: 'dotted', lineThickness: 3, textColor: '#123456', x: 0, y: 0, width: 40, height: 24, layer: 1 },
