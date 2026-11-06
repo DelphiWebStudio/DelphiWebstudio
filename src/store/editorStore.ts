@@ -10,6 +10,11 @@ interface EditorState {
   selectedTextKey: string
   selectedSection: number
   selectedSectionObject: { blockId: string; section: number; id: string } | null
+  selectedSectionObjects: Array<{ blockId: string; section: number; id: string }>
+  toggleSectionObject: (value: NonNullable<EditorState['selectedSectionObject']>) => void
+  setSectionObjects: (value: EditorState['selectedSectionObjects']) => void
+  selectionPreference: 'parent' | 'child'
+  setSelectionPreference: (value: EditorState['selectionPreference']) => void
   selectSectionObject: (value: EditorState['selectedSectionObject']) => void
   selectedCompositeItem: { blockId: string; field: string; index: number } | null
   selectCompositeItem: (value: EditorState['selectedCompositeItem']) => void
@@ -64,11 +69,21 @@ export const useEditorStore = create<EditorState>()((set) => ({
   selectedTextKey: '',
   selectedSection: 0,
   selectedSectionObject: null,
-  selectSectionObject: (selectedSectionObject) => set({ selectedSectionObject, ...(selectedSectionObject ? { selectedCompositeItem: null, selectedPlacedMedia: null } : {}) }),
+  selectedSectionObjects: [],
+  selectionPreference: 'parent',
+  setSelectionPreference: (selectionPreference) => set({ selectionPreference }),
+  selectSectionObject: (selectedSectionObject) => set({ selectedSectionObject, selectedSectionObjects: selectedSectionObject ? [selectedSectionObject] : [], ...(selectedSectionObject ? { selectedCompositeItem: null, selectedPlacedMedia: null } : {}) }),
+  setSectionObjects: (selectedSectionObjects) => set({ selectedSectionObjects, selectedSectionObject: selectedSectionObjects.at(-1) ?? null, selectedCompositeItem: null, selectedPlacedMedia: null }),
+  toggleSectionObject: (value) => set(state => {
+    const sameSection = state.selectedSectionObjects.filter(item => item.blockId === value.blockId && item.section === value.section)
+    const exists = sameSection.some(item => item.id === value.id)
+    const selectedSectionObjects = exists ? sameSection.filter(item => item.id !== value.id) : [...sameSection, value]
+    return { selectedSectionObjects, selectedSectionObject: selectedSectionObjects.at(-1) ?? null, selectedCompositeItem: null, selectedPlacedMedia: null }
+  }),
   selectedCompositeItem: null,
-  selectCompositeItem: (selectedCompositeItem) => set({ selectedCompositeItem, ...(selectedCompositeItem ? { selectedSectionObject: null, selectedPlacedMedia: null } : {}) }),
+  selectCompositeItem: (selectedCompositeItem) => set({ selectedCompositeItem, ...(selectedCompositeItem ? { selectedSectionObject: null, selectedSectionObjects: [], selectedPlacedMedia: null } : {}) }),
   selectedPlacedMedia: null,
-  selectPlacedMedia: (selectedPlacedMedia) => set({ selectedPlacedMedia, ...(selectedPlacedMedia ? { selectedSectionObject: null, selectedCompositeItem: null } : {}) }),
+  selectPlacedMedia: (selectedPlacedMedia) => set({ selectedPlacedMedia, ...(selectedPlacedMedia ? { selectedSectionObject: null, selectedSectionObjects: [], selectedCompositeItem: null } : {}) }),
   copiedSectionObject: null,
   textPlacement: null,
   newTextObjectId: null,
@@ -90,7 +105,7 @@ export const useEditorStore = create<EditorState>()((set) => ({
   isGenerating: false,
   generationPrompt: null,
   generationError: null,
-  selectBlock: (id) => set(state => ({ selectedBlockId: id, ...(state.selectedBlockId !== id ? { selectedImageIndex: 0, selectedTextKey: '', selectedSection: 0, selectedSectionObject: null, selectedCompositeItem: null, selectedPlacedMedia: null } : {}) })),
+  selectBlock: (id) => set(state => ({ selectedBlockId: id, ...(state.selectedBlockId !== id ? { selectedImageIndex: 0, selectedTextKey: '', selectedSection: 0, selectedSectionObject: null, selectedSectionObjects: [], selectedCompositeItem: null, selectedPlacedMedia: null } : {}) })),
   selectImage: (index) => set({ selectedImageIndex: Math.max(0, Math.floor(index)) }),
   selectText: (key) => set({ selectedTextKey: key }),
   selectSection: (section) => set({ selectedSection: Math.max(1, Math.min(4, Math.floor(section))) }),
