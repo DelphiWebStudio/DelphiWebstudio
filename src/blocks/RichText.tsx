@@ -165,13 +165,18 @@ export function RichText({ blockId, field, text, value, editable = false, multil
   const x = Number.isFinite(position?.x) ? Math.max(-2000, Math.min(2000, position!.x)) : 0
   const y = Number.isFinite(position?.y) ? Math.max(-2000, Math.min(2000, position!.y)) : 0
   const colorNode = menu ? savedRange.current?.startContainer : null
-  const colorElement = colorNode ? (colorNode instanceof Element ? colorNode : colorNode.parentElement) : null
-  const colorParts = colorElement ? getComputedStyle(colorElement).color.match(/\d+/g)?.slice(0, 3) : null
+  const selectedNode = colorNode && colorNode instanceof Element ? colorNode.childNodes.item(savedRange.current?.startOffset ?? 0) ?? colorNode : colorNode
+  let colorElement = selectedNode ? (selectedNode instanceof Element ? selectedNode : selectedNode.parentElement) : null
+  while (colorElement?.firstElementChild) colorElement = colorElement.firstElementChild
+  const selectedStyle = colorElement ? getComputedStyle(colorElement) : null
+  const colorParts = selectedStyle?.color.match(/\d+/g)?.slice(0, 3) ?? null
   const selectedColor = colorParts?.length === 3 ? `#${colorParts.map(value => Math.min(255, Number(value)).toString(16).padStart(2, '0')).join('')}` : '#000000'
+  const selectedFont = selectedStyle?.fontFamily.split(',')[0].replace(/["']/g, '').trim() || ''
+  const selectedSize = Math.max(6, Math.min(200, Math.round(parseFloat(selectedStyle?.fontSize || '') || 16)))
   const updatePosition = (nextX: number, nextY: number) => useConfigStore.getState().updateBlockProps(blockId, { [`${field}OffsetX`]: Math.round(Math.max(-2000, Math.min(2000, nextX))), [`${field}OffsetY`]: Math.round(Math.max(-2000, Math.min(2000, nextY))) })
   return <>
     <Outer data-text-position={position ? field : undefined} className={position && editable ? 'group/text relative inline-block' : undefined} style={position ? { display: 'inline-block', position: 'relative', maxWidth: '100%', overflowWrap: 'anywhere', transform: `translate(${x}px, ${y}px)`, ...(position.width && position.width > 0 ? { width: `${position.width}px` } : {}), ...(position.height && position.height > 0 ? { minHeight: `${position.height}px` } : {}), ...(textAlign ? { textAlign } : {}) } : { ...(fill && editable ? { display: 'flex', flex: '1 1 auto' } : {}), ...(textAlign ? { display: fill && editable ? 'flex' : 'block', width: '100%', textAlign } : {}) }}>
-    <Tag ref={(element: HTMLElement | null) => { root.current = element }} data-rich-editor={editable ? field : undefined} role={editable ? 'textbox' : undefined} aria-label={editable ? `Edit ${field}` : undefined} aria-multiline={editable && multiline ? true : undefined} contentEditable={editable || undefined} suppressContentEditableWarning style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', ...(editable ? { display: 'inline-block', minWidth: '2em', minHeight: '1em', cursor: 'text' } : {}), ...(editable && multiline ? { display: 'block', minHeight: '3em', ...(fill ? { flex: 1 } : {}) } : {}) }}
+    <Tag ref={(element: HTMLElement | null) => { root.current = element }} data-rich-text data-rich-editor={editable ? field : undefined} role={editable ? 'textbox' : undefined} aria-label={editable ? `Edit ${field}` : undefined} aria-multiline={editable && multiline ? true : undefined} contentEditable={editable || undefined} suppressContentEditableWarning style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', ...(editable ? { display: 'inline-block', minWidth: '2em', minHeight: '1em', cursor: 'text' } : {}), ...(editable && multiline ? { display: 'block', minHeight: '3em', ...(fill ? { flex: 1 } : {}) } : {}) }}
       onBlur={() => { if (!menuActive.current && !draggedText) save() }}
       onInput={() => { dirty.current = true; if (position) requestAnimationFrame(() => { const element = root.current; const section = element?.closest<HTMLElement>('[data-editor-section]'); if (!element || !section) return; const bounds = element.getBoundingClientRect(), area = section.getBoundingClientRect(); const correction = bounds.left < area.left ? area.left - bounds.left : bounds.right > area.right ? area.right - bounds.right : 0; if (Math.abs(correction) > 1) updatePosition(x + correction, y) }) }}
       onCopy={event => {
@@ -199,11 +204,15 @@ export function RichText({ blockId, field, text, value, editable = false, multil
         if (!editable) return
         event.preventDefault(); event.stopPropagation()
         const selection = window.getSelection()
-        const range = selection?.rangeCount ? selection.getRangeAt(0) : null
+        let range = selection?.rangeCount ? selection.getRangeAt(0) : null
+        if ((!range || range.collapsed || !root.current?.contains(range.commonAncestorContainer)) && root.current) {
+          range = document.createRange(); range.selectNodeContents(root.current)
+          selection?.removeAllRanges(); selection?.addRange(range)
+        }
         savedRange.current = range && root.current?.contains(range.commonAncestorContainer) ? range.cloneRange() : null
         menuActive.current = true
         setClipboardError('')
-        setMenu({ x: Math.max(0, Math.min(event.clientX, window.innerWidth - 240)), y: Math.max(0, Math.min(event.clientY, window.innerHeight - 200)) })
+        setMenu({ x: Math.max(0, Math.min(event.clientX, window.innerWidth - 320)), y: Math.max(0, Math.min(event.clientY, window.innerHeight - 200)) })
       }}
       onDragStart={event => {
         if (!editable) return
@@ -269,10 +278,12 @@ export function RichText({ blockId, field, text, value, editable = false, multil
       {guides.vertical && <div style={{ position: 'fixed', left: guides.vertical.x, top: guides.vertical.top, height: guides.vertical.height, width: 1, background: '#1683e5' }} />}
       {guides.horizontal && <div style={{ position: 'fixed', left: guides.horizontal.left, top: guides.horizontal.y, width: guides.horizontal.width, height: 1, background: '#1683e5' }} />}
     </div>, document.body)}
-    {menu && createPortal(<div ref={menuElement} data-rich-menu role="menu" aria-label="Text formatting" className="fixed z-[10001] w-56 rounded border border-gray-400 bg-white p-2 text-sm text-black shadow-lg" style={{ left: menu.x, top: menu.y }} onContextMenu={event => event.preventDefault()} onClick={event => event.stopPropagation()}>
-      <button type="button" role="menuitem" className="mb-2 block w-full rounded border border-gray-400 px-2 py-1 text-left" onClick={() => { close(); document.querySelector<HTMLButtonElement>('[aria-label="Expand right panel"]')?.click(); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('[data-properties-tab]')?.click()) }}>Block properties</button>
-      {(onDeleteBox || position) && <button type="button" role="menuitem" className="mb-2 block w-full rounded border border-gray-400 px-2 py-1 text-left" onClick={() => { menuActive.current = false; dirty.current = false; setMenu(null); if (onDeleteBox) onDeleteBox(); else useConfigStore.getState().updateBlockProps(blockId, { [`${field}Hidden`]: true }) }}>Delete text box</button>}
-      <div className="mb-2 flex flex-wrap gap-1 border-b border-gray-300 pb-2">
+    {menu && createPortal(<div ref={menuElement} data-rich-menu role="dialog" aria-label="Text settings" className="fixed z-[10001] flex w-80 max-w-[calc(100vw-16px)] flex-col rounded border border-gray-300 bg-white p-4 text-sm font-normal text-black shadow-xl" style={{ left: menu.x, top: menu.y }} onContextMenu={event => event.preventDefault()} onClick={event => event.stopPropagation()}>
+      <div className="order-first mb-4 flex items-center justify-between border-b border-gray-200 pb-3"><strong className="text-base">Text settings</strong><button type="button" aria-label="Close text settings" className="rounded px-2 text-lg hover:bg-gray-100" onClick={close}>×</button></div>
+      <details className="order-4 mt-3 border-t border-gray-200 pt-2"><summary className="cursor-pointer text-xs">More actions</summary>
+      <button type="button" className="mt-2 block w-full rounded border border-gray-400 px-2 py-1 text-left" onClick={() => { close(); document.querySelector<HTMLButtonElement>('[aria-label="Expand right panel"]')?.click(); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('[data-properties-tab]')?.click()) }}>Block properties</button>
+      {(onDeleteBox || position) && <button type="button" className="mt-2 block w-full rounded border border-gray-400 px-2 py-1 text-left" onClick={() => { menuActive.current = false; dirty.current = false; setMenu(null); if (onDeleteBox) onDeleteBox(); else useConfigStore.getState().updateBlockProps(blockId, { [`${field}Hidden`]: true }) }}>Delete text box</button>}
+      <div className="mt-2 flex flex-wrap gap-1">
         <button type="button" className="rounded border border-gray-400 px-2 py-1" onMouseDown={event => event.preventDefault()} onClick={() => {
           if (!root.current) return
           root.current.focus(); const range = document.createRange(); range.selectNodeContents(root.current)
@@ -296,13 +307,14 @@ export function RichText({ blockId, field, text, value, editable = false, multil
           } catch { setClipboardError('Paste unavailable here. Click in the text and press Ctrl+V.') }
         }}>Paste</button>
       </div>
+      </details>
       {clipboardError && <p role="status" className="mb-2 text-xs">{clipboardError}</p>}
-      <div className="mb-2 flex flex-wrap gap-1 border-b border-gray-300 pb-2" aria-label="Paragraph alignment">
+      <div className="order-2 mt-4 flex flex-wrap gap-1 border-t border-gray-200 pt-3" aria-label="Paragraph alignment">
         {(['left', 'center', 'right', 'justify'] as const).map(align => <button key={align} type="button" aria-label={`Align ${align}`} disabled={!savedRange.current || savedRange.current.collapsed} className="rounded border border-gray-400 px-2 py-1 capitalize disabled:opacity-40" onMouseDown={event => event.preventDefault()} onClick={() => {
-          apply({ textAlign: align, display: 'block' }); close()
+          apply({ textAlign: align, display: 'block' }); setMenu({ ...menu })
         }}>{align}</button>)}
       </div>
-      {!savedRange.current || savedRange.current.collapsed ? <p className="mb-2 text-xs">Select text to format it.</p> : <>
+      {!savedRange.current || savedRange.current.collapsed ? <p className="order-1 mb-2 text-xs">Select text to format it.</p> : <div className="order-1">
         {window.location.origin === 'https://webstudio.local' && <button type="button" className="mb-2 w-full rounded border border-gray-400 px-2 py-1 text-left" onMouseDown={event => event.preventDefault()} onClick={async () => {
           const node = savedRange.current?.startContainer
           const element = node instanceof Element ? node : node?.parentElement
@@ -314,12 +326,12 @@ export function RichText({ blockId, field, text, value, editable = false, multil
             if (result) apply({ fontFamily: result.font, fontSize: `${result.size}px`, color: result.color, fontWeight: result.bold ? 'bold' : 'normal', fontStyle: result.italic ? 'italic' : 'normal', textDecoration: result.underline ? 'underline' : 'none' })
           } catch { setClipboardError('The Windows font dialog could not be opened.') }
         }}>Font...</button>}
-        <label className="mb-2 block text-xs">Font<select aria-label="Text font" defaultValue="" className="mt-1 w-full rounded border border-gray-400 p-1" onChange={event => { if (event.target.value) apply({ fontFamily: event.target.value }) }}><option value="">Choose font</option>{['Arial', 'Calibri', 'Georgia', 'Tahoma', 'Times New Roman', 'Verdana'].map(font => <option key={font}>{font}</option>)}</select></label>
-        <label className="mb-2 block text-xs">Font size (px)<input aria-label="Text font size" type="number" min="6" max="200" className="mt-1 w-full rounded border border-gray-400 p-1" onChange={event => { const size = Number(event.target.value); if (size >= 6 && size <= 200) apply({ fontSize: `${size}px` }) }} /></label>
+        <label className="mb-3 block text-xs text-gray-700">Font<select aria-label="Text font" defaultValue={selectedFont} className="mt-1 w-full rounded border border-gray-400 p-2 text-sm text-black" onChange={event => { if (event.target.value) apply({ fontFamily: event.target.value }) }}><option value="">Choose font</option>{selectedFont && !['Arial', 'Calibri', 'Georgia', 'Tahoma', 'Times New Roman', 'Verdana'].includes(selectedFont) && <option value={selectedFont}>{selectedFont}</option>}{['Arial', 'Calibri', 'Georgia', 'Tahoma', 'Times New Roman', 'Verdana'].map(font => <option key={font}>{font}</option>)}</select></label>
+        <label className="mb-3 block text-xs text-gray-700">Font size (px)<input aria-label="Text font size" type="number" min="6" max="200" defaultValue={selectedSize} className="mt-1 w-full rounded border border-gray-400 p-2 text-sm text-black" onChange={event => { const size = Number(event.target.value); if (size >= 6 && size <= 200) apply({ fontSize: `${size}px` }) }} /></label>
         <div className="mb-2 flex items-center justify-between text-xs">Text color<WindowsColorInput label="Text color" value={selectedColor} onChange={value => { apply({ color: value }); setMenu({ ...menu }) }} className="h-7 w-10 rounded border border-gray-400" /></div>
-        <div className="flex gap-2"><button type="button" className="rounded border border-gray-400 px-2 py-1 font-bold" onMouseDown={event => event.preventDefault()} onClick={() => apply({ fontWeight: 'bold' })}>Bold</button><button type="button" className="rounded border border-gray-400 px-2 py-1 italic" onMouseDown={event => event.preventDefault()} onClick={() => apply({ fontStyle: 'italic' })}>Italic</button><button type="button" className="rounded border border-gray-400 px-2 py-1 underline" onMouseDown={event => event.preventDefault()} onClick={() => apply({ textDecoration: 'underline' })}>Underline</button></div>
-      </>}
-      <button type="button" className="mt-2 rounded border border-gray-400 px-2 py-1" onClick={close}>Done</button>
+        <div className="flex gap-2"><button type="button" className="rounded border border-gray-400 px-2 py-1 font-bold" onMouseDown={event => event.preventDefault()} onClick={() => { apply({ fontWeight: selectedStyle && (selectedStyle.fontWeight === 'bold' || Number(selectedStyle.fontWeight) >= 600) ? 'normal' : 'bold' }); setMenu({ ...menu }) }}>Bold</button><button type="button" className="rounded border border-gray-400 px-2 py-1 italic" onMouseDown={event => event.preventDefault()} onClick={() => { apply({ fontStyle: selectedStyle?.fontStyle === 'italic' ? 'normal' : 'italic' }); setMenu({ ...menu }) }}>Italic</button><button type="button" className="rounded border border-gray-400 px-2 py-1 underline" onMouseDown={event => event.preventDefault()} onClick={() => { apply({ textDecoration: selectedStyle?.textDecorationLine.includes('underline') ? 'none' : 'underline' }); setMenu({ ...menu }) }}>Underline</button></div>
+      </div>}
+      <button type="button" className="order-5 mt-3 self-end rounded border border-gray-400 px-3 py-1" onClick={close}>Done</button>
     </div>, document.body)}
   </>
 }
