@@ -42,6 +42,7 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
     return () => window.clearTimeout(timer)
   }, [newTextObjectId, objects, block.id, section])
   const [menu, setMenu] = useState<{ id: string; x: number; y: number; textTarget?: boolean } | null>(null)
+  const [destination, setDestination] = useState<{ id: string; kind: 'anchor' | 'link'; value: string; error: string; x: number; y: number } | null>(null)
   const [guides, setGuides] = useState<{ vertical?: { x: number; top: number; height: number }; horizontal?: { y: number; left: number; width: number } }>({})
   const drag = useRef<{ id: string; startX: number; startY: number; grabX: number; grabY: number; x: number; y: number; width: number; height: number; parentWidth: number; resize: false | string; imageAspect?: number } | null>(null)
   function move(event: PointerEvent<HTMLElement>, finish = false) {
@@ -184,7 +185,7 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
     {guides.vertical && <div style={{ position: 'fixed', left: guides.vertical.x, top: guides.vertical.top, height: guides.vertical.height, width: 1, background: '#1683e5' }} />}
     {guides.horizontal && <div style={{ position: 'fixed', left: guides.horizontal.left, top: guides.horizontal.y, width: guides.horizontal.width, height: 1, background: '#1683e5' }} />}
   </div>, document.body)}
-  {editable && menu && createPortal(<div role="menu" aria-label="Object actions" style={{ position: 'fixed', left: Math.max(0, Math.min(menu.x, window.innerWidth - 170)), top: Math.max(0, Math.min(menu.y, window.innerHeight - 160)), zIndex: 10001 }} className="rounded border border-gray-400 bg-white p-1 text-sm text-black shadow-lg" onClick={event => event.stopPropagation()} onMouseLeave={() => setMenu(null)} onKeyDown={event => { if (event.key === 'Escape') setMenu(null) }}>
+  {editable && menu && createPortal(<div role="menu" aria-label="Object actions" style={{ position: 'fixed', left: Math.max(0, Math.min(menu.x, window.innerWidth - 190)), top: Math.max(8, Math.min(menu.y, window.innerHeight - 340)), maxHeight: 'calc(100vh - 16px)', overflowY: 'auto', zIndex: 10001 }} className="rounded border border-gray-400 bg-white p-1 text-sm text-black shadow-lg" onClick={event => event.stopPropagation()} onMouseLeave={() => setMenu(null)} onKeyDown={event => { if (event.key === 'Escape') setMenu(null) }}>
     <button type="button" role="menuitem" className="block w-full rounded px-3 py-1 text-left hover:bg-blue-100" onClick={() => {
       const item = objects.find(value => value.id === menu.id)
       if (item?.type === 'text' || (item?.type === 'panel' && menu.textTarget)) {
@@ -199,6 +200,15 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
         })
       } else { useEditorStore.getState().selectBlock(block.id); useEditorStore.getState().selectSection(section); setSelected(menu.id); setMenu(null); document.querySelector<HTMLButtonElement>('[aria-label="Expand right panel"]')?.click(); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('[data-properties-tab]')?.click()) }
     }}>Properties</button>
+    {(['anchor', ...(objects.find(item => item.id === menu.id && (item.type === 'image' || item.type === 'button')) ? ['link'] : [])] as ('anchor' | 'link')[]).map(kind => <button key={kind} type="button" role="menuitem" className="block w-full rounded px-3 py-1 text-left hover:bg-blue-100" onClick={() => {
+      const item = objects.find(value => value.id === menu.id)
+      if (!item) return
+      document.querySelector<HTMLButtonElement>('[aria-label="Close settings"]')?.click()
+      const target = Array.from(document.querySelectorAll<HTMLElement>('[data-section-object]')).find(element => element.dataset.sectionObject === item.id)?.getBoundingClientRect()
+      const x = target && target.right + 332 <= window.innerWidth ? target.right + 12 : target && target.left >= 332 ? target.left - 332 : menu.x
+      setDestination({ id: item.id, kind, value: kind === 'anchor' ? item.anchorName || '' : item.url || '', error: '', x: Math.max(8, Math.min(x, window.innerWidth - 328)), y: Math.max(8, Math.min(target?.top ?? menu.y, window.innerHeight - 280)) })
+      setMenu(null)
+    }}>{kind === 'anchor' ? 'Anchor…' : 'Link…'}</button>)}
     <button type="button" role="menuitem" className="block w-full rounded px-3 py-1 text-left hover:bg-blue-100" onClick={() => {
       const current = useConfigStore.getState().getActivePageBlocks().find(value => value.id === block.id)
       const spaceKey = `section${section}ExtraSpace`
@@ -222,5 +232,25 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
       if (action === 'Delete') setSelected(null)
       setMenu(null)
     }}>{action}</button>)}
+  </div>, document.body)}
+  {editable && destination && createPortal(<div role="dialog" aria-label={destination.kind === 'anchor' ? 'Anchor settings' : 'Link settings'} style={{ left: destination.x, top: destination.y, maxHeight: 'calc(100vh - 16px)', overflowY: 'auto' }} className="fixed z-[10002] w-80 max-w-[calc(100vw-32px)] rounded border border-gray-300 bg-white p-4 text-sm text-gray-900 shadow-xl" onKeyDown={event => { if (event.key === 'Escape') setDestination(null) }}>
+    <div className="mb-3 flex items-center justify-between"><strong>{destination.kind === 'anchor' ? 'Anchor settings' : 'Link settings'}</strong><button type="button" aria-label="Close" onClick={() => setDestination(null)}>×</button></div>
+    <label className="block">{destination.kind === 'anchor' ? 'Anchor name' : 'Link destination'}<input autoFocus aria-label={destination.kind === 'anchor' ? 'Anchor name' : 'Link destination'} value={destination.value} onChange={event => setDestination({ ...destination, value: event.target.value, error: '' })} className="mt-1 w-full rounded border border-gray-400 p-2" placeholder={destination.kind === 'anchor' ? 'e.g. parish-mass-times' : 'https://example.com or #anchor'} /></label>
+    {destination.kind === 'anchor' && <p className="mt-2 text-xs text-gray-600">Start with a letter; use letters, numbers, hyphens or underscores.</p>}
+    {destination.kind === 'link' && <label className="mt-2 block text-xs">Or choose a location on this page<select aria-label="Choose a location on this page" value={destination.value.startsWith('#') ? destination.value : ''} onChange={event => setDestination({ ...destination, value: event.target.value, error: '' })} className="mt-1 w-full rounded border border-gray-400 p-2"><option value="">Choose a location…</option>{useConfigStore.getState().getActivePageBlocks().flatMap(candidate => [candidate.props.anchorName, ...[1, 2, 3, 4].flatMap(number => Array.isArray(candidate.props[`section${number}Objects`]) ? (candidate.props[`section${number}Objects`] as SectionObject[]).map(item => item.anchorName) : [])]).filter((name): name is string => typeof name === 'string' && /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(name)).map(name => <option key={name} value={`#${name}`}>{name}</option>)}</select></label>}
+    {destination.error && <p role="alert" className="mt-2 text-xs text-red-700">{destination.error}</p>}
+    <div className="mt-4 flex justify-end gap-2"><button type="button" className="rounded border border-gray-400 px-3 py-1" onClick={() => setDestination(null)}>Cancel</button><button type="button" className="rounded bg-blue-700 px-3 py-1 text-white" onClick={() => {
+      const current = useConfigStore.getState().getActivePageBlocks().find(value => value.id === block.id)
+      const saved = Array.isArray(current?.props[key]) ? current.props[key] as SectionObject[] : []
+      const value = destination.value.trim()
+      if (!saved.some(item => item.id === destination.id)) { setDestination({ ...destination, error: 'This item is no longer available.' }); return }
+      if (destination.kind === 'anchor' && value) {
+        const names = useConfigStore.getState().getActivePageBlocks().flatMap(candidate => [candidate.props.anchorName, ...[1, 2, 3, 4].flatMap(number => Array.isArray(candidate.props[`section${number}Objects`]) ? (candidate.props[`section${number}Objects`] as SectionObject[]).filter(item => item.id !== destination.id || candidate.id !== block.id).map(item => item.anchorName) : [])])
+        if (!/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(value) || names.includes(value)) { setDestination({ ...destination, error: 'Enter a unique name starting with a letter, using letters, numbers, hyphens or underscores.' }); return }
+      }
+      if (destination.kind === 'link' && value && !/^(https?:\/\/|\/(?!\/)|#)/i.test(value)) { setDestination({ ...destination, error: 'Use an https:// address, a page path, or an #anchor.' }); return }
+      useConfigStore.getState().updateBlockProps(block.id, { [key]: saved.map(item => item.id === destination.id ? { ...item, [destination.kind === 'anchor' ? 'anchorName' : 'url']: value } : item) })
+      setDestination(null)
+    }}>Save</button></div>
   </div>, document.body)}</>
 }
