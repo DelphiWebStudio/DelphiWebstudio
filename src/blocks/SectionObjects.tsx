@@ -18,6 +18,7 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
     return (Number(anchorA.y) || 0) - (Number(anchorB.y) || 0) || (Number(anchorA.x) || 0) - (Number(anchorB.x) || 0) || (parentA ? 1 : 0) - (parentB ? 1 : 0) || (Number(a.y) || 0) - (Number(b.y) || 0)
   }).map(item => item.id)
   const objectSelection = useEditorStore(state => state.selectedSectionObject)
+  const multiSelection = useEditorStore(state => state.selectedSectionObjects)
   const selected = objectSelection?.blockId === block.id && objectSelection.section === section ? objectSelection.id : null
   const setSelected = (id: string | null) => useEditorStore.getState().selectSectionObject(id ? { blockId: block.id, section, id } : null)
   const [editing, setEditing] = useState<string | null>(null)
@@ -44,7 +45,7 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
   const [menu, setMenu] = useState<{ id: string; x: number; y: number; layers: string[] } | null>(null)
   const [destination, setDestination] = useState<{ id: string; kind: 'anchor' | 'link'; value: string; error: string; x: number; y: number } | null>(null)
   const [guides, setGuides] = useState<{ vertical?: { x: number; top: number; height: number }; horizontal?: { y: number; left: number; width: number } }>({})
-  const drag = useRef<{ id: string; startX: number; startY: number; grabX: number; grabY: number; x: number; y: number; width: number; height: number; parentWidth: number; resize: false | string; imageAspect?: number } | null>(null)
+  const drag = useRef<{ id: string; startX: number; startY: number; grabX: number; grabY: number; x: number; y: number; width: number; height: number; parentWidth: number; resize: false | string; imageAspect?: number; group?: string[] } | null>(null)
   function move(event: PointerEvent<HTMLElement>, finish = false) {
     const state = drag.current
     if (!state) return
@@ -73,8 +74,20 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
     }
     let x = state.resize ? direction.includes('w') ? state.x + state.width - width : state.x : Math.max(0, Math.min(100 - state.width, state.x + dx))
     let y = state.resize ? direction.includes('n') ? state.y + state.height - height : state.y : Math.max(0, state.y + dy)
+    if (!state.resize && (state.group?.length ?? 0) > 1) {
+      const group = objects.filter(item => state.group?.includes(item.id) || (item.parentId && state.group?.includes(item.parentId)))
+      const minimumX = Math.max(...group.map(item => -item.x))
+      const maximumX = Math.min(...group.map(item => 100 - item.width - item.x))
+      const minimumY = Math.max(...group.map(item => -item.y))
+      x = state.x + Math.max(minimumX, Math.min(maximumX, dx))
+      y = state.y + Math.max(minimumY, dy)
+    }
     const element = event.currentTarget.closest<HTMLElement>('[data-section-object]')
-    if (element) Object.assign(element.style, { left: `${!finish && !state.resize ? state.x + dx : x}%`, top: `${!finish && !state.resize ? state.y + dy : y}px`, width: `${width}%`, height: `${height}px` })
+    if (element) Object.assign(element.style, { left: `${!finish && !state.resize && !state.group?.length ? state.x + dx : x}%`, top: `${!finish && !state.resize && !state.group?.length ? state.y + dy : y}px`, width: `${width}%`, height: `${height}px` })
+    if (!state.resize && state.group && element) for (const member of objects.filter(value => (state.group?.includes(value.id) || (value.parentId && state.group?.includes(value.parentId))) && value.id !== state.id)) {
+      const node = element.closest('[data-section-object-area]')?.querySelector<HTMLElement>(`[data-section-object="${member.id}"]`)
+      if (node) Object.assign(node.style, { left: `${Math.max(0, Math.min(100 - member.width, member.x + x - state.x))}%`, top: `${Math.max(0, member.y + y - state.y)}px` })
+    }
     if (!state.resize && element && objects.some(item => item.id === state.id && item.type === 'panel')) {
       for (const child of objects.filter(item => item.parentId === state.id)) {
         const childElement = element.closest('[data-section-object-area]')?.querySelector<HTMLElement>(`[data-section-object="${child.id}"]`)
@@ -109,7 +122,7 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
       drag.current = null
       const current = useConfigStore.getState().getActivePageBlocks().find(value => value.id === block.id)
       const saved = Array.isArray(current?.props[key]) ? current.props[key] as SectionObject[] : []
-      if (!state.resize && element && current) {
+      if (!state.resize && element && current && (state.group?.length ?? 0) < 2) {
         const previous = element.style.pointerEvents
         element.style.pointerEvents = 'none'
         const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('[data-editor-section]')
@@ -131,14 +144,14 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
       }
       const moving = saved.find(item => item.id === state.id)
       let parentId = moving?.parentId
-      if (!state.resize && moving && moving.type !== 'panel' && element) {
+      if (!state.resize && moving && moving.type !== 'panel' && element && (state.group?.length ?? 0) < 2) {
         const previous = element.style.pointerEvents
         element.style.pointerEvents = 'none'
         const hitId = document.elementFromPoint(event.clientX, event.clientY)?.closest('[data-section-object]')?.getAttribute('data-section-object')
         element.style.pointerEvents = previous
         parentId = saved.find(item => item.id === hitId && item.type === 'panel')?.id
       }
-      useConfigStore.getState().updateBlockProps(block.id, { [key]: saved.map(item => item.id === state.id ? { ...item, x, y, width, height, ...(parentId ? { parentId } : { parentId: undefined }) } : !state.resize && moving?.type === 'panel' && item.parentId === state.id ? { ...item, x: item.x + x - state.x, y: item.y + y - state.y } : item) })
+      useConfigStore.getState().updateBlockProps(block.id, { [key]: saved.map(item => item.id === state.id ? { ...item, x, y, width, height, ...(parentId ? { parentId } : { parentId: undefined }) } : !state.resize && (state.group?.includes(item.id) || (item.parentId && state.group?.includes(item.parentId)) || (moving?.type === 'panel' && item.parentId === state.id)) ? { ...item, x: Math.max(0, Math.min(100 - item.width, item.x + x - state.x)), y: Math.max(0, item.y + y - state.y) } : item) })
     }
   }
   const visibleObjects = objects.filter(item => item && typeof item.id === 'string' && ['text', 'image', 'button', 'panel', 'collage', 'divider'].includes(item.type))
@@ -150,7 +163,7 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
       const gridColumn = Math.min(Number(parent?.x ?? x) >= 60 ? 12 : 8, Math.max(1, Math.floor(x / 100 * 12) + 1))
       const gridSpan = Math.min((Number(parent?.x ?? x) >= 60 ? 13 : 9) - gridColumn, x < 5 && width >= 55 ? 8 : Math.max(1, Math.round(width / 100 * 12)))
       const emptyPanel = item.type === 'panel' && !item.text && !item.src && !block.props[`sectionObject_${item.id}`] && !block.props[`sectionObject_${item.id}Rich`] && objects.some(value => value?.parentId === item.id)
-      return [item.id, <div key={item.id} id={typeof item.anchorName === 'string' && /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(item.anchorName) ? item.anchorName : undefined} data-section-object={item.id} data-ws-object-type={item.type} data-ws-parented={parent ? 'true' : undefined} data-ws-empty-panel={emptyPanel ? 'true' : undefined} tabIndex={editable ? 0 : undefined} aria-label={editable ? `${item.type} in section ${section}` : undefined} style={{ position: 'absolute', left: `${x}%`, top: y, width: `${width}%`, height, order: responsiveOrder.indexOf(item.id), '--ws-grid-column': gridColumn, '--ws-grid-span': gridSpan, '--ws-item-width': width, '--ws-parent-background': parent && /^#[0-9a-f]{6}$/i.test(parent.color || '') ? parent.color : 'transparent', zIndex: Number(item.layer) || 1, pointerEvents: 'auto', outline: editable && selected === item.id ? '1px solid #005a9e' : undefined, touchAction: editable ? 'none' : undefined, cursor: editable ? 'move' : undefined, background: item.type === 'panel' && /^#[0-9a-f]{6}$/i.test(item.color || '') ? item.color : undefined, color: /^#[0-9a-f]{6}$/i.test(item.textColor || '') ? item.textColor : undefined, fontSize: Number(item.fontSize) >= 6 && Number(item.fontSize) <= 200 ? Number(item.fontSize) : undefined } as CSSProperties}
+      return [item.id, <div key={item.id} id={typeof item.anchorName === 'string' && /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(item.anchorName) ? item.anchorName : undefined} data-section-object={item.id} data-ws-object-type={item.type} data-ws-parented={parent ? 'true' : undefined} data-ws-empty-panel={emptyPanel ? 'true' : undefined} tabIndex={editable ? 0 : undefined} aria-label={editable ? `${item.type} in section ${section}` : undefined} style={{ position: 'absolute', left: `${x}%`, top: y, width: `${width}%`, height, order: responsiveOrder.indexOf(item.id), '--ws-grid-column': gridColumn, '--ws-grid-span': gridSpan, '--ws-item-width': width, '--ws-parent-background': parent && /^#[0-9a-f]{6}$/i.test(parent.color || '') ? parent.color : 'transparent', zIndex: Number(item.layer) || 1, pointerEvents: 'auto', outline: editable && multiSelection.some(value => value.blockId === block.id && value.section === section && value.id === item.id) ? '1px solid #005a9e' : undefined, touchAction: editable ? 'none' : undefined, cursor: editable ? 'move' : undefined, background: item.type === 'panel' && /^#[0-9a-f]{6}$/i.test(item.color || '') ? item.color : undefined, color: /^#[0-9a-f]{6}$/i.test(item.textColor || '') ? item.textColor : undefined, fontSize: Number(item.fontSize) >= 6 && Number(item.fontSize) <= 200 ? Number(item.fontSize) : undefined } as CSSProperties}
         onContextMenu={event => { if (!editable || (editing === item.id && event.target instanceof Element && event.target.closest('[contenteditable="true"]'))) return; event.preventDefault(); event.stopPropagation(); useEditorStore.getState().selectBlock(block.id); useEditorStore.getState().selectSection(section); setSelected(item.id); const layers = Array.from(new Set(document.elementsFromPoint(event.clientX, event.clientY).map(element => element.closest<HTMLElement>('[data-section-object]')).filter((element): element is HTMLElement => !!element && element.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id') === block.id && Number(element.closest<HTMLElement>('[data-editor-section]')?.dataset.editorSection) === section).map(element => element.dataset.sectionObject || '').filter(id => objects.some(value => value.id === id)))); setMenu({ id: item.id, x: event.clientX, y: event.clientY, layers }) }}
         onDoubleClick={event => { if (editable && (item.type === 'text' || item.type === 'panel')) { const element = event.currentTarget; event.stopPropagation(); setSelected(item.id); setEditing(item.id); requestAnimationFrame(() => element.querySelector<HTMLElement>('[contenteditable="true"]')?.focus()) } }}
         onCopy={event => { if (!editable || event.target !== event.currentTarget) return; const current = useConfigStore.getState().getActivePageBlocks().find(value => value.id === block.id); const saved = Array.isArray(current?.props[key]) ? current.props[key] as SectionObject[] : []; const original = saved.find(value => value.id === item.id); if (!original || !current) return; const token = crypto.randomUUID(); useEditorStore.getState().setCopiedSectionObject({ token, projectId: useEditorStore.getState().activeProjectId, item: structuredClone(original) as unknown as Record<string, unknown>, text: structuredClone(current.props[`sectionObject_${item.id}`]), rich: structuredClone(current.props[`sectionObject_${item.id}Rich`]) }); event.clipboardData.setData('text/plain', `WebStudio object:${token}`); event.preventDefault(); event.stopPropagation() }}
@@ -159,14 +172,16 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
           if (!editable || event.button !== 0 || (event.target instanceof Element && event.target.closest('[data-rich-menu]'))) return
           const textMenu = document.querySelector<HTMLButtonElement>('[aria-label="Close text settings"]')
           if (item.type === 'panel' && textMenu) { textMenu.click(); setEditing(null) }
-          if (item.type === 'text' && (editing !== item.id || textMenu)) {
+          if (event.shiftKey) { event.preventDefault(); event.stopPropagation(); useEditorStore.getState().selectBlock(block.id); useEditorStore.getState().selectSection(section); useEditorStore.getState().toggleSectionObject({ blockId: block.id, section, id: item.id }); setEditing(null); return }
+          if (item.type === 'text' && !event.ctrlKey && !event.metaKey && useEditorStore.getState().selectionPreference === 'parent' && (editing !== item.id || textMenu)) {
             const underlying = document.elementsFromPoint(event.clientX, event.clientY).map(element => element.closest<HTMLElement>('[data-section-object]')).find(element => element && element.dataset.wsObjectType === 'panel' && element.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id') === block.id && Number(element.closest<HTMLElement>('[data-editor-section]')?.dataset.editorSection) === section)
             const panelId = underlying?.dataset.sectionObject
             if (panelId) { textMenu?.click(); useEditorStore.getState().selectBlock(block.id); useEditorStore.getState().selectSection(section); setSelected(panelId); setEditing(null); underlying?.focus({ preventScroll: true }); event.preventDefault(); event.stopPropagation(); return }
           }
           if (!textMenu && selected === item.id && editing === item.id && event.target instanceof Element && event.target.closest('[contenteditable="true"]')) return
           const area = event.currentTarget.closest<HTMLElement>('[data-section-object-area]'); if (!area?.clientWidth) return
-          const bounds = event.currentTarget.getBoundingClientRect(); event.preventDefault(); event.stopPropagation(); event.currentTarget.focus({ preventScroll: true }); useEditorStore.getState().selectBlock(block.id); useEditorStore.getState().selectSection(section); setSelected(item.id); setEditing(null); drag.current = { id: item.id, startX: event.clientX, startY: event.clientY, grabX: event.clientX - bounds.left, grabY: event.clientY - bounds.top, x, y, width, height, parentWidth: area.clientWidth, resize: false }; event.currentTarget.setPointerCapture(event.pointerId)
+          const group = useEditorStore.getState().selectedSectionObjects.filter(value => value.blockId === block.id && value.section === section).map(value => value.id)
+          const bounds = event.currentTarget.getBoundingClientRect(); event.preventDefault(); event.stopPropagation(); event.currentTarget.focus({ preventScroll: true }); useEditorStore.getState().selectBlock(block.id); useEditorStore.getState().selectSection(section); if (!group.includes(item.id)) setSelected(item.id); setEditing(null); drag.current = { id: item.id, startX: event.clientX, startY: event.clientY, grabX: event.clientX - bounds.left, grabY: event.clientY - bounds.top, x, y, width, height, parentWidth: area.clientWidth, resize: false, group: group.includes(item.id) ? group : undefined }; event.currentTarget.setPointerCapture(event.pointerId)
         }} onPointerMove={event => move(event)} onPointerUp={event => move(event, true)} onPointerCancel={() => { drag.current = null; setGuides({}) }}>
         {(item.type === 'image' || item.type === 'panel') && item.src && (item.type === 'image' && link
           ? <a href={link} onClick={editable ? event => event.preventDefault() : undefined} style={{ display: 'block', width: '100%', height: '100%' }}><img src={item.src} alt={item.alt || ''} style={{ width: '100%', height: '100%', objectFit: 'contain' }} draggable={false} /></a>
@@ -228,7 +243,7 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
       if (current) useConfigStore.getState().updateBlockProps(block.id, { [spaceKey]: Math.min(4000, Math.max(0, Number(current.props[spaceKey]) || 0) + 32) })
       setMenu(null)
     }}>Add space below</button>
-    {(['Copy', 'Duplicate', 'Bring to front', 'Send to back', 'Delete'] as const).map(action => <button key={action} type="button" role="menuitem" className="block w-full rounded px-3 py-1 text-left hover:bg-blue-100" onClick={() => {
+    {(['Copy', 'Duplicate', 'Bring to front', 'Bring forward', 'Send backward', 'Send to back', 'Delete'] as const).map(action => <button key={action} type="button" role="menuitem" className="block w-full rounded px-3 py-1 text-left hover:bg-blue-100" onClick={() => {
       const current = useConfigStore.getState().getActivePageBlocks().find(value => value.id === block.id)
       const saved = Array.isArray(current?.props[key]) ? current.props[key] as SectionObject[] : []
       const index = saved.findIndex(value => value.id === menu.id)
@@ -236,9 +251,11 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
         if (action === 'Copy' && current) { const token = crypto.randomUUID(); useEditorStore.getState().setCopiedSectionObject({ token, projectId: useEditorStore.getState().activeProjectId, item: structuredClone(saved[index]) as unknown as Record<string, unknown>, text: structuredClone(current.props[`sectionObject_${menu.id}`]), rich: structuredClone(current.props[`sectionObject_${menu.id}Rich`]) }); void navigator.clipboard?.writeText(`WebStudio object:${token}`).catch(() => {}) }
         else if (action === 'Duplicate' || action === 'Delete') useConfigStore.getState().editBlockItems(block.id, key, index, index, action === 'Duplicate' ? 'duplicate' : 'remove')
         else {
-          const ordered = saved.map((value, position) => ({ value, position })).sort((a, b) => (Number(a.value.layer) || 1) - (Number(b.value.layer) || 1) || a.position - b.position).filter(entry => entry.value.id !== menu.id)
-          const chosen = { value: saved[index], position: index }
-          if (action === 'Bring to front') ordered.push(chosen); else ordered.unshift(chosen)
+          const ordered = saved.map((value, position) => ({ value, position })).sort((a, b) => (Number(a.value.layer) || 1) - (Number(b.value.layer) || 1) || a.position - b.position)
+          const old = ordered.findIndex(entry => entry.value.id === menu.id)
+          const [chosen] = ordered.splice(old, 1)
+          const target = action === 'Bring to front' ? ordered.length : action === 'Send to back' ? 0 : action === 'Bring forward' ? Math.min(ordered.length, old + 1) : Math.max(0, old - 1)
+          ordered.splice(target, 0, chosen)
           useConfigStore.getState().updateBlockProps(block.id, { [key]: saved.map(value => ({ ...value, layer: ordered.findIndex(entry => entry.value.id === value.id) + 1 })) })
         }
       }

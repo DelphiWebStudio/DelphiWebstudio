@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useConfigStore } from '@/store/configStore'
 import { useEditorStore } from '@/store/editorStore'
 import { CanvasEmpty } from './CanvasEmpty'
@@ -28,6 +28,8 @@ export function Canvas() {
   const revision = useProjectsStore(state => state.projects.find(project => project.id === activeProjectId)?.mediaRevision ?? 0)
   const webmasterEmail = useProjectsStore(state => state.projects.find(project => project.id === activeProjectId)?.settings?.webmasterEmail ?? '')
   const [assetUrls, setAssetUrls] = useState<Record<string, string>>({})
+  const marqueeStart = useRef<{ x: number; y: number; blockId: string; section: number } | null>(null)
+  const [marquee, setMarquee] = useState<{ x: number; y: number; endX: number; endY: number } | null>(null)
   const referencedAssets = JSON.stringify([...new Set([
     ...blocks.map(block => typeof block.props.assetId === 'string' ? block.props.assetId : '').filter(Boolean),
     ...(JSON.stringify(blocks).match(/assets\/[a-zA-Z0-9._-]+/g) ?? []),
@@ -71,6 +73,16 @@ export function Canvas() {
       onPointerDownCapture={event => {
         // React portals bubble through the canvas even though their menus are outside it.
         if (!(event.target instanceof Node) || !event.currentTarget.contains(event.target)) return
+        if (event.shiftKey && event.button === 0 && !previewMode && !textPlacement && !movingCollage && event.target instanceof Element && !event.target.closest('[data-section-object], [contenteditable], button, a, input')) {
+          const sectionElement = event.target.closest<HTMLElement>('[data-editor-section]')
+          const section = Number(sectionElement?.dataset.editorSection)
+          const blockId = sectionElement?.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id')
+          if (blockId && section >= 1 && section <= 4) {
+            marqueeStart.current = { x: event.clientX, y: event.clientY, blockId, section }
+            setMarquee({ x: event.clientX, y: event.clientY, endX: event.clientX, endY: event.clientY })
+            event.currentTarget.setPointerCapture(event.pointerId); event.preventDefault(); event.stopPropagation(); return
+          }
+        }
         if (event.altKey && event.button === 0 && !previewMode) {
           const layers = Array.from(new Set(document.elementsFromPoint(event.clientX, event.clientY).map(element => element.closest<HTMLElement>('[data-section-object], [data-placed-media], [data-ws-item-field][data-ws-item-index]')).filter((element): element is HTMLElement => !!element && event.currentTarget.contains(element))))
           if (layers.length > 1) {
@@ -149,6 +161,45 @@ export function Canvas() {
         if (isPanel) useEditorStore.getState().selectSectionObject({ blockId: block.id, section: sectionNumber, id })
         else useEditorStore.getState().setNewTextObjectId(id)
       }}
+      onPointerMove={event => { if (marqueeStart.current) { setMarquee({ x: marqueeStart.current.x, y: marqueeStart.current.y, endX: event.clientX, endY: event.clientY }); event.stopPropagation() } }}
+      onPointerUp={event => {
+        const start = marqueeStart.current
+        if (!start) return
+        marqueeStart.current = null; setMarquee(null); event.preventDefault(); event.stopPropagation()
+        if (Math.hypot(event.clientX - start.x, event.clientY - start.y) < 4) return
+        const left = Math.min(start.x, event.clientX), right = Math.max(start.x, event.clientX), top = Math.min(start.y, event.clientY), bottom = Math.max(start.y, event.clientY)
+        const selected = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('[data-section-object]')).filter(element => {
+          const bounds = element.getBoundingClientRect()
+          return element.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id') === start.blockId && Number(element.closest<HTMLElement>('[data-editor-section]')?.dataset.editorSection) === start.section && bounds.right >= left && bounds.left <= right && bounds.bottom >= top && bounds.top <= bottom
+        }).map(element => ({ blockId: start.blockId, section: start.section, id: element.dataset.sectionObject || '' })).filter(item => item.id)
+        selectBlock(start.blockId); const editor = useEditorStore.getState(); editor.selectSection(start.section); editor.setSectionObjects(selected)
+      }}
+      onPointerCancel={() => { marqueeStart.current = null; setMarquee(null) }}
+      onKeyDownCapture={event => {
+        const editor = useEditorStore.getState(), selection = editor.selectedSectionObjects
+        if (previewMode || selection.length < 2 || !(event.target instanceof Element) || event.target.closest('[contenteditable="true"], input, textarea, select')) return
+        if (event.key !== 'Delete' && !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return
+        const { blockId, section } = selection[0]
+        const block = useConfigStore.getState().getActivePageBlocks().find(value => value.id === blockId)
+        const key = `section${section}Objects`
+        const items = Array.isArray(block?.props[key]) ? block.props[key] as Array<{ id: string; parentId?: string; x: number; y: number; width: number }> : []
+        const ids = new Set(selection.map(value => value.id))
+        if (!block || !items.length) return
+        event.preventDefault(); event.stopPropagation()
+        if (event.key === 'Delete') {
+          useConfigStore.getState().updateBlockProps(blockId, { [key]: items.filter(item => !ids.has(item.id)).map(item => item.parentId && ids.has(item.parentId) ? { ...item, parentId: undefined } : item) })
+          editor.setSectionObjects([]); return
+        }
+        const area = event.currentTarget.querySelector<HTMLElement>(`[data-webstudio-block-id="${CSS.escape(blockId)}"] [data-section-object-area="${section}"]`)
+        if (!area?.clientWidth) return
+        const members = items.filter(item => ids.has(item.id) || (item.parentId && ids.has(item.parentId)))
+        const step = event.shiftKey ? 10 : 1
+        const dx = event.key === 'ArrowRight' ? step / area.clientWidth * 100 : event.key === 'ArrowLeft' ? -step / area.clientWidth * 100 : 0
+        const dy = event.key === 'ArrowDown' ? step : event.key === 'ArrowUp' ? -step : 0
+        const safeX = Math.max(Math.max(...members.map(item => -item.x)), Math.min(Math.min(...members.map(item => 100 - item.width - item.x)), dx))
+        const safeY = Math.max(Math.max(...members.map(item => -item.y)), dy)
+        useConfigStore.getState().updateBlockProps(blockId, { [key]: items.map(item => members.includes(item) ? { ...item, x: item.x + safeX, y: item.y + safeY } : item) })
+      }}
       onClick={(e) => {
         if (previewMode && !e.defaultPrevented && e.target instanceof Element) {
           const link = e.target.closest('a[href]')
@@ -174,6 +225,7 @@ export function Canvas() {
       role="region"
       aria-label={`Site preview, ${blocks.length} blocks, ${viewport} viewport`}
     >
+      {marquee && <div aria-hidden="true" style={{ position: 'fixed', left: Math.min(marquee.x, marquee.endX), top: Math.min(marquee.y, marquee.endY), width: Math.abs(marquee.endX - marquee.x), height: Math.abs(marquee.endY - marquee.y), border: '1px solid #0078d4', background: 'rgba(0,120,212,.12)', pointerEvents: 'none', zIndex: 10000 }} />}
       {(textPlacement || movingCollage) && <div className="absolute left-0 top-0 z-50 bg-blue-700 px-3 py-2 text-sm text-white" style={{ pointerEvents: 'none' }}>{movingCollage ? 'Click the destination section for the collage.' : textPlacement?.kind === 'panel' ? 'Click inside a section to place the panel.' : 'Click inside a section or on a panel to place text.'} Press Esc to cancel.</div>}
       {!previewMode && viewport === 'desktop' && <div aria-hidden="true" className="absolute inset-y-0 left-1/2 z-30 pointer-events-none" style={{ width: 'min(1100px, calc(100% - 32px))', transform: 'translateX(-50%)', borderLeft: '1px dashed #8996a2', borderRight: '1px dashed #8996a2' }} />}
       {activeArticle && (activeArticle.author || activeArticle.summary || activeArticle.tags?.length) && <header className="px-6 py-3 text-text-1">

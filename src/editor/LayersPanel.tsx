@@ -175,7 +175,7 @@ export function LayersPanel() {
     return page.blocks
   })
   const { duplicateBlock, removeBlock, moveBlock, addBlock } = useConfigStore()
-  const { selectedBlockId, selectBlock } = useEditorStore()
+  const { selectedBlockId, selectBlock, selectedSectionObject, selectionPreference, setSelectionPreference } = useEditorStore()
   const [showPopover, setShowPopover] = useState(false)
 
   const sensors = useSensors(
@@ -215,11 +215,19 @@ export function LayersPanel() {
         </span>
         <span className="text-[10px] text-text-3">{blocks.length}</span>
       </div>
+      <label className="px-3 pb-2 text-xs text-text-2">Click overlapping items
+        <select aria-label="Overlapping item selection" value={selectionPreference} onChange={event => setSelectionPreference(event.target.value as 'parent' | 'child')} className="mt-1 w-full rounded border border-border-default bg-bg-3 p-1 text-text-0">
+          <option value="parent">Select panel first</option>
+          <option value="child">Select top item first</option>
+        </select>
+        <span className="block pt-1 text-[10px]">Ctrl+click selects the top item; Shift+click selects several in one section.</span>
+      </label>
 
       <div className="flex-1 overflow-y-auto px-2 pb-2">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={blocks.map((b) => b.id)} strategy={verticalListSortingStrategy}>
             {blocks.map((block) => (
+              <div key={block.id}>
               <SortableLayer
                 key={block.id}
                 block={block}
@@ -241,6 +249,30 @@ export function LayersPanel() {
                   })
                 }}
               />
+              {[1, 2, 3, 4].map(section => {
+                const values = block.props[`section${section}Objects`]
+                const items = Array.isArray(values) ? values.filter((value): value is Record<string, unknown> => !!value && typeof value === 'object' && typeof value.id === 'string') : []
+                if (!items.length) return null
+                return <details key={section} open={selectedBlockId === block.id || undefined} className="ml-6 text-xs text-text-2">
+                  <summary className="cursor-pointer py-1">Section {section} objects ({items.length})</summary>
+                  {[...items].sort((a, b) => (Number(b.layer) || 0) - (Number(a.layer) || 0)).map(item => {
+                    const id = item.id as string
+                    const name = typeof item.alt === 'string' && item.alt ? item.alt : typeof item.text === 'string' ? item.text : ''
+                    const label = `${String(item.type || 'Object')}${name ? `: ${name.slice(0, 32)}` : ''}`
+                    const active = selectedSectionObject?.blockId === block.id && selectedSectionObject.section === section && selectedSectionObject.id === id
+                    return <button key={id} type="button" className={`block w-full rounded px-2 py-1 text-left ${active ? 'bg-green-glow text-green' : 'hover:bg-bg-3'}`} onClick={() => {
+                      selectBlock(block.id); const editor = useEditorStore.getState(); editor.selectSection(section); editor.selectSectionObject({ blockId: block.id, section, id })
+                      requestAnimationFrame(() => Array.from(document.querySelectorAll<HTMLElement>('[data-section-object]')).find(element => element.dataset.sectionObject === id && element.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id') === block.id)?.scrollIntoView({ block: 'nearest', inline: 'nearest' }))
+                    }}>{label}</button>
+                  })}
+                </details>
+              })}
+              {Array.isArray(block.props.placedMedia) && block.props.placedMedia.length > 0 && <details className="ml-6 text-xs text-text-2"><summary className="cursor-pointer py-1">Placed media ({block.props.placedMedia.length})</summary>{block.props.placedMedia.map((value: unknown) => {
+                if (!value || typeof value !== 'object' || typeof (value as { id?: unknown }).id !== 'string') return null
+                const item = value as { id: string; alt?: string; type?: string }
+                return <button key={item.id} type="button" className="block w-full rounded px-2 py-1 text-left hover:bg-bg-3" onClick={() => { selectBlock(block.id); useEditorStore.getState().selectPlacedMedia({ blockId: block.id, id: item.id }); requestAnimationFrame(() => Array.from(document.querySelectorAll<HTMLElement>('[data-placed-media]')).find(element => element.dataset.placedMedia === item.id && element.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id') === block.id)?.scrollIntoView({ block: 'nearest', inline: 'nearest' })) }}>{item.type || 'Media'}{item.alt ? `: ${item.alt.slice(0, 32)}` : ''}</button>
+              })}</details>}
+              </div>
             ))}
           </SortableContext>
         </DndContext>
