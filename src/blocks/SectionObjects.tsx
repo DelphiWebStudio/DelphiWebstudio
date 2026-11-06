@@ -47,6 +47,20 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
   function move(event: PointerEvent<HTMLElement>, finish = false) {
     const state = drag.current
     if (!state) return
+    if (finish && !state.resize && Math.hypot(event.clientX - state.startX, event.clientY - state.startY) < 3) {
+      const element = event.currentTarget.closest<HTMLElement>('[data-section-object]')
+      if (element) {
+        element.style.left = `${state.x}%`; element.style.top = `${state.y}px`
+        for (const child of objects.filter(item => item.parentId === state.id)) {
+          const childElement = element.closest('[data-section-object-area]')?.querySelector<HTMLElement>(`[data-section-object="${child.id}"]`)
+          if (childElement) { childElement.style.left = `${child.x}%`; childElement.style.top = `${child.y}px` }
+        }
+      }
+      drag.current = null
+      setGuides({})
+      event.preventDefault(); event.stopPropagation()
+      return
+    }
     const dx = (event.clientX - state.startX) / state.parentWidth * 100
     const dy = event.clientY - state.startY
     const direction = state.resize || ''

@@ -414,6 +414,11 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
           useEditorStore.getState().selectImage(Number(e.target.getAttribute('data-ws-image-index')))
         }
         if (e.target instanceof Element) {
+          const item = e.target.closest<HTMLElement>('[data-ws-item-field][data-ws-item-index]')
+          if (item && e.currentTarget.contains(item)) {
+            const field = item.dataset.wsItemField ?? '', index = Number(item.dataset.wsItemIndex), items = block.props[field]
+            if (Array.isArray(items) && Number.isInteger(index) && index >= 0 && index < items.length) useEditorStore.getState().selectCompositeItem({ blockId: block.id, field, index })
+          }
           const textElement = e.target.closest('[data-ws-text-key]')
           if (textElement && e.currentTarget.contains(textElement)) useEditorStore.getState().selectText(textElement.getAttribute('data-ws-text-key') ?? '')
         }
