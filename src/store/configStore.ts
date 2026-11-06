@@ -36,6 +36,7 @@ interface ConfigState {
   getActivePageBlocks: () => BlockConfig[]
   updateBlock: (id: string, updates: Partial<BlockConfig>) => void
   updateBlockProps: (id: string, props: Record<string, unknown>) => void
+  updateMultipleBlockProps: (changes: Array<{ id: string; props: Record<string, unknown> }>) => void
   editBlockItems: (id: string, field: string, from: number, to: number, operation?: 'move' | 'remove' | 'duplicate') => void
   movePlacedMedia: (fromId: string, toId: string, itemId: string, x: number, y: number, width: number) => void
   moveSectionObject: (fromId: string, fromSection: number, toId: string, toSection: number, itemId: string, x: number, y: number, width: number, height: number) => void
@@ -165,6 +166,21 @@ export const useConfigStore = create<ConfigState>()(
             draft.blocks = (draft.pages!.find(p => p.path === '/') ?? draft.pages![0]).blocks
           }),
         })),
+
+      updateMultipleBlockProps: (changes) => set(state => ({
+        ...pushUndo(state, 'Move selected objects'),
+        config: produce(withPages(state.config), draft => {
+          const page = draft.pages!.find(item => item.id === state.activePageId)
+          if (!page) return
+          for (const change of changes) {
+            const block = page.blocks.find(item => item.id === change.id)
+            if (!block) continue
+            const sharedId = block.webstudioSharedSectionId
+            for (const item of draft.pages!.flatMap(value => value.blocks)) if (item === block || (sharedId && item.webstudioSharedSectionId === sharedId)) Object.assign(item.props, structuredClone(change.props))
+          }
+          draft.blocks = (draft.pages!.find(item => item.path === '/') ?? draft.pages![0]).blocks
+        }),
+      })),
 
       editBlockItems: (id, field, from, to, operation = 'move') => {
         const block = get().getActivePageBlocks().find(item => item.id === id)
