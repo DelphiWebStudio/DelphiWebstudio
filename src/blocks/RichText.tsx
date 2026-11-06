@@ -129,11 +129,12 @@ export function RichText({ blockId, field, text, value, editable = false, multil
       const target = (root.current?.closest('[data-section-object]') ?? root.current)?.getBoundingClientRect()
       const gap = 12
       const x = target && target.right + gap + bounds.width <= window.innerWidth ? target.right + gap : target && target.left - gap >= bounds.width ? target.left - gap - bounds.width : menu.x
-      const y = target && x === menu.x && target.bottom + gap + bounds.height <= window.innerHeight ? target.bottom + gap : target && x === menu.x && target.top - gap >= bounds.height ? target.top - gap - bounds.height : target?.top ?? menu.y
+      const sidePlacement = !!target && x !== menu.x
+      const y = sidePlacement ? 16 : target && target.bottom + gap + bounds.height <= window.innerHeight ? target.bottom + gap : target && target.top - gap >= bounds.height ? target.top - gap - bounds.height : target?.top ?? menu.y
       element.style.left = `${Math.max(0, Math.min(x, window.innerWidth - bounds.width))}px`
       element.style.top = `${Math.max(0, Math.min(y, window.innerHeight - bounds.height))}px`
     }
-    element.style.maxHeight = `${window.innerHeight}px`
+    element.style.maxHeight = `${Math.max(0, window.innerHeight - 32)}px`
     element.style.overflowY = 'auto'
   }, [menu])
   useEffect(() => {
@@ -324,7 +325,7 @@ export function RichText({ blockId, field, text, value, editable = false, multil
         }}>{align}</button>)}
       </div>
       {!savedRange.current || savedRange.current.collapsed ? <p className="order-1 mb-2 text-xs">Select text to format it.</p> : <div className="order-1">
-        {window.location.origin === 'https://webstudio.local' && <button type="button" className="mb-2 w-full rounded border border-gray-400 px-2 py-1 text-left" onMouseDown={event => event.preventDefault()} onClick={async () => {
+        {window.location.origin === 'https://webstudio.local' ? <label className="mb-3 block text-xs text-gray-700">Font<button type="button" aria-label="Choose Windows font" className="mt-1 w-full rounded border border-gray-400 p-2 text-left text-sm text-black" onMouseDown={event => event.preventDefault()} onClick={async () => {
           const node = savedRange.current?.startContainer
           const element = node instanceof Element ? node : node?.parentElement
           if (!element) return
@@ -332,11 +333,10 @@ export function RichText({ blockId, field, text, value, editable = false, multil
           const rgb = style.color.match(/\d+/g)?.slice(0, 3).map(value => Math.min(255, Number(value)).toString(16).padStart(2, '0')).join('')
           try {
             const result = await chooseWindowsFont({ font: style.fontFamily.split(',')[0].replace(/["']/g, '').trim().replace(/[^\p{L}\p{N} ,._-]/gu, '') || 'Arial', size: Math.max(6, Math.min(200, Math.round(parseFloat(style.fontSize) || 16))), color: rgb?.length === 6 ? `#${rgb}` : '#000000', bold: style.fontWeight === 'bold' || Number(style.fontWeight) >= 600, italic: style.fontStyle === 'italic', underline: style.textDecorationLine.includes('underline') })
-            if (result) apply({ fontFamily: result.font, fontSize: `${result.size}px`, color: result.color, fontWeight: result.bold ? 'bold' : 'normal', fontStyle: result.italic ? 'italic' : 'normal', textDecoration: result.underline ? 'underline' : 'none' })
+            if (result) { apply({ fontFamily: result.font, fontSize: `${result.size}px`, color: result.color, fontWeight: result.bold ? 'bold' : 'normal', fontStyle: result.italic ? 'italic' : 'normal', textDecoration: result.underline ? 'underline' : 'none' }); setMenu({ ...menu }) }
           } catch { setClipboardError('The Windows font dialog could not be opened.') }
-        }}>Font...</button>}
-        <label className="mb-3 block text-xs text-gray-700">Font<select aria-label="Text font" defaultValue={selectedFont} className="mt-1 w-full rounded border border-gray-400 p-2 text-sm text-black" onChange={event => { if (event.target.value) apply({ fontFamily: event.target.value }) }}><option value="">Choose font</option>{selectedFont && !['Arial', 'Calibri', 'Georgia', 'Tahoma', 'Times New Roman', 'Verdana'].includes(selectedFont) && <option value={selectedFont}>{selectedFont}</option>}{['Arial', 'Calibri', 'Georgia', 'Tahoma', 'Times New Roman', 'Verdana'].map(font => <option key={font}>{font}</option>)}</select></label>
-        <label className="mb-3 block text-xs text-gray-700">Font size (px)<input aria-label="Text font size" type="number" min="6" max="200" defaultValue={selectedSize} className="mt-1 w-full rounded border border-gray-400 p-2 text-sm text-black" onChange={event => { const size = Number(event.target.value); if (size >= 6 && size <= 200) apply({ fontSize: `${size}px` }) }} /></label>
+        }}>{selectedFont || 'Choose font'}…</button></label> : <label className="mb-3 block text-xs text-gray-700">Font<select aria-label="Text font" defaultValue={selectedFont} className="mt-1 w-full rounded border border-gray-400 p-2 text-sm text-black" onChange={event => { if (event.target.value) apply({ fontFamily: event.target.value }) }}><option value="">Choose font</option>{selectedFont && !['Arial', 'Calibri', 'Georgia', 'Tahoma', 'Times New Roman', 'Verdana'].includes(selectedFont) && <option value={selectedFont}>{selectedFont}</option>}{['Arial', 'Calibri', 'Georgia', 'Tahoma', 'Times New Roman', 'Verdana'].map(font => <option key={font}>{font}</option>)}</select></label>}
+        <label className="mb-3 block text-xs text-gray-700">Font size (px)<input key={selectedSize} aria-label="Text font size" type="number" min="6" max="200" defaultValue={selectedSize} className="mt-1 w-full rounded border border-gray-400 p-2 text-sm text-black" onChange={event => { const size = Number(event.target.value); if (size >= 6 && size <= 200) apply({ fontSize: `${size}px` }) }} /></label>
         <div className="mb-2 flex items-center justify-between text-xs">Text color<WindowsColorInput label="Text color" value={selectedColor} onChange={value => { apply({ color: value }); setMenu({ ...menu }) }} className="h-7 w-10 rounded border border-gray-400" /></div>
         <div className="flex gap-2"><button type="button" className="rounded border border-gray-400 px-2 py-1 font-bold" onMouseDown={event => event.preventDefault()} onClick={() => { apply({ fontWeight: selectedStyle && (selectedStyle.fontWeight === 'bold' || Number(selectedStyle.fontWeight) >= 600) ? 'normal' : 'bold' }); setMenu({ ...menu }) }}>Bold</button><button type="button" className="rounded border border-gray-400 px-2 py-1 italic" onMouseDown={event => event.preventDefault()} onClick={() => { apply({ fontStyle: selectedStyle?.fontStyle === 'italic' ? 'normal' : 'italic' }); setMenu({ ...menu }) }}>Italic</button><button type="button" className="rounded border border-gray-400 px-2 py-1 underline" onMouseDown={event => event.preventDefault()} onClick={() => { apply({ textDecoration: selectedStyle?.textDecorationLine.includes('underline') ? 'none' : 'underline' }); setMenu({ ...menu }) }}>Underline</button></div>
       </div>}
