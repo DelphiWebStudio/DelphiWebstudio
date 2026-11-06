@@ -63,6 +63,8 @@ type
     FActiveProjectSaves: Integer;
     FCloseWarningShown: Boolean;
     FLocalAIWorking: Boolean;
+    FProjectDirty: Boolean;
+    FEditorActive: Boolean;
     FBridgeSession: TDesktopSession;
   end;
 
@@ -129,16 +131,17 @@ type
     FFileName: string;
     FStagedPath: string;
     FTargetPath: string;
+    FSaveToken: string;
     FReplaceExisting: Boolean;
     FConfirmedOriginal: TByHandleFileInformation;
     FFinished: Boolean;
   public
-    constructor Create(AOwner: TMainForm; AOwnerWindow: HWND; const AFileName, AStagedPath, ATargetPath: string;
+    constructor Create(AOwner: TMainForm; AOwnerWindow: HWND; const AFileName, AStagedPath, ATargetPath, ASaveToken: string;
       AReplaceExisting: Boolean; const AConfirmedOriginal: TByHandleFileInformation);
     function Invoke(const sender: ICoreWebView2DownloadOperation; const args: IUnknown): HResult; stdcall;
   end;
 
-constructor TDownloadStateHandler.Create(AOwner: TMainForm; AOwnerWindow: HWND; const AFileName, AStagedPath, ATargetPath: string;
+constructor TDownloadStateHandler.Create(AOwner: TMainForm; AOwnerWindow: HWND; const AFileName, AStagedPath, ATargetPath, ASaveToken: string;
   AReplaceExisting: Boolean; const AConfirmedOriginal: TByHandleFileInformation);
 begin
   inherited Create;
@@ -147,6 +150,7 @@ begin
   FFileName := AFileName;
   FStagedPath := AStagedPath;
   FTargetPath := ATargetPath;
+  FSaveToken := ASaveToken;
   FReplaceExisting := AReplaceExisting;
   FConfirmedOriginal := AConfirmedOriginal;
 end;
@@ -230,8 +234,14 @@ begin
               FOwner.StatusLabel.Hint := FOwner.StatusLabel.Hint + sLineBreak + 'Original also retained: ' + RetainedOriginal;
               FOwner.StatusLabel.Caption := 'Project replaced; original also retained. Hover for paths.';
             end else FOwner.StatusLabel.Caption := 'Project replaced. Recovery ZIP: ' + RecoveryZip;
+            if (FSaveToken <> '') and (FOwner.EditorBrowser.DefaultInterface <> nil) then
+              FOwner.EditorBrowser.DefaultInterface.PostWebMessageAsJson(PWideChar('{"version":1,"kind":"project.save.complete","token":"' + FSaveToken + '"}'));
             Exit;
-          end else CommitStagedProjectFile(FStagedPath, FTargetPath);
+          end else begin
+            CommitStagedProjectFile(FStagedPath, FTargetPath);
+            if (FSaveToken <> '') and (FOwner.EditorBrowser.DefaultInterface <> nil) then
+              FOwner.EditorBrowser.DefaultInterface.PostWebMessageAsJson(PWideChar('{"version":1,"kind":"project.save.complete","token":"' + FSaveToken + '"}'));
+          end;
         except
           on E: Exception do begin
             if Assigned(FOwner.RecoveryOpenDialog) then FOwner.RecoveryOpenDialog.InitialDir := TPath.GetDirectoryName(FStagedPath);
@@ -268,6 +278,7 @@ end;
 
 procedure TMainForm.FormCreate(Sender: TObject);
 begin
+  FProjectDirty := True;
   if not TFile.Exists(TPath.Combine(ExtractFilePath(ParamStr(0)), 'editor\index.html')) then begin
     StatusLabel.Caption := 'Local editor files are missing. Build and stage the editor first.';
     Exit;
@@ -298,7 +309,7 @@ begin
   end else begin
     CanClose := True;
     if not FDownloadPending and (FActiveProjectSaves = 0) then FCloseWarningShown := False;
-    if EditorBrowser.LocationURL.StartsWith('https://webstudio.local/index.html#/editor') then
+    if FProjectDirty and (FEditorActive or EditorBrowser.LocationURL.StartsWith('https://webstudio.local/index.html#/editor')) then
       case MessageDlg('Save your project before exiting?', mtConfirmation, [mbYes, mbNo, mbCancel], 0) of
         mrYes: begin
           CanClose := False;
@@ -443,6 +454,15 @@ begin
       if not (Parsed is TJSONObject) then Exit;
       Obj := TJSONObject(Parsed);
       if Obj.TryGetValue<string>('kind', Kind) then begin
+        if Kind = 'project.dirty' then begin
+          if ((SourceText = 'https://webstudio.local/index.html') or SourceText.StartsWith('https://webstudio.local/index.html#/')) and
+             (Obj.Count = 4) and (Obj.GetValue('version') is TJSONNumber) and (Obj.GetValue('version').Value = '1') and
+             (Obj.GetValue('dirty') is TJSONBool) and (Obj.GetValue('editing') is TJSONBool) then begin
+            FProjectDirty := Obj.GetValue('dirty').Value = 'true';
+            FEditorActive := Obj.GetValue('editing').Value = 'true';
+          end;
+          Exit;
+        end;
         if Kind = 'ui.color' then begin
           if not ((SourceText = 'https://webstudio.local/index.html') or SourceText.StartsWith('https://webstudio.local/index.html#/')) or
              (Obj.Count <> 4) or not (Obj.GetValue('version') is TJSONNumber) or (Obj.GetValue('version').Value <> '1') or
@@ -732,7 +752,8 @@ var
   StateHandler: ICoreWebView2StateChangedEventHandler;
   StateToken: EventRegistrationToken;
   Address, Suggested: PWideChar;
-  SuggestedName, SelectedPath, StagedPath, ProjectSuffix: string;
+  SuggestedName, SelectedPath, StagedPath, ProjectSuffix, SaveToken: string;
+  SaveMatch: TMatch;
   StageId: TGUID;
   OwnerWindow: HWND;
   Allowed: Boolean;
@@ -759,6 +780,12 @@ begin
     Winapi.Windows.Failed(Args.ArgsInterface.GetDeferral(Deferral)) or (Deferral = nil) then begin
     Args.ArgsInterface.Set_Cancel(1);
     Exit;
+  end;
+  SaveToken := '';
+  SaveMatch := TRegEx.Match(SuggestedName, '--ws-save-([0-9a-f-]{36})(\.webstudio\.(?:json|zip))$', [roIgnoreCase]);
+  if SaveMatch.Success then begin
+    SaveToken := SaveMatch.Groups[1].Value;
+    SuggestedName := Copy(SuggestedName, 1, Length(SuggestedName) - Length(SaveMatch.Value)) + SaveMatch.Groups[2].Value;
   end;
   ProjectSuffix := '';
   if LowerCase(SuggestedName).EndsWith('.webstudio.json') then ProjectSuffix := '.webstudio.json'
@@ -824,7 +851,7 @@ begin
                   DownloadArgs.Set_Cancel(1);
                   StatusLabel.Caption := 'The download could not start.';
                 end else begin
-                  StateHandler := TDownloadStateHandler.Create(Self, OwnerWindow, ExtractFileName(ActiveDialog.FileName), StagedPath, ActiveDialog.FileName,
+                  StateHandler := TDownloadStateHandler.Create(Self, OwnerWindow, ExtractFileName(ActiveDialog.FileName), StagedPath, ActiveDialog.FileName, SaveToken,
                     ReplaceExisting, ConfirmedOriginal);
                   if Winapi.Windows.Failed(Operation.add_StateChanged(StateHandler, StateToken)) then begin
                     if StagedPath <> '' then begin

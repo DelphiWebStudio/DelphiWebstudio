@@ -29,4 +29,16 @@ describe('section object selection', () => {
     expect(useEditorStore.getState().selectedSectionObjects).toEqual([])
     expect(useEditorStore.getState().selectedSectionObject).toBeNull()
   })
+
+  it('keeps objects selected across blocks and sections', () => {
+    const editor = useEditorStore.getState()
+    const first = { blockId: 'one', section: 1, id: 'first' }
+    const second = { blockId: 'two', section: 2, id: 'second' }
+    editor.selectBlock('one')
+    editor.selectSectionObject(first)
+    editor.toggleSectionObject(second)
+    expect(useEditorStore.getState().selectedSectionObjects).toEqual([first, second])
+    editor.toggleSectionObject(first)
+    expect(useEditorStore.getState().selectedSectionObjects).toEqual([second])
+  })
 })

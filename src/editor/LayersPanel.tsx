@@ -47,6 +47,11 @@ const blockLabels: Record<BlockType, string> = {
   collage: 'Photo collage', panel: 'Panel',
 }
 
+const compositeFields: Partial<Record<BlockType, string[]>> = {
+  features: ['items'], faq: ['items'], gallery: ['images'], logocloud: ['logos'],
+  stats: ['items'], team: ['members'], testimonials: ['items'], documentLibrary: ['items'],
+}
+
 function SortableLayer({ block, isSelected, onSelect, onDuplicate, onRemove }: {
   block: BlockConfig
   isSelected: boolean
@@ -220,7 +225,7 @@ export function LayersPanel() {
           <option value="parent">Select panel first</option>
           <option value="child">Select top item first</option>
         </select>
-        <span className="block pt-1 text-[10px]">Ctrl+click selects the top item; Shift+click selects several in one section.</span>
+        <span className="block pt-1 text-[10px]">Ctrl+click selects the top item; Shift+click selects several objects.</span>
       </label>
 
       <div className="flex-1 overflow-y-auto px-2 pb-2">
@@ -260,12 +265,31 @@ export function LayersPanel() {
                     const name = typeof item.alt === 'string' && item.alt ? item.alt : typeof item.text === 'string' ? item.text : ''
                     const label = `${String(item.type || 'Object')}${name ? `: ${name.slice(0, 32)}` : ''}`
                     const active = selectedSectionObject?.blockId === block.id && selectedSectionObject.section === section && selectedSectionObject.id === id
-                    return <button key={id} type="button" className={`block w-full rounded px-2 py-1 text-left ${active ? 'bg-green-glow text-green' : 'hover:bg-bg-3'}`} onClick={() => {
+                    return <div key={id} className="flex items-center"><button type="button" className={`min-w-0 flex-1 truncate rounded px-2 py-1 text-left ${active ? 'bg-green-glow text-green' : 'hover:bg-bg-3'}`} onClick={() => {
                       selectBlock(block.id); const editor = useEditorStore.getState(); editor.selectSection(section); editor.selectSectionObject({ blockId: block.id, section, id })
                       requestAnimationFrame(() => Array.from(document.querySelectorAll<HTMLElement>('[data-section-object]')).find(element => element.dataset.sectionObject === id && element.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id') === block.id)?.scrollIntoView({ block: 'nearest', inline: 'nearest' }))
-                    }}>{label}</button>
+                    }}>{label}</button>{(['forward', 'backward'] as const).map(direction => <button type="button" key={direction} aria-label={`Move ${label} ${direction}`} className="px-1 hover:bg-bg-3" onClick={() => {
+                      const ordered = items.map((value, position) => ({ value, position })).sort((a, b) => (Number(a.value.layer) || 1) - (Number(b.value.layer) || 1) || a.position - b.position)
+                      const from = ordered.findIndex(entry => entry.value.id === id), to = from + (direction === 'forward' ? 1 : -1)
+                      if (from < 0 || to < 0 || to >= ordered.length) return
+                      const [entry] = ordered.splice(from, 1); ordered.splice(to, 0, entry)
+                      useConfigStore.getState().updateBlockProps(block.id, { [`section${section}Objects`]: items.map(value => ({ ...value, layer: ordered.findIndex(entry => entry.value.id === value.id) + 1 })) })
+                    }}>{direction === 'forward' ? '↑' : '↓'}</button>)}</div>
                   })}
                 </details>
+              })}
+              {(compositeFields[block.type] ?? []).map(field => {
+                const values = block.props[field]
+                if (!Array.isArray(values) || !values.length) return null
+                return <details key={field} className="ml-6 text-xs text-text-2"><summary className="cursor-pointer py-1">{field} ({values.length})</summary>{values.map((value: unknown, index: number) => {
+                  const data = value && typeof value === 'object' ? value as Record<string, unknown> : {}
+                  const name = [data.title, data.name, data.question, data.alt, data.label].find(item => typeof item === 'string' && item.trim())
+                  const label = `${field} ${index + 1}${typeof name === 'string' ? `: ${name.slice(0, 32)}` : ''}`
+                  return <div key={index} className="flex items-center"><button type="button" className="min-w-0 flex-1 truncate rounded px-2 py-1 text-left hover:bg-bg-3" onClick={() => {
+                    selectBlock(block.id); useEditorStore.getState().selectCompositeItem({ blockId: block.id, field, index })
+                    requestAnimationFrame(() => Array.from(document.querySelectorAll<HTMLElement>('[data-ws-item-field][data-ws-item-index]')).find(element => element.dataset.wsItemField === field && Number(element.dataset.wsItemIndex) === index && element.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id') === block.id)?.scrollIntoView({ block: 'nearest', inline: 'nearest' }))
+                  }}>{label}</button>{[-1, 1].map(offset => <button type="button" key={offset} disabled={index + offset < 0 || index + offset >= values.length} aria-label={`Move ${label} ${offset < 0 ? 'up' : 'down'}`} className="px-1 hover:bg-bg-3 disabled:opacity-30" onClick={() => { try { useConfigStore.getState().editBlockItems(block.id, field, index, index + offset); useEditorStore.getState().selectCompositeItem({ blockId: block.id, field, index: index + offset }) } catch { toast.error('This layout cannot reorder these formatted items.') } }}>{offset < 0 ? '↑' : '↓'}</button>)}</div>
+                })}</details>
               })}
               {Array.isArray(block.props.placedMedia) && block.props.placedMedia.length > 0 && <details className="ml-6 text-xs text-text-2"><summary className="cursor-pointer py-1">Placed media ({block.props.placedMedia.length})</summary>{block.props.placedMedia.map((value: unknown) => {
                 if (!value || typeof value !== 'object' || typeof (value as { id?: unknown }).id !== 'string') return null

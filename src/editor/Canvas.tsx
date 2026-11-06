@@ -30,6 +30,8 @@ export function Canvas() {
   const [assetUrls, setAssetUrls] = useState<Record<string, string>>({})
   const marqueeStart = useRef<{ x: number; y: number; blockId: string; section: number } | null>(null)
   const [marquee, setMarquee] = useState<{ x: number; y: number; endX: number; endY: number } | null>(null)
+  const groupDrag = useRef<{ x: number; y: number; members: Array<{ node: HTMLElement; blockId: string; section: number; id: string; x: number; y: number; width: number; areaWidth: number }> } | null>(null)
+  const suppressCanvasClick = useRef(false)
   const referencedAssets = JSON.stringify([...new Set([
     ...blocks.map(block => typeof block.props.assetId === 'string' ? block.props.assetId : '').filter(Boolean),
     ...(JSON.stringify(blocks).match(/assets\/[a-zA-Z0-9._-]+/g) ?? []),
@@ -73,6 +75,35 @@ export function Canvas() {
       onPointerDownCapture={event => {
         // React portals bubble through the canvas even though their menus are outside it.
         if (!(event.target instanceof Node) || !event.currentTarget.contains(event.target)) return
+        if (!previewMode && event.button === 0 && event.target instanceof Element && !event.target.closest('button,[contenteditable="true"]')) {
+          const object = event.target.closest<HTMLElement>('[data-section-object]')
+          const blockId = object?.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id')
+          const section = Number(object?.closest<HTMLElement>('[data-editor-section]')?.dataset.editorSection)
+          const id = object?.dataset.sectionObject
+          if (blockId && id && section >= 1 && section <= 4) {
+            const editor = useEditorStore.getState()
+            if (event.shiftKey) {
+              if (!editor.selectedSectionObjects.length) selectBlock(blockId)
+              editor.toggleSectionObject({ blockId, section, id }); object.focus({ preventScroll: true }); event.preventDefault(); event.stopPropagation(); return
+            }
+            if (editor.selectedSectionObjects.length > 1 && editor.selectedSectionObjects.some(item => item.blockId === blockId && item.section === section && item.id === id)) {
+              const selection = editor.selectedSectionObjects
+              const members: NonNullable<typeof groupDrag.current>['members'] = []
+              for (const block of useConfigStore.getState().getActivePageBlocks()) for (const number of [1, 2, 3, 4]) {
+                const values = block.props[`section${number}Objects`]
+                if (!Array.isArray(values)) continue
+                const ids = new Set(selection.filter(value => value.blockId === block.id && value.section === number).map(value => value.id))
+                for (const value of values as Array<{ id: string; parentId?: string; x: number; y: number; width: number }>) {
+                  if (!ids.has(value.id) && !(value.parentId && ids.has(value.parentId))) continue
+                  const node = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('[data-section-object]')).find(element => element.dataset.sectionObject === value.id && element.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id') === block.id && Number(element.closest<HTMLElement>('[data-editor-section]')?.dataset.editorSection) === number)
+                  const areaWidth = node?.closest<HTMLElement>('[data-section-object-area]')?.clientWidth ?? 0
+                  if (node && areaWidth) members.push({ node, blockId: block.id, section: number, id: value.id, x: Number(value.x) || 0, y: Number(value.y) || 0, width: Number(value.width) || 30, areaWidth })
+                }
+              }
+              if (members.length >= selection.length) { groupDrag.current = { x: event.clientX, y: event.clientY, members }; event.currentTarget.setPointerCapture(event.pointerId); event.preventDefault(); event.stopPropagation(); return }
+            }
+          }
+        }
         if (event.shiftKey && event.button === 0 && !previewMode && !textPlacement && !movingCollage && event.target instanceof Element && !event.target.closest('[data-section-object], [contenteditable], button, a, input')) {
           const sectionElement = event.target.closest<HTMLElement>('[data-editor-section]')
           const section = Number(sectionElement?.dataset.editorSection)
@@ -161,45 +192,78 @@ export function Canvas() {
         if (isPanel) useEditorStore.getState().selectSectionObject({ blockId: block.id, section: sectionNumber, id })
         else useEditorStore.getState().setNewTextObjectId(id)
       }}
-      onPointerMove={event => { if (marqueeStart.current) { setMarquee({ x: marqueeStart.current.x, y: marqueeStart.current.y, endX: event.clientX, endY: event.clientY }); event.stopPropagation() } }}
+      onPointerMove={event => {
+        const group = groupDrag.current
+        if (group) {
+          const dx = Math.max(Math.max(...group.members.map(item => -item.x * item.areaWidth / 100)), Math.min(Math.min(...group.members.map(item => (100 - item.width - item.x) * item.areaWidth / 100)), event.clientX - group.x))
+          const dy = Math.max(Math.max(...group.members.map(item => -item.y)), event.clientY - group.y)
+          group.members.forEach(item => { item.node.style.left = `${item.x + dx / item.areaWidth * 100}%`; item.node.style.top = `${item.y + dy}px` }); event.stopPropagation(); return
+        }
+        if (marqueeStart.current) { setMarquee({ x: marqueeStart.current.x, y: marqueeStart.current.y, endX: event.clientX, endY: event.clientY }); event.stopPropagation() }
+      }}
       onPointerUp={event => {
+        const group = groupDrag.current
+        if (group) {
+          groupDrag.current = null; suppressCanvasClick.current = true; event.preventDefault(); event.stopPropagation()
+          const dx = Math.max(Math.max(...group.members.map(item => -item.x * item.areaWidth / 100)), Math.min(Math.min(...group.members.map(item => (100 - item.width - item.x) * item.areaWidth / 100)), event.clientX - group.x))
+          const dy = Math.max(Math.max(...group.members.map(item => -item.y)), event.clientY - group.y)
+          if (Math.hypot(dx, dy) < 1) return
+          const updates: Array<{ id: string; props: Record<string, unknown> }> = []
+          for (const blockId of new Set(group.members.map(item => item.blockId))) {
+            const block = useConfigStore.getState().getActivePageBlocks().find(value => value.id === blockId)
+            if (!block) continue
+            const changes: Record<string, unknown> = {}
+            for (const section of new Set(group.members.filter(item => item.blockId === blockId).map(item => item.section))) {
+              const key = `section${section}Objects`, values = block.props[key]
+              if (Array.isArray(values)) changes[key] = values.map((value: { id: string }) => { const member = group.members.find(item => item.blockId === blockId && item.section === section && item.id === value.id); return member ? { ...value, x: member.x + dx / member.areaWidth * 100, y: member.y + dy } : value })
+            }
+            updates.push({ id: blockId, props: changes })
+          }
+          if (updates.length) useConfigStore.getState().updateMultipleBlockProps(updates)
+          return
+        }
         const start = marqueeStart.current
         if (!start) return
-        marqueeStart.current = null; setMarquee(null); event.preventDefault(); event.stopPropagation()
+        marqueeStart.current = null; setMarquee(null); suppressCanvasClick.current = true; event.preventDefault(); event.stopPropagation()
         if (Math.hypot(event.clientX - start.x, event.clientY - start.y) < 4) return
         const left = Math.min(start.x, event.clientX), right = Math.max(start.x, event.clientX), top = Math.min(start.y, event.clientY), bottom = Math.max(start.y, event.clientY)
         const selected = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('[data-section-object]')).filter(element => {
           const bounds = element.getBoundingClientRect()
-          return element.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id') === start.blockId && Number(element.closest<HTMLElement>('[data-editor-section]')?.dataset.editorSection) === start.section && bounds.right >= left && bounds.left <= right && bounds.bottom >= top && bounds.top <= bottom
-        }).map(element => ({ blockId: start.blockId, section: start.section, id: element.dataset.sectionObject || '' })).filter(item => item.id)
+          return bounds.right >= left && bounds.left <= right && bounds.bottom >= top && bounds.top <= bottom
+        }).map(element => ({ blockId: element.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id') ?? '', section: Number(element.closest<HTMLElement>('[data-editor-section]')?.dataset.editorSection), id: element.dataset.sectionObject || '' })).filter(item => item.id && item.blockId && item.section >= 1 && item.section <= 4)
         selectBlock(start.blockId); const editor = useEditorStore.getState(); editor.selectSection(start.section); editor.setSectionObjects(selected)
       }}
-      onPointerCancel={() => { marqueeStart.current = null; setMarquee(null) }}
+      onPointerCancel={() => { groupDrag.current?.members.forEach(item => { item.node.style.left = `${item.x}%`; item.node.style.top = `${item.y}px` }); groupDrag.current = null; marqueeStart.current = null; setMarquee(null) }}
       onKeyDownCapture={event => {
         const editor = useEditorStore.getState(), selection = editor.selectedSectionObjects
         if (previewMode || selection.length < 2 || !(event.target instanceof Element) || event.target.closest('[contenteditable="true"], input, textarea, select')) return
         if (event.key !== 'Delete' && !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return
-        const { blockId, section } = selection[0]
-        const block = useConfigStore.getState().getActivePageBlocks().find(value => value.id === blockId)
-        const key = `section${section}Objects`
-        const items = Array.isArray(block?.props[key]) ? block.props[key] as Array<{ id: string; parentId?: string; x: number; y: number; width: number }> : []
-        const ids = new Set(selection.map(value => value.id))
-        if (!block || !items.length) return
+        const groups = selection.map(({ blockId, section }) => `${blockId}\u0000${section}`).filter((value, index, values) => values.indexOf(value) === index).flatMap(value => {
+          const [blockId, number] = value.split('\u0000'), section = Number(number)
+          const block = useConfigStore.getState().getActivePageBlocks().find(item => item.id === blockId), key = `section${section}Objects`
+          const items = Array.isArray(block?.props[key]) ? block.props[key] as Array<{ id: string; parentId?: string; x: number; y: number; width: number }> : []
+          const ids = new Set(selection.filter(item => item.blockId === blockId && item.section === section).map(item => item.id))
+          const width = event.currentTarget.querySelector<HTMLElement>(`[data-webstudio-block-id="${CSS.escape(blockId)}"] [data-section-object-area="${section}"]`)?.clientWidth ?? 0
+          return block && items.length && width ? [{ blockId, key, items, ids, width, members: items.filter(item => ids.has(item.id) || (item.parentId && ids.has(item.parentId))) }] : []
+        })
+        if (!groups.length) return
         event.preventDefault(); event.stopPropagation()
-        if (event.key === 'Delete') {
-          useConfigStore.getState().updateBlockProps(blockId, { [key]: items.filter(item => !ids.has(item.id)).map(item => item.parentId && ids.has(item.parentId) ? { ...item, parentId: undefined } : item) })
-          editor.setSectionObjects([]); return
-        }
-        const area = event.currentTarget.querySelector<HTMLElement>(`[data-webstudio-block-id="${CSS.escape(blockId)}"] [data-section-object-area="${section}"]`)
-        if (!area?.clientWidth) return
-        const members = items.filter(item => ids.has(item.id) || (item.parentId && ids.has(item.parentId)))
         const step = event.shiftKey ? 10 : 1
-        const dx = event.key === 'ArrowRight' ? step / area.clientWidth * 100 : event.key === 'ArrowLeft' ? -step / area.clientWidth * 100 : 0
+        const dx = event.key === 'ArrowRight' ? step : event.key === 'ArrowLeft' ? -step : 0
         const dy = event.key === 'ArrowDown' ? step : event.key === 'ArrowUp' ? -step : 0
-        const safeX = Math.max(Math.max(...members.map(item => -item.x)), Math.min(Math.min(...members.map(item => 100 - item.width - item.x)), dx))
+        const members = groups.flatMap(group => group.members.map(item => ({ ...item, x: Number(item.x) || 0, y: Number(item.y) || 0, width: Number(item.width) || 30, areaWidth: group.width })))
+        const safeX = Math.max(Math.max(...members.map(item => -item.x * item.areaWidth / 100)), Math.min(Math.min(...members.map(item => (100 - item.width - item.x) * item.areaWidth / 100)), dx))
         const safeY = Math.max(Math.max(...members.map(item => -item.y)), dy)
-        useConfigStore.getState().updateBlockProps(blockId, { [key]: items.map(item => members.includes(item) ? { ...item, x: item.x + safeX, y: item.y + safeY } : item) })
+        const updates: Array<{ id: string; props: Record<string, unknown> }> = []
+        for (const blockId of new Set(groups.map(group => group.blockId))) {
+          const changes: Record<string, unknown> = {}
+          for (const group of groups.filter(value => value.blockId === blockId)) changes[group.key] = event.key === 'Delete' ? group.items.filter(item => !group.ids.has(item.id)).map(item => item.parentId && group.ids.has(item.parentId) ? { ...item, parentId: undefined } : item) : group.items.map(item => group.members.includes(item) ? { ...item, x: (Number(item.x) || 0) + safeX / group.width * 100, y: (Number(item.y) || 0) + safeY } : item)
+          updates.push({ id: blockId, props: changes })
+        }
+        if (updates.length) useConfigStore.getState().updateMultipleBlockProps(updates)
+        if (event.key === 'Delete') editor.setSectionObjects([])
       }}
+      onClickCapture={event => { if (suppressCanvasClick.current || (event.shiftKey && event.target instanceof Element && event.target.closest('[data-section-object]'))) { suppressCanvasClick.current = false; event.stopPropagation(); event.preventDefault() } }}
       onClick={(e) => {
         if (previewMode && !e.defaultPrevented && e.target instanceof Element) {
           const link = e.target.closest('a[href]')

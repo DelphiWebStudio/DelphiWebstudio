@@ -13,6 +13,16 @@ beforeEach(() => {
 })
 
 describe('page history', () => {
+  it('undoes a group movement across blocks in one step', () => {
+    const store = useConfigStore.getState()
+    store.addBlock({ id: 'one', type: 'content', variant: 'default', props: { section1Objects: [{ id: 'a', x: 10 }] } })
+    store.addBlock({ id: 'two', type: 'content', variant: 'default', props: { section1Objects: [{ id: 'b', x: 20 }] } })
+    useConfigStore.getState().updateMultipleBlockProps([{ id: 'one', props: { section1Objects: [{ id: 'a', x: 15 }] } }, { id: 'two', props: { section1Objects: [{ id: 'b', x: 25 }] } }])
+    useConfigStore.getState().undo()
+    const blocks = useConfigStore.getState().getActivePageBlocks()
+    expect(blocks[0].props.section1Objects).toEqual([{ id: 'a', x: 10 }])
+    expect(blocks[1].props.section1Objects).toEqual([{ id: 'b', x: 20 }])
+  })
   it('moves an existing collage into a section without losing images and restores it on undo', () => {
     const photos = [{ src: 'assets/a.png', alt: 'A', x: '5', y: '6', width: '40', height: '40', layer: '2' }]
     const props = { images: photos, customSetting: 'kept' }

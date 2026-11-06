@@ -15,6 +15,8 @@ interface EditorState {
   setSectionObjects: (value: EditorState['selectedSectionObjects']) => void
   selectionPreference: 'parent' | 'child'
   setSelectionPreference: (value: EditorState['selectionPreference']) => void
+  savedProjectSnapshot: { projectId: string; signature: string } | null
+  setSavedProjectSnapshot: (value: EditorState['savedProjectSnapshot']) => void
   selectSectionObject: (value: EditorState['selectedSectionObject']) => void
   selectedCompositeItem: { blockId: string; field: string; index: number } | null
   selectCompositeItem: (value: EditorState['selectedCompositeItem']) => void
@@ -70,14 +72,15 @@ export const useEditorStore = create<EditorState>()((set) => ({
   selectedSection: 0,
   selectedSectionObject: null,
   selectedSectionObjects: [],
-  selectionPreference: 'parent',
-  setSelectionPreference: (selectionPreference) => set({ selectionPreference }),
+  selectionPreference: typeof window !== 'undefined' && (() => { try { return window.localStorage.getItem('webstudio-selection-preference') === 'child' } catch { return false } })() ? 'child' : 'parent',
+  savedProjectSnapshot: null,
+  setSavedProjectSnapshot: (savedProjectSnapshot) => set({ savedProjectSnapshot }),
+  setSelectionPreference: (selectionPreference) => { try { window.localStorage.setItem('webstudio-selection-preference', selectionPreference) } catch { /* Selection still works for this session. */ }; set({ selectionPreference }) },
   selectSectionObject: (selectedSectionObject) => set({ selectedSectionObject, selectedSectionObjects: selectedSectionObject ? [selectedSectionObject] : [], ...(selectedSectionObject ? { selectedCompositeItem: null, selectedPlacedMedia: null } : {}) }),
   setSectionObjects: (selectedSectionObjects) => set({ selectedSectionObjects, selectedSectionObject: selectedSectionObjects.at(-1) ?? null, selectedCompositeItem: null, selectedPlacedMedia: null }),
   toggleSectionObject: (value) => set(state => {
-    const sameSection = state.selectedSectionObjects.filter(item => item.blockId === value.blockId && item.section === value.section)
-    const exists = sameSection.some(item => item.id === value.id)
-    const selectedSectionObjects = exists ? sameSection.filter(item => item.id !== value.id) : [...sameSection, value]
+    const exists = state.selectedSectionObjects.some(item => item.blockId === value.blockId && item.section === value.section && item.id === value.id)
+    const selectedSectionObjects = exists ? state.selectedSectionObjects.filter(item => !(item.blockId === value.blockId && item.section === value.section && item.id === value.id)) : [...state.selectedSectionObjects, value]
     return { selectedSectionObjects, selectedSectionObject: selectedSectionObjects.at(-1) ?? null, selectedCompositeItem: null, selectedPlacedMedia: null }
   }),
   selectedCompositeItem: null,
