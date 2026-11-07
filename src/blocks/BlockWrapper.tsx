@@ -130,7 +130,8 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
   }, [children, revealRef, block.props, previewMode])
 
   const scope = `ws-${index}`
-  const selector = `[data-ws-scope="${scope}"] [data-ws-content]`
+  const blockSelector = `[data-ws-scope="${scope}"]`
+  const selector = `${blockSelector} [data-ws-content]`
   const backgroundColor = typeof block.props.blockBackgroundColor === 'string' && /^#[0-9a-f]{6}$/i.test(block.props.blockBackgroundColor) ? block.props.blockBackgroundColor : ''
   const backgroundTarget = Number(block.props.sectionCount) > 1 ? `${selector}>:first-child>:first-child>:first-child` : `${selector}>:first-child`
   const textSize = Number(block.props.textSize)
@@ -170,7 +171,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
     return declarations ? [`${selector} [data-ws-text-key="${key}"]{${declarations}}`] : []
   }).join('')
   const heroHeightStyle = heroLayout ? `${selector}{min-height:var(--ws-hero-height,${heroHeight || 0}px)}${Number(block.props.sectionCount) > 1 ? `${selector}>:first-child,${selector}>:first-child>:first-child{min-height:var(--ws-hero-height,${heroHeight || 0}px)}` : ''}${backgroundTarget}{min-height:var(--ws-hero-height,${heroHeight || 0}px);box-sizing:border-box}${heroHeight ? `${selector} section{padding-block:8px!important}` : ''}[data-ws-scope="${scope}"][data-ws-hero-resizing] [data-ws-content] section{padding-block:8px!important}` : ''
-  const customStyle = (backgroundColor ? `${selector},${backgroundTarget}{background-color:${backgroundColor}!important}` : '') + (textRules ? `${selector} :is(h1,h2,h3,h4,h5,h6,p,span,a,li,label):not([data-rich-run]){${textRules}}` : '') + individualTextRules + imageRules + heroHeightStyle + (otherHeight ? `${selector}{min-height:100%}` : '') + (navbarLayout ? `${selector},${selector}>[data-editor-section]{height:100%}${selector} nav{height:100%;box-sizing:border-box;padding-block:4px}` : '') + (panelLayout ? `@container (max-width:600px){[data-ws-scope="${scope}"]{width:100%!important;margin-left:0!important;margin-top:0!important;z-index:auto!important}}` : '')
+  const customStyle = (backgroundColor ? `${blockSelector},${selector},${backgroundTarget}{background-color:${backgroundColor}!important}` : '') + (textRules ? `${selector} :is(h1,h2,h3,h4,h5,h6,p,span,a,li,label):not([data-rich-run]){${textRules}}` : '') + individualTextRules + imageRules + heroHeightStyle + (otherHeight ? `${selector}{min-height:100%}` : '') + (navbarLayout ? `${selector},${selector}>[data-editor-section]{height:100%}${selector} nav{height:100%;box-sizing:border-box;padding-block:4px}` : '') + (panelLayout ? `@container (max-width:600px){${blockSelector}{width:100%!important;margin-left:0!important;margin-top:0!important;z-index:auto!important}}` : '')
 
   if (previewMode) {
     return (

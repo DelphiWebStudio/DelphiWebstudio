@@ -80,7 +80,7 @@ describe('exportSiteToHTML', () => {
     const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
     expect(html).toContain('width:65%;margin-left:10%')
     expect(html).toContain('min-height:220px')
-    expect(html).toContain('background-color:#ffffff!important')
+    expect(html).toMatch(/\[data-ws-scope="ws-0"\],[^{]+\{background-color:#ffffff!important\}/)
     expect(html).toContain('Hello')
   })
   it('hides unconfigured example Hero buttons but preserves customized links and text width', () => {
