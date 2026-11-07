@@ -10,7 +10,7 @@ In the desktop app, choose **Project → Back up project**, select a saved proje
 
 ## Interrupted save or damaged draft
 
-If a save is interrupted, read the status message. **Recover staged file** can copy a retained `.webstudio-download-*.tmp` file to a new project filename in the same folder. A staged file may be incomplete: open the recovered file and check its content. If a project replacement has a problem, inspect the recovery ZIP path shown in the status details; retain the original and any recovery files until the project is verified.
+If a save is interrupted, read the status message. **Recover staged file** can copy a retained `.webstudio-download-*.tmp` file to a new project filename in the same folder. A staged file may be incomplete: open the recovered file and check its content. If a project replacement has a problem, inspect the status details and retain the staged file and any temporary original until the project is verified. Successful replacements do not retain an automatic previous-version ZIP.
 
 If a stored draft is unreadable, the dashboard can offer **Save unreadable draft data**. This saves whatever raw draft values are readable to a ZIP; it does not include media and cannot be opened directly as a project. The recovery ZIP can contain private data, so keep it private. If storage is inaccessible, the raw recovery download may not be available.
 
