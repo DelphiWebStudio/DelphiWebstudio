@@ -8,7 +8,7 @@ import { useConfigStore } from '@/store/configStore'
 import { getDocument } from 'pdfjs-dist'
 import { requestDesktopAction } from '@/desktop/native-bridge'
 
-function MediaThumbnail({ asset }: { asset: MediaAsset }) {
+function MediaThumbnail({ asset, large = false }: { asset: MediaAsset; large?: boolean }) {
   const imageRef = useRef<HTMLImageElement>(null)
   useEffect(() => {
     const image = imageRef.current
@@ -44,10 +44,10 @@ function MediaThumbnail({ asset }: { asset: MediaAsset }) {
     observer.observe(image)
     return () => { active = false; observer.disconnect(); if (url) URL.revokeObjectURL(url); void pdfTask?.destroy().catch(() => undefined) }
   }, [asset])
-  return <img ref={imageRef} alt="" draggable={false} className="w-12 h-12 object-cover rounded bg-bg-3" />
+  return <img ref={imageRef} alt="" draggable={false} className={large ? "h-28 w-full object-contain rounded bg-slate-100" : "w-12 h-12 object-cover rounded bg-bg-3"} />
 }
 
-export function MediaPanel() {
+export function MediaPanel({ picker = false, onAdded, onSelect, accept }: { picker?: boolean; onAdded?: () => void; onSelect?: (asset: MediaAsset) => void; accept?: string }) {
   const projectId = useEditorStore(state => state.activeProjectId)
   const mediaBusy = useEditorStore(state => state.mediaImporting)
   const pendingImport = useEditorStore(state => state.pendingMediaImport)
@@ -56,7 +56,10 @@ export function MediaPanel() {
   const [assets, setAssets] = useState<MediaAsset[]>([])
   const [progress, setProgress] = useState('')
   const [filter, setFilter] = useState('')
-  const [fileType, setFileType] = useState('all')
+  const [fileType, setFileType] = useState(accept || 'all')
+  const [selectedId, setSelectedId] = useState('')
+  const [folder, setFolder] = useState('all')
+  const [page, setPage] = useState(0)
   const [sort, setSort] = useState('name')
   const [allowZip, setAllowZip] = useState(false)
   const [duplicateMode, setDuplicateMode] = useState<'reuse' | 'keep' | 'skip'>('reuse')
@@ -66,7 +69,7 @@ export function MediaPanel() {
   const imageDrag = useRef<{ x: number; y: number; moved: boolean; pageId: string } | null>(null)
   const addBlock = useConfigStore(state => state.addBlock)
   const selectBlock = useEditorStore(state => state.selectBlock)
-  const visibleAssets = assets.filter(asset => `${asset.folder ?? ''}/${asset.name}`.toLowerCase().includes(filter.toLowerCase()) && (fileType === 'all' || (fileType === 'documents' ? !asset.mime.startsWith('image/') && !asset.mime.startsWith('audio/') && !asset.mime.startsWith('video/') && asset.mime !== 'application/pdf' : asset.mime.startsWith(fileType))))
+  const visibleAssets = assets.filter(asset => (folder === 'all' || (asset.folder || '') === folder) && `${asset.folder ?? ''}/${asset.name}`.toLowerCase().includes(filter.toLowerCase()) && (fileType === 'all' || (fileType === 'documents' ? !asset.mime.startsWith('image/') && !asset.mime.startsWith('audio/') && !asset.mime.startsWith('video/') && asset.mime !== 'application/pdf' : asset.mime.startsWith(fileType))))
     .sort((a, b) => sort === 'date' ? (b.importedAt ?? 0) - (a.importedAt ?? 0) : sort === 'size' ? b.size - a.size : sort === 'type' ? a.mime.localeCompare(b.mime) || a.name.localeCompare(b.name) : a.name.localeCompare(b.name))
 
   useEffect(() => {
@@ -104,6 +107,7 @@ export function MediaPanel() {
         setProgress(`${index + 1} / ${files.length}: ${files[index].name}`)
         try {
           const result = await library.import(projectId, files[index], undefined, false, settings.allowZip, settings.duplicateMode)
+          if (!result.skipped) setSelectedId(result.asset.id)
           if (result.skipped) skipped++
           else if (result.duplicate) duplicates++
           else imported++
@@ -123,8 +127,25 @@ export function MediaPanel() {
     toast(`${imported} imported, ${duplicates} reused, ${skipped} skipped${cancelled ? ', cancelled' : ''}${errors.length ? `, ${errors.length} failed` : ''}`)
   }
 
+  const selected = assets.find(asset => asset.id === selectedId)
+  const pages = Math.max(1, Math.ceil(visibleAssets.length / 36)), currentPage = Math.min(page, pages - 1)
+  const pageAssets = picker ? visibleAssets.slice(currentPage * 36, currentPage * 36 + 36) : visibleAssets
+  function addAsset(asset: MediaAsset) {
+    if (!projectId || useEditorStore.getState().previewMode) { toast.error('Exit Preview to add media.'); return }
+    if (accept && !asset.mime.startsWith(accept)) { toast.error('Choose a supported image.'); return }
+    if (onSelect) { onSelect(asset); onAdded?.(); return }
+    if (asset.mime.startsWith('image/')) {
+      useEditorStore.getState().setMediaPlacement({ projectId, pageId: useConfigStore.getState().activePageId, id: asset.id, path: asset.path, name: asset.name, width: asset.width, height: asset.height })
+    } else {
+      const id = `block-${crypto.randomUUID()}`
+      const type = asset.mime === 'application/pdf' ? 'pdfViewer' : asset.mime.startsWith('audio/') ? 'audio' : asset.mime.startsWith('video/') ? 'mediaVideo' : 'document'
+      addBlock({ id, type, variant: 'default', props: { assetId: asset.id, src: asset.path, title: asset.name, alt: asset.name } })
+      selectBlock(id)
+    }
+    onAdded?.()
+  }
   return (
-    <div className="flex flex-col flex-1 min-h-0 px-3 py-3 gap-2" onDragOver={event => event.preventDefault()} onDrop={event => {
+    <div className={`flex flex-col flex-1 min-h-0 px-4 py-3 gap-2 ${picker ? 'studio-media-picker' : ''}`} onDragOver={event => event.preventDefault()} onDrop={event => {
       event.preventDefault()
       if (!projectId || useEditorStore.getState().mediaImporting) { toast.error('Wait for the current media operation to finish.'); return }
       const entries = Array.from(event.dataTransfer.items).map(item => item.webkitGetAsEntry?.()).filter((entry): entry is FileSystemEntry => !!entry)
@@ -167,7 +188,7 @@ export function MediaPanel() {
         await importFiles(files)
       })()
     }}>
-      <label className="text-xs text-text-1">When files match
+      <details className="shrink-0 rounded border border-border-default p-2" open={!picker}><summary className="cursor-pointer text-sm font-semibold">Import files and folders</summary><div className="mt-2 flex flex-wrap items-end gap-4"><label className="text-xs text-text-1">When files match
         <select aria-label="Duplicate files" value={duplicateMode} disabled={mediaBusy} onChange={event => setDuplicateMode(event.target.value as 'reuse' | 'keep' | 'skip')} className="ml-2 bg-bg-2 border border-border-default rounded p-1">
           <option value="reuse">Reuse existing</option><option value="keep">Keep separate copies</option><option value="skip">Skip duplicates</option>
         </select>
@@ -179,13 +200,14 @@ export function MediaPanel() {
         <input aria-label="Import media folder" type="file" {...{ webkitdirectory: '' }} multiple onChange={event => { const input = event.currentTarget; const files = Array.from(input.files ?? []); input.value = ''; void importFiles(files) }} disabled={mediaBusy} className="block w-full mt-1 text-xs" />
       </label>
       <label className="text-xs text-text-1"><input type="checkbox" checked={allowZip} onChange={event => setAllowZip(event.target.checked)} /> Allow ZIP archives</label>
+      </div></details>
       {progress && <div className="text-xs text-text-1" role="status">{progress} <button type="button" onClick={() => { cancel.current = true }} className="text-green">Cancel</button></div>}
       {pendingImport && <div className="rounded border border-border-default p-2 text-xs text-text-1" role="status">
         <p>{pendingImport.files.length} files remain in an unfinished import{pendingImport.projectId !== projectId ? ' from another project' : ''}. The list is available until the app closes.</p>
         <button type="button" disabled={mediaBusy || pendingImport.projectId !== projectId} onClick={() => void importFiles(pendingImport.files, true)} className="mr-3 mt-1 text-green disabled:opacity-50">Resume import</button>
         <button type="button" disabled={mediaBusy} onClick={() => useEditorStore.getState().setPendingMediaImport(null)} className="mt-1 text-text-2">Discard list</button>
       </div>}
-      <input aria-label="Search media" value={filter} onChange={event => setFilter(event.target.value)} placeholder="Search media..." className="w-full px-2 py-1.5 rounded bg-bg-2 border border-border-default text-xs" />
+      <div className="flex flex-wrap gap-2"><select aria-label="Media folder" value={folder} onChange={event => { setFolder(event.target.value); setPage(0) }} className="rounded border border-border-default bg-bg-2 p-2 text-sm"><option value="all">All folders</option><option value="">Unfiled</option>{[...new Set(assets.map(asset => asset.folder).filter(Boolean))].sort().map(value => <option key={value} value={value}>{value}</option>)}</select><input aria-label="Search media" value={filter} onChange={event => { setFilter(event.target.value); setPage(0) }} placeholder="Search media..." className="min-w-48 flex-1 px-2 py-1.5 rounded bg-bg-2 border border-border-default text-xs" />
       <div className="flex gap-1">
         <select aria-label="Filter media by type" value={fileType} onChange={event => setFileType(event.target.value)} className="min-w-0 flex-1 bg-bg-2 border border-border-default rounded text-xs p-1">
           <option value="all">All types</option><option value="image/">Images</option><option value="application/pdf">PDFs</option><option value="audio/">Audio</option><option value="video/">Video</option><option value="documents">Other documents</option>
@@ -194,7 +216,7 @@ export function MediaPanel() {
           <option value="name">Name</option><option value="date">Date</option><option value="size">Size</option><option value="type">Type</option>
         </select>
       </div>
-      <div className="flex flex-wrap gap-2 text-xs">
+      </div><div className="flex flex-wrap gap-2 text-xs">
         <button type="button" disabled={mediaBusy || !visibleAssets.length} onClick={() => {
           if (!projectId) return
           const prefix = window.prompt(`Rename ${visibleAssets.length} shown files. Enter a prefix:`)?.trim()
@@ -212,10 +234,11 @@ export function MediaPanel() {
       </div>
       <p className="text-[11px] text-text-2">Media is stored in this browser and included when you save the project ZIP.</p>
       {failures.length > 0 && <details className="text-xs text-status-red"><summary>{failures.length} files could not be imported</summary><ul>{failures.map((error, index) => <li key={index}>{error}</li>)}</ul></details>}
-      <div className="overflow-y-auto flex-1 space-y-1">
-        {visibleAssets.map(asset => (
-          <div key={asset.id} draggable={!asset.mime.startsWith('image/')} onDragStart={event => { event.dataTransfer.setData('application/x-webstudio-asset', asset.id); event.dataTransfer.effectAllowed = 'copy' }} onPointerDown={event => {
-            if (!asset.mime.startsWith('image/') || event.button !== 0 || (event.target instanceof Element && event.target.closest('button'))) return
+      <div className="flex items-center justify-between text-sm"><span>{visibleAssets.length} files{selected ? ` · Selected: ${selected.name}` : ' · Select a thumbnail'}</span>{picker && <div className="flex items-center gap-2"><button type="button" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>Previous</button><span>Page {currentPage + 1} of {pages}</span><button type="button" disabled={currentPage + 1 >= pages} onClick={() => setPage(currentPage + 1)}>Next</button></div>}</div>
+      <div className={picker ? "grid flex-1 min-h-0 content-start grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 overflow-y-auto p-1" : "overflow-y-auto flex-1 space-y-1"}>
+        {pageAssets.map(asset => (
+          <div key={asset.id} role={picker ? 'button' : undefined} tabIndex={picker ? 0 : undefined} aria-pressed={picker ? selectedId === asset.id : undefined} aria-label={picker ? `Select ${asset.name}` : undefined} onClick={() => setSelectedId(asset.id)} onKeyDown={event => { if (event.target !== event.currentTarget) return; if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelectedId(asset.id) } }} draggable={!asset.mime.startsWith('image/')} onDragStart={event => { event.dataTransfer.setData('application/x-webstudio-asset', asset.id); event.dataTransfer.effectAllowed = 'copy' }} onPointerDown={event => {
+            if (picker || !asset.mime.startsWith('image/') || event.button !== 0 || (event.target instanceof Element && event.target.closest('button'))) return
             imageDrag.current = { x: event.clientX, y: event.clientY, moved: false, pageId: useConfigStore.getState().activePageId }
             event.currentTarget.setPointerCapture(event.pointerId)
           }} onPointerMove={event => {
@@ -252,17 +275,12 @@ export function MediaPanel() {
               useConfigStore.getState().addBlock({ id, type: 'image', variant: 'hero-image', props: { assetId: asset.id, src: asset.path, alt: asset.name, layoutWidth: 40 } })
               useEditorStore.getState().selectBlock(id)
             }
-          }} className="rounded border border-border-default p-2 text-xs text-text-1 break-all">
-            {(asset.mime.startsWith('image/') || asset.mime === 'application/pdf') && <MediaThumbnail asset={asset} />}
-            <div>{asset.name}</div><div className="text-text-3">{asset.folder && `${asset.folder} · `}{asset.mime} · {(asset.size / 1024).toFixed(1)} KB{asset.width && asset.height ? ` · ${asset.width}×${asset.height}` : ''}</div>
+          }} className={`rounded border p-2 text-xs text-text-1 break-all ${selectedId === asset.id ? 'border-blue-600 ring-2 ring-blue-200 bg-blue-50' : 'border-border-default'}`}>
+            {(asset.mime.startsWith('image/') || asset.mime === 'application/pdf') && <MediaThumbnail asset={asset} large={picker} />}
+            {!asset.mime.startsWith('image/') && asset.mime !== 'application/pdf' && <div className="grid h-28 place-items-center rounded bg-slate-100 text-2xl text-slate-600" aria-hidden="true">{asset.mime.startsWith('video/') ? '▶ Video' : asset.mime.startsWith('audio/') ? '♫ Audio' : '▤ File'}</div>}
+            <div className="mt-2 font-semibold">{asset.name}</div><div className="text-text-3">{asset.folder && `${asset.folder} · `}{asset.mime} · {(asset.size / 1024).toFixed(1)} KB{asset.width && asset.height ? ` · ${asset.width}×${asset.height}` : ''}</div>
             {asset.mime === 'application/pdf' && <button type="button" onClick={() => setPreview(asset)} className="text-green mt-1">Preview PDF</button>}
-            <button type="button" onClick={() => {
-              const id = `block-${crypto.randomUUID()}`
-              const type = asset.mime === 'application/pdf' ? 'pdfViewer' : asset.mime.startsWith('image/') ? 'image' : asset.mime.startsWith('audio/') ? 'audio' : asset.mime.startsWith('video/') ? 'mediaVideo' : 'document'
-              addBlock({ id, type, variant: type === 'image' ? 'hero-image' : 'default', props: type === 'image' ? { assetId: asset.id, src: asset.path, alt: asset.name, layoutWidth: 40 } : { assetId: asset.id, src: asset.path, title: asset.name, alt: asset.name } })
-              selectBlock(id)
-              toast('Added to page')
-            }} className="text-green mt-1 ml-2">Add to page</button>
+            {!picker && <button type="button" onClick={() => addAsset(asset)} className="text-green mt-1 ml-2">Add to page</button>}
             <label className="text-green mt-1 ml-2 cursor-pointer">Replace
               <input type="file" aria-label={`Replace ${asset.name}`} className="hidden" disabled={mediaBusy} onChange={event => {
                 const input = event.currentTarget
@@ -287,6 +305,7 @@ export function MediaPanel() {
         ))}
         {assets.length === 0 && <p className="text-xs text-text-3">No media imported yet.</p>}
       </div>
+      {picker && <footer className="flex shrink-0 items-center justify-between border-t border-border-default pt-3"><span className="text-sm text-text-2">{selected ? `${selected.name} · ${(selected.size / 1024).toFixed(1)} KB${selected.width ? ` · ${selected.width}×${selected.height}` : ''}` : 'Select a file above.'}</span><button type="button" disabled={!selected || mediaBusy || (!!accept && !selected.mime.startsWith(accept))} className="rounded bg-blue-600 px-5 py-2 font-semibold text-white disabled:opacity-40" onClick={() => selected && addAsset(selected)}>{onSelect ? 'Choose file' : 'Add to page'}</button></footer>}
       {preview && <PdfPreview asset={preview} onClose={() => setPreview(null)} />}
     </div>
   )

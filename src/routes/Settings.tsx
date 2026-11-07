@@ -11,9 +11,9 @@ import { requestGeminiCredential } from '@/desktop/native-bridge'
 type SettingsTab = 'general' | 'seo' | 'api'
 
 const tabDefs: { value: SettingsTab; label: string; icon: typeof Settings2 }[] = [
-  { value: 'general', label: 'General', icon: Settings2 },
+  { value: 'general', label: 'Project settings', icon: Settings2 },
   { value: 'seo', label: 'SEO', icon: SearchIcon },
-  { value: 'api', label: 'API Keys', icon: Key },
+  { value: 'api', label: 'Application settings', icon: Key },
 ]
 
 function useSettingsState() {
@@ -82,7 +82,7 @@ function ControlledTextarea({ settingsKey, rows = 3, settings }: { settingsKey: 
 function GeneralPanel({ settings }: { settings: ReturnType<typeof useSettingsState> }) {
   return (
     <div>
-      <h2 className="text-lg font-semibold mb-4">General</h2>
+      <h2 className="text-lg font-semibold mb-4">Project settings</h2><p className="mb-5 text-sm text-text-2">These values are saved with this project.</p>
       <FieldGroup label="Site Name"><ControlledInput settingsKey="siteName" settings={settings} /></FieldGroup>
       <FieldGroup label="Webmaster contact email">
         <input type="email" aria-label="Webmaster contact email" value={settings.data.webmasterEmail || ''}
@@ -194,14 +194,14 @@ function ApiPanel({ settings }: { settings: ReturnType<typeof useSettingsState> 
 
   return (
     <div>
-      <h2 className="text-lg font-semibold mb-4">API Keys</h2>
+      <h2 className="text-lg font-semibold mb-4">Application settings</h2><p className="mb-5 text-sm text-text-2">Your saved Google key is available across projects for this Windows account.</p>
 
       <label className="mb-5 flex items-start gap-2 text-xs text-text-1">
         <input type="checkbox" checked={cloudEnabled} onChange={event => { geminiSession.cloudEnabled = event.target.checked; setCloudEnabled(event.target.checked) }} />
         <span>Allow cloud AI generation for this session. A generation brief may be sent to Google or the configured server. This setting resets when the app closes or reloads.</span>
       </label>
 
-      <FieldGroup label="Deploy Access Key">
+      <h3 className="mb-3 text-sm font-semibold">Current project hosting connection</h3><FieldGroup label="Deploy Access Key">
         <input
           type="password"
           aria-label="Deploy Access Key"
@@ -224,7 +224,7 @@ function ApiPanel({ settings }: { settings: ReturnType<typeof useSettingsState> 
         </div>}
       </FieldGroup>
 
-      <FieldGroup label="Gemini API Key">
+      <h3 className="mb-3 mt-6 text-sm font-semibold">Application-wide AI connection</h3><FieldGroup label="Gemini API Key">
         <div className="flex gap-2">
           <input
             type={showKey ? 'text' : 'password'}
@@ -320,7 +320,7 @@ export function Settings() {
         {settings.showSaved && (
           <div className="absolute top-3 right-6 flex items-center gap-1.5 text-green text-[11px] animate-fade-in">
             <Check size={12} />
-            Saved
+            Draft updated
           </div>
         )}
         <div key={activeTab} className="animate-fade-in-up">

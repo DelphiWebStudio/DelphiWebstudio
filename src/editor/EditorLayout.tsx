@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { FolderOpen, Layers, Briefcase, UtensilsCrossed, Building2, BookOpen, ChevronLeft, ChevronRight } from 'lucide-react'
+import { SelectionToolbar } from './SelectionToolbar'
 import { CanvasToolbar } from './CanvasToolbar'
 import { LeftSidebar } from './LeftSidebar'
 import { Canvas } from './Canvas'
@@ -169,6 +170,14 @@ export function EditorLayout() {
   const mode = useEditorStore((s) => s.mode)
   const activeProjectId = useEditorStore((s) => s.activeProjectId)
 
+  useEffect(() => {
+    const open = () => setLeftCollapsed(false)
+    const properties = () => setRightCollapsed(false)
+    window.addEventListener('webstudio.properties', properties)
+    window.addEventListener('webstudio.panel', open)
+    return () => { window.removeEventListener('webstudio.panel', open); window.removeEventListener('webstudio.properties', properties) }
+  }, [])
+
   if (!activeProjectId) {
     return <EditorEmptyState />
   }
@@ -190,6 +199,7 @@ export function EditorLayout() {
         </>}
         <div className="flex-1 flex flex-col min-w-0 relative">
           <CanvasToolbar settingsOpen={!rightCollapsed} onOpenSettings={() => setRightCollapsed(false)} />
+          {!previewMode && <SelectionToolbar />}
           <div className="flex-1 flex flex-col overflow-hidden relative">
             <Canvas />
             <JsonDrawer />

@@ -1,5 +1,14 @@
 # Editor experience
 
+## Current editor controls
+
+The [illustrated Editor Reference](pdf/Delphi%20Web%20Studio%20Editor%20Reference.pdf) describes the current Windows interface. File, Edit, Insert, View, and Advanced collect the editor commands; Page tools holds Plan pages and Check site. The toolbar keeps project status, preview sizes, and common commands visible. Technical imports, JSON, and history live under Advanced.
+
+The Elements palette has categories, visual cards, and heading and paragraph presets. Object properties open in a floating window with paired position and size fields, and the selection toolbar exposes alignment, layering, duplicate, and delete. Use Shift+Click for a group or Alt+Click for overlapping objects. Use View > Media library or a Browse button in Properties to select media by thumbnail.
+
+## Earlier editor validation notes
+
+
 Last changed: 2026-11-01. M2's specified no-code exit scenario has passed an automated browser check; independent user testing remains unverified.
 
 The application chrome uses the blue and orange palette from VCL2FMXConverter 7. New blank projects begin with an empty Home page. Eight local starters cover personal, portfolio, community, church, school club, business, documentation and blog sites. Starter text is generic and editable; pricing, contact forms, subscriptions and fabricated testimonials are not inserted. Pricing is hidden from creation palettes while existing pricing blocks remain readable and exportable.

@@ -1,5 +1,14 @@
 # Media library and PDF viewer
 
+## Browse and add files
+
+Open **View > Media library**, **Insert > Image, video or document**, or **Open media library** in the Media tab. Import a file or folder, search by name, and narrow the results by folder or type. Choose a thumbnail and **Add to page**. For images, click a section or panel to place the image; Escape cancels placement. Other supported types become their matching page blocks.
+
+The grid pages through 36 assets at a time. A **Browse images** or **Browse files** button in Properties opens the same library for that field. **Choose file** updates the field instead of creating a new page object. Imported bytes remain in the project media store and travel with its ZIP. See the [illustrated reference](pdf/Delphi%20Web%20Studio%20Editor%20Reference.pdf).
+
+## PDF controls and earlier media validation notes
+
+
 Last changed: 2026-11-01. The specified M3 mixed-media offline exit scenario has passed an automated browser check on the current editor. Project controls are enabled by default.
 
 Select a PDF Viewer section to set its title, caption, starting page, height, fit mode, and whether page thumbnails, search, print, download, and fullscreen controls appear. Thumbnails can be selected to go to a page. Auto fits the width without enlarging the original; width fills the available width; page fits the whole page in the viewer. Fit enlargement is capped at four times the PDF's original size. Starting pages beyond the document are clamped to its last page. Hiding a download or print link does not protect a PDF on a public website: visitors can still retrieve the file. The print link opens the PDF in the browser for printing.

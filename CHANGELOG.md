@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased - 2026-11-06
+
+- Group the editor commands into menus, standardize floating windows, and add visual text presets, project previews, and selected object tools.
+- Save to the opened or last saved file in the current Windows session; use Save As for a new destination. Show confirmation and current file status in the editor.
+- Browse large media collections in a thumbnail library and use the same picker in object properties.
+- Add the illustrated Editor Reference in DOCX and PDF.
+
 ## Unreleased — 2026-10-29
 
 - Embed generated site styles and use system font fallbacks in exports, removing the default Tailwind and Google Fonts network dependencies.

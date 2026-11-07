@@ -2,7 +2,7 @@
   "name": "delphi-web-studio",
   "private": false,
   "version": "1.0.0",
-  "description": "Open-source website builder. Framer-quality visual editor + AI generation + JSON-first architecture.",
+  "description": "Visual website editor with a Delphi desktop host, portable projects, local media, and optional AI tools.",
   "license": "MIT",
   "repository": {
     "type": "git",

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Search, Layout, Type, Grid3X3, DollarSign, Megaphone, PanelBottom, MessageSquare, BarChart3, HelpCircle, Users, Mail, Newspaper, Image, Plus, Minus, Flag, FileText, ImageIcon, Play, GalleryHorizontalEnd } from 'lucide-react'
 import { LayersPanel } from './LayersPanel'
@@ -6,7 +6,6 @@ import { useConfigStore } from '@/store/configStore'
 import { useEditorStore } from '@/store/editorStore'
 import { blockMetadata } from '@/lib/block-metadata'
 import type { BlockType, BlockConfig } from '@/blocks/types'
-import { MediaPanel } from '@/media/MediaPanel'
 import { ArticlesPanel } from './ArticlesPanel'
 
 const blockIcons: Record<BlockType, typeof Layout> = {
@@ -23,6 +22,7 @@ const noReusableSections: NonNullable<import('@/blocks/types').SiteConfig['webst
 
 function ComponentsPanel() {
   const [search, setSearch] = useState('')
+  const [category, setCategory] = useState('All')
   const [sectionName, setSectionName] = useState('')
   const sectionDrag = useRef<{ x: number; y: number; moved: boolean } | null>(null)
   const suppressClick = useRef(false)
@@ -35,7 +35,7 @@ function ComponentsPanel() {
   const selectBlock = useEditorStore((s) => s.selectBlock)
 
   const filtered = blockMetadata.filter((b) =>
-    b.type !== 'pricing' && (b.label.toLowerCase().includes(search.toLowerCase()) ||
+    b.type !== 'pricing' && (category === 'All' || b.category === category) && (b.label.toLowerCase().includes(search.toLowerCase()) ||
     b.category.toLowerCase().includes(search.toLowerCase()))
   )
 
@@ -68,7 +68,8 @@ function ComponentsPanel() {
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
-      <div className="px-3 pt-2.5 pb-1.5">
+      <div className="px-3 pt-2.5 pb-1.5"><label className="mb-2 flex items-center gap-2 text-xs">Category<select aria-label="Element category" value={category} onChange={event => setCategory(event.target.value)} className="min-w-0 flex-1 rounded border border-border-default bg-bg-2 p-1"><option>All</option>{[...new Set(blockMetadata.filter(item => item.type !== 'pricing').map(item => item.category))].map(value => <option key={value}>{value}</option>)}</select></label>
+        <details className="mb-3 rounded-lg border border-border-default bg-bg-2 p-2" open><summary className="font-semibold">Text styles</summary><div className="mt-2 grid gap-2">{[{ text: 'Heading 1', size: 36 }, { text: 'Heading 2', size: 28 }, { text: 'Heading 3', size: 22 }, { text: 'Paragraph text', size: 16 }].map(preset => <button key={preset.text} type="button" aria-label={preset.text} className="rounded border border-border-default bg-bg-1 p-3 text-left hover:border-green" onClick={() => useEditorStore.getState().setTextPlacement({ projectId: useEditorStore.getState().activeProjectId, pageId: useConfigStore.getState().activePageId, kind: 'text', text: preset.text, fontSize: preset.size })}><span style={{ fontSize: preset.size / 1.4, lineHeight: 1.2 }}>{preset.text}</span><span className="block text-xs text-text-3">{preset.size}px · click, then place on page</span></button>)}</div></details>
         <div className="relative">
           <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-text-3" />
           <input
@@ -169,12 +170,12 @@ function ComponentsPanel() {
                     toast(`${meta.label} added to section ${number}`)
                   }}
                   onClick={() => { if (suppressClick.current) { suppressClick.current = false; return }; handleAdd(meta.type) }}
-                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[12px] text-text-1 hover:bg-bg-3 hover:text-text-0 transition-colors text-left group"
+                  className="mb-2 w-full flex items-center gap-2 border border-border-default bg-bg-2 px-3 py-3 rounded-md text-[12px] text-text-1 hover:bg-bg-3 hover:text-text-0 transition-colors text-left group"
                 >
-                  <div className="w-[22px] h-[22px] rounded border border-border-default bg-bg-3 flex items-center justify-center text-[10px] shrink-0">
-                    <Icon size={12} />
+                  <div aria-hidden="true" className="w-16 h-12 rounded border border-border-default bg-bg-3 flex items-center justify-center text-[10px] shrink-0">
+                    <Icon size={24} strokeWidth={1.3} />
                   </div>
-                  <span className="flex-1">{meta.type === 'content' ? 'Content block' : meta.label}</span>
+                  <span className="flex-1">{meta.type === 'content' ? 'Content block' : meta.label}<small className="mt-1 block text-[11px] text-text-3">{meta.variants.length} {meta.variants.length === 1 ? 'style' : 'styles'} · {meta.category}</small></span>
                   <Plus size={11} className="text-text-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </button>
               )
@@ -196,6 +197,8 @@ type Tab = 'layers' | 'components' | 'media' | 'articles'
 export function LeftSidebar({ collapsed = false }: { collapsed?: boolean }) {
   const mode = useEditorStore((state) => state.mode)
   const [tab, setTab] = useState<Tab>(() => mode === 'beginner' ? 'components' : 'layers')
+
+  useEffect(() => { const open = (event: Event) => { const tab = (event as CustomEvent<string>).detail; if (['layers', 'components', 'media', 'articles'].includes(tab)) setTab(tab as Tab) }; window.addEventListener('webstudio.panel', open); return () => window.removeEventListener('webstudio.panel', open) }, [])
 
   return (
     <div id="editor-left-panel" className={collapsed ? 'hidden' : 'hidden md:flex w-[230px] bg-bg-1 border-r border-border-default flex-col shrink-0'}>
@@ -223,7 +226,7 @@ export function LeftSidebar({ collapsed = false }: { collapsed?: boolean }) {
         <button onClick={() => setTab('media')} className={`flex-1 py-2 text-[11px] font-medium transition-all ${tab === 'media' ? 'text-text-0 border-b border-green' : 'text-text-3 hover:text-text-1'}`}>Media</button>
         <button onClick={() => setTab('articles')} className={`flex-1 py-2 text-[11px] font-medium transition-all ${tab === 'articles' ? 'text-text-0 border-b border-green' : 'text-text-3 hover:text-text-1'}`}>Articles</button>
       </div>
-      {tab === 'layers' ? <LayersPanel /> : tab === 'components' ? <ComponentsPanel /> : tab === 'media' ? <MediaPanel /> : <ArticlesPanel />}
+      {tab === 'layers' ? <LayersPanel /> : tab === 'components' ? <ComponentsPanel /> : tab === 'media' ? <div className="p-4"><button type="button" className="w-full rounded bg-blue-600 px-3 py-3 font-semibold text-white" onClick={() => window.dispatchEvent(new Event('webstudio.media'))}>Open media library</button><p className="mt-3 text-sm text-text-2">Browse images, videos, audio and documents in a searchable thumbnail grid. Import folders to keep collections together.</p></div> : <ArticlesPanel />}
     </div>
   )
 }

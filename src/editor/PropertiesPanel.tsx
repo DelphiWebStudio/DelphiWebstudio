@@ -7,7 +7,7 @@ import { useConfigStore } from '@/store/configStore'
 import { portableProjectsEnabled } from '@/project/project-file'
 import { useEditorStore } from '@/store/editorStore'
 import { useProjectsStore } from '@/store/projectsStore'
-import { ProjectMediaLibrary, type MediaAsset } from '@/media/media-library'
+import type { MediaAsset } from '@/media/media-library'
 import { WindowsColorInput } from './WindowsColorInput'
 import { chooseWindowsFont } from '@/desktop/native-bridge'
 import { resolveTheme } from '@/lib/theme-presets'
@@ -399,8 +399,6 @@ function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: Fie
   const anchorNames = pageBlocks.flatMap(candidate => [candidate.props.anchorName, ...[1, 2, 3, 4].flatMap(section => Array.isArray(candidate.props[`section${section}Objects`]) ? (candidate.props[`section${section}Objects`] as Record<string, unknown>[]).map(item => item?.anchorName) : [])]).filter((name): name is string => typeof name === 'string' && /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(name))
   const projectId = useEditorStore((s) => s.activeProjectId)
   const siteSearchEnabled = useProjectsStore((s) => s.projects.find(project => project.id === projectId)?.settings?.siteSearch === 'on')
-  const mediaRevision = useProjectsStore((s) => s.projects.find(project => project.id === projectId)?.mediaRevision ?? 0)
-  const [media, setMedia] = useState<{ projectId: string; revision: number; images: MediaAsset[] } | null>(null)
   const [itemMenu, setItemMenu] = useState<{ index: number; x: number; y: number } | null>(null)
   const [expandedNavIndex, setExpandedNavIndex] = useState<number | null>(null)
   const [focusedNumericKey, setFocusedNumericKey] = useState<string | null>(null)
@@ -417,15 +415,6 @@ function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: Fie
     document.addEventListener('pointerdown', dismiss); document.addEventListener('keydown', key)
     return () => { document.removeEventListener('pointerdown', dismiss); document.removeEventListener('keydown', key) }
   }, [itemMenu])
-
-  useEffect(() => {
-    if (!portableProjectsEnabled || (field.type !== 'image' && !mediaItems && !contentMedia) || !projectId) return
-    let active = true
-    new ProjectMediaLibrary().list(projectId).then(assets => {
-      if (active) setMedia({ projectId, revision: mediaRevision, images: contentMedia ? assets : documentItems ? assets.filter(asset => !asset.mime.startsWith('image/') && !asset.mime.startsWith('audio/') && !asset.mime.startsWith('video/')) : assets.filter(asset => asset.mime.startsWith('image/')) })
-    }).catch(() => { if (active) setMedia({ projectId, revision: mediaRevision, images: [] }) })
-    return () => { active = false }
-  }, [field.type, mediaItems, documentItems, contentMedia, projectId, mediaRevision])
 
   // For variant field, it's on the block itself
   const value = field.key === 'variant'
@@ -445,24 +434,14 @@ function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: Fie
     case 'checkbox':
       return <label className="mb-2 flex items-center gap-2 text-xs text-text-1"><input type="checkbox" checked={field.key === 'showThumbnails' ? value === true : value !== false} onChange={event => onChange(event.target.checked)} /> {field.label}</label>
     case 'image': {
-      const images = media?.projectId === projectId && media.revision === mediaRevision ? media.images : []
       const current = String(value || '')
-      const selected = images.some(image => image.path === current) ? current : ''
       return (
         <div className="mb-2.5">
           <label className="block text-[11.5px] text-text-2 mb-1 font-medium">{field.label}</label>
           <input type="text" aria-label={field.label} value={current} onChange={event => onChange(event.target.value)}
             className="w-full px-2 py-1.5 rounded border border-border-default bg-bg-2 text-text-0 text-xs outline-none focus:border-green" />
-          {portableProjectsEnabled && images.length > 0 && <select aria-label={`Choose image for ${field.label}`} value={selected}
-            onChange={event => {
-              const image = images.find(item => item.path === event.target.value)
-              if (!image) return
-              if (field.key === 'src') updateBlockProps(block.id, { src: image.path, assetId: image.id })
-              else onChange(image.path)
-            }} className="mt-1 w-full px-2 py-1.5 rounded border border-border-default bg-bg-2 text-text-0 text-xs outline-none focus:border-green">
-            <option value="">Choose an image from Media...</option>
-            {images.map(image => <option key={image.id} value={image.path}>{image.name}</option>)}
-          </select>}
+          {portableProjectsEnabled && <button type="button" aria-label={`Browse image for ${field.label}`} className="mt-1 rounded border border-border-default px-3 py-2 text-xs" onClick={() => window.dispatchEvent(new CustomEvent('webstudio.media', { detail: { accept: 'image/', onSelect: (image: MediaAsset) => { if (field.key === 'src') updateBlockProps(block.id, { src: image.path, assetId: image.id }); else onChange(image.path) } } }))}>Browse images...</button>}
+
         </div>
       )
     }
@@ -562,16 +541,12 @@ function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: Fie
             {(pages ?? []).filter(page => page.webstudioArticle?.status !== 'draft').map(page => <option key={page.id} value={page.id}>{page.name}</option>)}
           </select>}
           {contentMedia && <p className="mt-1 text-[10px] text-text-3">Select text before choosing a page to use it as the link label.</p>}
-          {contentMedia && portableProjectsEnabled && media?.projectId === projectId && media.revision === mediaRevision && media.images.length > 0 && <select aria-label="Insert media link in Body" value="" onChange={event => {
-            const asset = media.images.find(item => item.path === event.target.value)
-            if (!asset) return
+          {contentMedia && portableProjectsEnabled && <button type="button" className="mt-1 rounded border border-border-default px-3 py-2 text-xs" onClick={() => window.dispatchEvent(new CustomEvent('webstudio.media', { detail: { onSelect: (asset: MediaAsset) => {
             const label = asset.name.replace(/[\x5b\x5d\r\n]/g, ' ').trim() || 'Open file'
             const current = String(value || '')
             onChange(`${current}${current ? '\n\n' : ''}[${label}](${asset.path})`)
-          }} className="mt-1 w-full rounded border border-border-default bg-bg-2 px-2 py-1.5 text-xs text-text-0">
-            <option value="">Insert a link to Media...</option>
-            {media.images.map(asset => <option key={asset.id} value={asset.path}>{asset.name}</option>)}
-          </select>}
+          } } }))}>Insert media link...</button>}
+
         </div>
       )
 
@@ -640,7 +615,6 @@ function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: Fie
 
     case 'array-items': {
       const items = (Array.isArray(value) ? value : []) as Array<Record<string, string>>
-      const images = media?.projectId === projectId && media.revision === mediaRevision ? media.images : []
 
       // Infer new item shape from existing items, or use sensible defaults per field key
       function createEmptyItem(): Record<string, string> {
@@ -769,14 +743,12 @@ function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: Fie
                   onChange(updated)
                 }}>{direction}</button>)}
               </div>}
-              {/^section[1-4]Objects$/.test(field.key) && item.type === 'collage' && <div className="mb-2"><label className="block text-xs">Add collage image from Media</label><select aria-label={`Add image to collage ${i + 1}`} value="" onChange={event => {
-                const image = images.find(candidate => candidate.path === event.target.value)
-                if (!image) return
+              {/^section[1-4]Objects$/.test(field.key) && item.type === 'collage' && <div className="mb-2"><label className="block text-xs">Add collage image from Media</label><button type="button" aria-label={`Add image to collage ${i + 1}`} className="mt-1 rounded border border-border-default px-3 py-2 text-xs" onClick={() => window.dispatchEvent(new CustomEvent('webstudio.media', { detail: { accept: 'image/', onSelect: (image: MediaAsset) => {
                 const photos = Array.isArray(item.images) ? item.images as Record<string, unknown>[] : []
                 const updated: Record<string, unknown>[] = [...items]
                 updated[i] = { ...updated[i], images: [...photos, { src: image.path, alt: image.name, x: String(photos.length % 2 * 50), y: String(Math.floor(photos.length / 2) % 2 * 50), width: '50', height: '50', layer: String(photos.length + 1) }] }
                 onChange(updated)
-              }} className="mt-1 w-full rounded border border-border-subtle bg-bg-3 px-1.5 py-1 text-xs"><option value="">Choose an image...</option>{images.filter(image => image.mime.startsWith('image/')).map(image => <option key={image.id} value={image.path}>{image.name}</option>)}</select>
+              } } }))}>Browse collage images...</button>
                 <p className="mt-1 text-[10px] text-text-3">Select the collage, then drag an image or its corner to arrange it.</p>
                 {(Array.isArray(item.images) ? item.images as Record<string, unknown>[] : []).map((photo, photoIndex) => <div key={photoIndex} className="mt-1 flex items-center gap-1 text-xs"><span className="min-w-0 flex-1 truncate">{String(photo.alt || `Image ${photoIndex + 1}`)}</span><button type="button" aria-label={`Remove collage image ${photoIndex + 1}`} className="rounded border border-border-default px-1" onClick={() => {
                   const photos = item.images as unknown as Record<string, unknown>[]
@@ -821,20 +793,12 @@ function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: Fie
                     {siteSearchEnabled && <option value="/search.html">Search</option>}
                     {(pages ?? []).some(page => page.webstudioArticle?.status === 'ready') && <option value="/articles/index.html">Articles</option>}
                   </select>}
-                  {mediaItems && key === imageKey && portableProjectsEnabled && images.length > 0 && <select
-                    aria-label={`Choose ${documentItems ? 'document' : 'image'} for ${field.label} item ${i + 1}`}
-                    value={images.some(image => image.path === val) ? val : ''}
-                    onChange={event => {
-                      const image = images.find(candidate => candidate.path === event.target.value)
-                      if (!image) return
-                      const updated = [...items]
-                      updated[i] = { ...updated[i], [imageKey]: image.path, assetId: image.id, ...(documentItems && !updated[i].title ? { title: image.name } : {}) }
-                      onChange(updated)
-                    }}
-                    className="mt-1 w-full px-1.5 py-1 rounded border border-border-subtle bg-bg-3 text-text-0 text-[11px] outline-none focus:border-green">
-                    <option value="">Choose {documentItems ? 'a document' : 'an image'} from Media...</option>
-                    {images.map(image => <option key={image.id} value={image.path}>{image.name}</option>)}
-                  </select>}
+                  {mediaItems && key === imageKey && portableProjectsEnabled && <button type="button" aria-label={`Browse ${documentItems ? 'document' : 'image'} for ${field.label} item ${i + 1}`} className="mt-1 rounded border border-border-default px-3 py-2 text-xs" onClick={() => window.dispatchEvent(new CustomEvent('webstudio.media', { detail: { accept: documentItems ? undefined : 'image/', onSelect: (image: MediaAsset) => {
+                    const updated = [...items]
+                    updated[i] = { ...updated[i], [imageKey]: image.path, assetId: image.id, ...(documentItems && !updated[i].title ? { title: image.name } : {}) }
+                    onChange(updated)
+                  } } }))}>Browse {documentItems ? 'files' : 'images'}...</button>}
+
                 </div>
               ))}</div>
             </div>

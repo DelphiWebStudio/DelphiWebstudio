@@ -16,6 +16,8 @@ interface EditorState {
   selectionPreference: 'parent' | 'child'
   setSelectionPreference: (value: EditorState['selectionPreference']) => void
   savedProjectSnapshot: { projectId: string; signature: string } | null
+  fileLocations: Record<string, { path: string; savedAt?: string }>
+  setFileLocation: (projectId: string, path: string, savedAt?: string) => void
   setSavedProjectSnapshot: (value: EditorState['savedProjectSnapshot']) => void
   selectSectionObject: (value: EditorState['selectedSectionObject']) => void
   selectedCompositeItem: { blockId: string; field: string; index: number } | null
@@ -23,7 +25,9 @@ interface EditorState {
   selectedPlacedMedia: { blockId: string; id: string } | null
   selectPlacedMedia: (value: EditorState['selectedPlacedMedia']) => void
   copiedSectionObject: { token: string; projectId: string | null; item: Record<string, unknown>; text?: unknown; rich?: unknown } | null
-  textPlacement: { projectId: string | null; pageId: string | null; kind?: 'text' | 'panel' | 'divider'; lineOrientation?: 'horizontal' | 'vertical'; lineStyle?: 'solid' | 'dashed' | 'dotted' | 'double'; lineThickness?: number } | null
+  textPlacement: { projectId: string | null; pageId: string | null; kind?: 'text' | 'panel' | 'divider'; text?: string; fontSize?: number; lineOrientation?: 'horizontal' | 'vertical'; lineStyle?: 'solid' | 'dashed' | 'dotted' | 'double'; lineThickness?: number } | null
+  mediaPlacement: { projectId: string; pageId: string; id: string; path: string; name: string; width?: number; height?: number } | null
+  setMediaPlacement: (value: EditorState['mediaPlacement']) => void
   newTextObjectId: string | null
   movingCollage: { blockId: string; projectId: string | null; pageId: string } | null
   setMovingCollage: (value: EditorState['movingCollage']) => void
@@ -74,6 +78,8 @@ export const useEditorStore = create<EditorState>()((set) => ({
   selectedSectionObjects: [],
   selectionPreference: typeof window !== 'undefined' && (() => { try { return window.localStorage.getItem('webstudio-selection-preference') === 'child' } catch { return false } })() ? 'child' : 'parent',
   savedProjectSnapshot: null,
+  fileLocations: {},
+  setFileLocation: (projectId, path, savedAt) => set(state => ({ fileLocations: { ...state.fileLocations, [projectId]: { path, savedAt } } })),
   setSavedProjectSnapshot: (savedProjectSnapshot) => set({ savedProjectSnapshot }),
   setSelectionPreference: (selectionPreference) => { try { window.localStorage.setItem('webstudio-selection-preference', selectionPreference) } catch { /* Selection still works for this session. */ }; set({ selectionPreference }) },
   selectSectionObject: (selectedSectionObject) => set({ selectedSectionObject, selectedSectionObjects: selectedSectionObject ? [selectedSectionObject] : [], ...(selectedSectionObject ? { selectedCompositeItem: null, selectedPlacedMedia: null } : {}) }),
@@ -89,10 +95,12 @@ export const useEditorStore = create<EditorState>()((set) => ({
   selectPlacedMedia: (selectedPlacedMedia) => set({ selectedPlacedMedia, ...(selectedPlacedMedia ? { selectedSectionObject: null, selectedSectionObjects: [], selectedCompositeItem: null } : {}) }),
   copiedSectionObject: null,
   textPlacement: null,
+  mediaPlacement: null,
+  setMediaPlacement: (mediaPlacement) => set({ mediaPlacement, textPlacement: null }),
   newTextObjectId: null,
   movingCollage: null,
   setMovingCollage: (movingCollage) => set({ movingCollage }),
-  setTextPlacement: (textPlacement) => set({ textPlacement }),
+  setTextPlacement: (textPlacement) => set({ textPlacement, mediaPlacement: null }),
   setNewTextObjectId: (newTextObjectId) => set({ newTextObjectId }),
   viewport: 'desktop',
   customViewportWidth: null,
@@ -121,8 +129,8 @@ export const useEditorStore = create<EditorState>()((set) => ({
   toggleJsonDrawer: () => set((s) => ({ jsonDrawerOpen: !s.jsonDrawerOpen })),
   toggleHistory: () => set((s) => ({ historyOpen: !s.historyOpen })),
   toggleShortcutsModal: () => set((s) => ({ shortcutsModalOpen: !s.shortcutsModalOpen })),
-  togglePreview: () => set((s) => ({ previewMode: !s.previewMode, textPlacement: null, movingCollage: null, ...(!s.previewMode ? { selectedBlockId: null } : {}) })),
-  setActiveProject: (id) => set({ activeProjectId: id, textPlacement: null, movingCollage: null }),
+  togglePreview: () => set((s) => ({ previewMode: !s.previewMode, textPlacement: null, mediaPlacement: null, movingCollage: null, ...(!s.previewMode ? { selectedBlockId: null } : {}) })),
+  setActiveProject: (id) => set({ activeProjectId: id, textPlacement: null, mediaPlacement: null, movingCollage: null }),
   setDeploymentKey: (projectId, key) => set(state => ({ deploymentKeys: { ...state.deploymentKeys, [projectId]: key } })),
   setGenerating: (prompt) => set({ isGenerating: !!prompt, generationPrompt: prompt, generationError: null }),
   setGenerationError: (err) => set({ generationError: err }),

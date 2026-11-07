@@ -11,6 +11,12 @@ export function useKeyboardShortcuts() {
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      if (e.defaultPrevented || document.querySelector('dialog[open]')) return
+      if ((e.ctrlKey || e.metaKey) && ['s', 'o'].includes(e.key.toLowerCase())) {
+        e.preventDefault()
+        document.querySelector<HTMLButtonElement>(`[data-project-command="${e.key.toLowerCase() === 'o' ? 'open' : e.shiftKey ? 'save-as' : 'save'}"]`)?.click()
+        return
+      }
       // Don't fire in inputs
       const tag = (e.target as HTMLElement).tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target instanceof Element && e.target.closest('[contenteditable="true"]'))) return
@@ -38,6 +44,7 @@ export function useKeyboardShortcuts() {
           }
         }
 
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return }
         // Undo/Redo
         if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
           e.preventDefault()

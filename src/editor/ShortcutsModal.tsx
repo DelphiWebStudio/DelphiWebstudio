@@ -26,8 +26,13 @@ const shortcutGroups = [
   {
     title: 'Actions',
     shortcuts: [
-      { keys: ['\u2318', 'Z'], description: 'Undo' },
-      { keys: ['\u2318', '\u21E7', 'Z'], description: 'Redo' },
+      { keys: ['Ctrl', 'O'], description: 'Open project' },
+      { keys: ['Ctrl', 'S'], description: 'Save project' },
+      { keys: ['Ctrl', 'Shift', 'S'], description: 'Save project as' },
+      { keys: ['Ctrl', 'Z'], description: 'Undo' },
+      { keys: ['Ctrl', 'Y'], description: 'Redo' },
+      { keys: ['Shift', 'Click'], description: 'Select multiple objects' },
+      { keys: ['Alt', 'Click'], description: 'Cycle overlapping objects' },
     ],
   },
 ]

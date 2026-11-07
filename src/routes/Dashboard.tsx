@@ -1,3 +1,4 @@
+import { ProjectThumbnail } from './ProjectThumbnail'
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -244,8 +245,6 @@ function ProjectCard({ project }: { project: Project }) {
   }
 
   const accent = projectAccent(project)
-  const rgb = hexToRgb(accent)
-  const layout = projectHash(project.name) % 3
 
   return (
     <div
@@ -253,7 +252,8 @@ function ProjectCard({ project }: { project: Project }) {
       className="group bg-bg-1 border border-border-default rounded-xl overflow-hidden cursor-pointer card-lift hover:border-border-hover hover:card-lift-hover"
     >
       {/* Thumbnail */}
-      <div className="h-32 bg-bg-2 relative overflow-hidden">
+      <div className="h-40 bg-bg-2 relative overflow-hidden">
+        <ProjectThumbnail project={project} />
         <div
           className="absolute inset-0 opacity-[0.04] group-hover:opacity-[0.08] transition-opacity duration-300"
           style={{ background: `linear-gradient(135deg, ${accent}, transparent)` }}
@@ -281,47 +281,6 @@ function ProjectCard({ project }: { project: Project }) {
           </button>
         </div>
 
-        {/* Wireframe - varies by project name hash */}
-        <div className="absolute inset-3 flex flex-col gap-1.5 p-2.5">
-          {layout === 0 && (
-            <>
-              <div className="h-2 rounded-sm w-2/3" style={{ background: `rgba(${rgb}, 0.15)` }} />
-              <div className="h-1.5 bg-bg-4/40 rounded-sm w-1/2" />
-              <div className="flex gap-1.5 mt-auto">
-                <div className="flex-1 h-6 rounded" style={{ background: `rgba(${rgb}, 0.07)` }} />
-                <div className="flex-1 h-6 rounded" style={{ background: `rgba(${rgb}, 0.07)` }} />
-                <div className="flex-1 h-6 rounded" style={{ background: `rgba(${rgb}, 0.07)` }} />
-              </div>
-            </>
-          )}
-          {layout === 1 && (
-            <>
-              <div className="flex gap-2 flex-1">
-                <div className="flex-1 flex flex-col gap-1">
-                  <div className="h-2 rounded-sm w-3/4" style={{ background: `rgba(${rgb}, 0.15)` }} />
-                  <div className="h-1.5 bg-bg-4/40 rounded-sm w-full" />
-                  <div className="h-1.5 bg-bg-4/40 rounded-sm w-2/3" />
-                  <div className="h-4 rounded w-1/2 mt-auto" style={{ background: `rgba(${rgb}, 0.12)` }} />
-                </div>
-                <div className="w-16 rounded" style={{ background: `rgba(${rgb}, 0.06)` }} />
-              </div>
-            </>
-          )}
-          {layout === 2 && (
-            <>
-              <div className="flex justify-center mt-1">
-                <div className="h-2 rounded-sm w-1/3" style={{ background: `rgba(${rgb}, 0.15)` }} />
-              </div>
-              <div className="flex justify-center">
-                <div className="h-1.5 bg-bg-4/40 rounded-sm w-2/3" />
-              </div>
-              <div className="flex gap-1 mt-auto justify-center">
-                <div className="w-12 h-4 rounded" style={{ background: `rgba(${rgb}, 0.12)` }} />
-                <div className="w-12 h-4 rounded bg-bg-4/30" />
-              </div>
-            </>
-          )}
-        </div>
       </div>
 
       {/* Body */}
@@ -358,7 +317,7 @@ function ProjectCard({ project }: { project: Project }) {
             />
             {project.status === 'published' ? 'Published' : 'Draft'}
           </span>
-          <span className="text-text-3">{project.updatedAt}</span>
+          <span className="text-text-3" title="Last local change; use Save to update your project file">Local draft · {project.modifiedAt ? new Date(project.modifiedAt).toLocaleString() : project.updatedAt}</span>
         </div>
       </div>
     </div>
