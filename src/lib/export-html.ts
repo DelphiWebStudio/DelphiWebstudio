@@ -1232,7 +1232,8 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
       html = renderToStaticMarkup(createElement(BlockColumns, { block }, createElement('div', { dangerouslySetInnerHTML: { __html: html } })))
     }
     const scope = `ws-${index}`
-    const selector = `[data-ws-scope="${scope}"] [data-ws-content]`
+    const blockSelector = `[data-ws-scope="${scope}"]`
+    const selector = `${blockSelector} [data-ws-content]`
     const backgroundColor = typeof block.props.blockBackgroundColor === 'string' && /^#[0-9a-f]{6}$/i.test(block.props.blockBackgroundColor) ? block.props.blockBackgroundColor : ''
     const backgroundTarget = Number(block.props.sectionCount) > 1 ? `${selector}>:first-child>:first-child>:first-child>:first-child` : `${selector}>:first-child`
     const textSize = Number(block.props.textSize)
@@ -1275,7 +1276,7 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
     const heroHeight = block.type === 'hero' && Number.isFinite(requestedHeroHeight) && requestedHeroHeight > 0 ? Math.max(40, Math.min(2000, requestedHeroHeight)) : undefined
     const heroHeightStyle = heroHeight ? `${selector}{min-height:${heroHeight}px}${Number(block.props.sectionCount) > 1 ? `${selector}>:first-child,${selector}>:first-child>:first-child,${selector}>:first-child>:first-child>:first-child{min-height:${heroHeight}px}` : ''}${backgroundTarget}{min-height:${heroHeight}px;box-sizing:border-box}${selector} section{padding-block:8px!important}` : ''
     const otherHeight = !['image', 'navbar', 'panel', 'hero'].includes(block.type) && Number.isFinite(requestedHeroHeight) && requestedHeroHeight > 0 ? Math.max(40, block.type === 'divider' ? Math.min(2000, requestedHeroHeight) : requestedHeroHeight) : undefined
-    const customStyle = (backgroundColor ? `${selector},${backgroundTarget}{background-color:${backgroundColor}!important}` : '') + (textRules ? `${selector} :is(h1,h2,h3,h4,h5,h6,p,span,a,li,label):not([data-rich-run]){${textRules}}` : '') + individualTextRules + imageRules + heroHeightStyle + (otherHeight ? `${selector}{min-height:100%}` : '') + (block.type === 'panel' ? `@container (max-width:600px){[data-ws-scope="${scope}"]{width:100%!important;margin-left:0!important;margin-top:0!important;z-index:auto!important}}` : '')
+    const customStyle = (backgroundColor ? `${blockSelector},${selector},${backgroundTarget}{background-color:${backgroundColor}!important}` : '') + (textRules ? `${selector} :is(h1,h2,h3,h4,h5,h6,p,span,a,li,label):not([data-rich-run]){${textRules}}` : '') + individualTextRules + imageRules + heroHeightStyle + (otherHeight ? `${selector}{min-height:100%}` : '') + (block.type === 'panel' ? `@container (max-width:600px){${blockSelector}{width:100%!important;margin-left:0!important;margin-top:0!important;z-index:auto!important}}` : '')
     if (imageRules) {
       let imageIndex = 0
       html = html.replace(/<img\b/g, () => `<img data-ws-image-index="${imageIndex++}"`)
