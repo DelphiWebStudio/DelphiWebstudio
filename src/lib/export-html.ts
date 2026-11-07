@@ -151,10 +151,10 @@ function renderNavbar(block: BlockConfig): string {
   const layoutAttr = layout ? ` style="${layout}"` : ''
 
   const navLinks = links.map(l =>
-    `          <span class="text-[13px] text-text-2 hover:text-text-0 transition-colors cursor-pointer">${escapeHtml(l)}</span>`
+    `          <span class="text-[13px] text-text-2 underline-offset-4 hover:underline cursor-pointer">${escapeHtml(l)}</span>`
   )
   const destinationLinks = navItems.filter(item => item && typeof item.label === 'string' && typeof item.url === 'string').map(item =>
-    renderLink(item.label, item.url, 'text-[13px] text-text-2 hover:text-text-0 transition-colors')
+    renderLink(item.label, item.url, 'text-[13px] text-text-2 underline-offset-4 hover:underline focus-visible:underline')
   )
   const logoHtml = logoImage
     ? `<img src="${escapeHtml(logoImage)}" alt="${logo}" class="h-8 w-auto max-w-[96px] shrink-0 object-contain" />`

@@ -301,6 +301,8 @@ describe('exportSiteToHTML', () => {
     expect(body.indexOf('>Home</a>')).toBeGreaterThan(-1)
     expect(body.indexOf('>Contact</a>')).toBeGreaterThan(body.indexOf('>Home</a>'))
     expect(body.indexOf('>About</span>')).toBeGreaterThan(body.indexOf('>Contact</a>'))
+    expect(body).toContain('text-text-2 underline-offset-4 hover:underline focus-visible:underline')
+    expect(body).not.toContain('hover:text-text-0')
   })
   it.each(['default', 'centered'])('exports a %s text Navbar without a placeholder logo', variant => {
     const navbar = { id: 'nav', type: 'navbar' as const, variant, props: { logo: '', navItems: [{ label: 'Home', url: '/' }] } }

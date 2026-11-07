@@ -24,12 +24,12 @@ function NavbarDefault({ props, editable }: { props: NavbarProps; editable: bool
 
       {/* Desktop nav links */}
       <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3 [overflow-wrap:anywhere]">
-        {navItems.map((item, i) => <a key={`nav-${i}`} href={item.url || undefined} draggable={editable} title={editable ? 'Drag to reorder' : undefined} data-ws-nav-index={i} className="text-[13px] text-text-2 hover:text-text-0">{item.label}</a>)}
+        {navItems.map((item, i) => <a key={`nav-${i}`} href={item.url || undefined} draggable={editable} title={editable ? 'Drag to reorder' : undefined} data-ws-nav-index={i} className="text-[13px] text-text-2 underline-offset-4 hover:underline focus-visible:underline">{item.label}</a>)}
         {links.map((link, i) => (
           <span
             key={i}
             draggable={editable} title={editable ? 'Drag to reorder' : undefined} data-ws-nav-index={navItems.length + i}
-            className="text-[13px] text-text-2 hover:text-text-0 transition-colors cursor-pointer"
+            className="text-[13px] text-text-2 underline-offset-4 hover:underline cursor-pointer"
           >
             {link}
           </span>
@@ -57,9 +57,9 @@ function NavbarCentered({ props, editable }: { props: NavbarProps; editable: boo
     <nav data-ws-navbar className="px-6 @md:px-10 py-4 flex flex-wrap gap-3 items-center justify-between">
       {/* Left links */}
       <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3 flex-1 [overflow-wrap:anywhere]">
-        {navItems.map((item, i) => <a key={`nav-${i}`} href={item.url || undefined} draggable={editable} title={editable ? 'Drag to reorder' : undefined} data-ws-nav-index={i} className="text-[13px] text-text-2 hover:text-text-0">{item.label}</a>)}
+        {navItems.map((item, i) => <a key={`nav-${i}`} href={item.url || undefined} draggable={editable} title={editable ? 'Drag to reorder' : undefined} data-ws-nav-index={i} className="text-[13px] text-text-2 underline-offset-4 hover:underline focus-visible:underline">{item.label}</a>)}
         {leftLinks.map((link, i) => (
-          <span key={i} draggable={editable} title={editable ? 'Drag to reorder' : undefined} data-ws-nav-index={navItems.length + i} className="text-[13px] text-text-2 hover:text-text-0 transition-colors cursor-pointer">
+          <span key={i} draggable={editable} title={editable ? 'Drag to reorder' : undefined} data-ws-nav-index={navItems.length + i} className="text-[13px] text-text-2 underline-offset-4 hover:underline cursor-pointer">
             {link}
           </span>
         ))}
@@ -74,7 +74,7 @@ function NavbarCentered({ props, editable }: { props: NavbarProps; editable: boo
       {/* Right links + CTA */}
       <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3 flex-1 justify-end [overflow-wrap:anywhere]">
         {rightLinks.map((link, i) => (
-          <span key={i} draggable={editable} title={editable ? 'Drag to reorder' : undefined} data-ws-nav-index={navItems.length + mid + i} className="text-[13px] text-text-2 hover:text-text-0 transition-colors cursor-pointer">
+          <span key={i} draggable={editable} title={editable ? 'Drag to reorder' : undefined} data-ws-nav-index={navItems.length + mid + i} className="text-[13px] text-text-2 underline-offset-4 hover:underline cursor-pointer">
             {link}
           </span>
         ))}
