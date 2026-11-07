@@ -55,6 +55,8 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
   const navbarLayout = block.type === 'navbar'
   const panelLayout = block.type === 'panel'
   const heroLayout = block.type === 'hero'
+  const flexibleHeight = !imageLayout && !navbarLayout && !panelLayout && !heroLayout && block.type !== 'divider'
+  const maximumHeight = flexibleHeight ? Infinity : 2000
   const resizableLayout = true
   const widthValue = Number(block.props.layoutWidth)
   const leftValue = Number(block.props.layoutLeft)
@@ -68,7 +70,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
   const navbarHeight = navbarLayout && Number.isFinite(requestedHeight) && requestedHeight > 0 ? Math.max(40, Math.min(2000, requestedHeight)) : undefined
   const panelHeight = panelLayout && Number.isFinite(requestedHeight) && requestedHeight > 0 ? Math.max(40, Math.min(2000, requestedHeight)) : undefined
   const heroHeight = heroLayout && Number.isFinite(requestedHeight) && requestedHeight > 0 ? Math.max(40, Math.min(2000, requestedHeight)) : undefined
-  const otherHeight = !imageLayout && !navbarLayout && !panelLayout && !heroLayout && Number.isFinite(requestedHeight) && requestedHeight > 0 ? Math.max(40, Math.min(2000, requestedHeight)) : undefined
+  const otherHeight = !imageLayout && !navbarLayout && !panelLayout && !heroLayout && Number.isFinite(requestedHeight) && requestedHeight > 0 ? Math.max(40, Math.min(maximumHeight, requestedHeight)) : undefined
   const layoutStyle = { position: 'relative' as const, width: `${width}%`, marginLeft: `${left}%`, marginTop: top, zIndex: layer, ...(navbarHeight ? { height: navbarHeight } : {}), ...(panelHeight || heroHeight || otherHeight ? { minHeight: panelHeight || heroHeight || otherHeight } : {}) }
 
   const index = blocks.findIndex((b) => b.id === block.id)
@@ -223,10 +225,57 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         nextLeft = Math.max(0, Math.min(drag.left + drag.width - 5, drag.left + dx))
         nextWidth = drag.width + drag.left - nextLeft
       }
-      if (drag.direction.includes('s')) nextHeight = Math.max(40, Math.min(2000, drag.height + dy))
+      if (drag.direction.includes('s')) nextHeight = Math.max(40, Math.min(maximumHeight, drag.height + dy))
       if (drag.direction.includes('n')) {
-        nextTop = Math.max(drag.minTop, Math.max(drag.top + drag.height - 2000, Math.min(drag.top + drag.height - 40, drag.top + dy)))
+        nextTop = Math.max(drag.minTop, Math.max(drag.top + drag.height - maximumHeight, Math.min(drag.top + drag.height - 40, drag.top + dy)))
         nextHeight = drag.height + drag.top - nextTop
+      }
+    }
+    const spacingUpdates: Record<string, number> = {}
+    let savedHeight = nextHeight
+    if (flexibleHeight && drag.direction.includes('s')) {
+      const sections = Array.from(element.querySelectorAll<HTMLElement>('[data-editor-section]'))
+      if (dy < 0) {
+        // Measure the content floor with the optional padding removed and grid stretch disabled.
+        element.style.width = `${nextWidth}%`
+        element.style.minHeight = '0'
+        for (const section of sections) {
+          section.style.alignSelf = 'start'
+          section.style.setProperty('--ws-resize-extra-space', '0px')
+        }
+        const blockBounds = element.getBoundingClientRect()
+        const rows = new Map<number, { section: HTMLElement; bottom: number }[]>()
+        let contentHeight = blockBounds.height
+        for (const section of sections) {
+          const bounds = section.getBoundingClientRect()
+          const bottom = Math.max(bounds.bottom, ...Array.from(section.querySelectorAll('[data-section-object]'), object => object.getBoundingClientRect().bottom))
+          contentHeight = Math.max(contentHeight, bottom - blockBounds.top + 1)
+          const row = rows.get(bounds.top) ?? []
+          row.push({ section, bottom })
+          rows.set(bounds.top, row)
+        }
+        nextHeight = Math.max(nextHeight, Math.ceil(contentHeight))
+        // Shrinking trailing space should not raise the existing height floor on smaller screens.
+        savedHeight = contentHeight <= blockBounds.height ? Math.min(nextHeight, otherHeight ?? nextHeight) : nextHeight
+        let availableSpace = nextHeight - contentHeight
+        for (const row of rows.values()) {
+          const rowBottom = Math.max(...row.map(({ bottom }) => bottom))
+          let rowGrowth = 0
+          for (const { section, bottom } of row) {
+            const key = `section${section.dataset.editorSection}ExtraSpace`
+            const original = Math.max(0, Math.min(4000, Number(block.props[key]) || 0))
+            const spacing = Math.min(original, Math.max(0, Math.floor(availableSpace + rowBottom - bottom)))
+            if (spacing !== original) spacingUpdates[key] = spacing
+            rowGrowth = Math.max(rowGrowth, spacing - (rowBottom - bottom))
+            section.style.removeProperty('align-self')
+            if (finish) section.style.removeProperty('--ws-resize-extra-space')
+            else section.style.setProperty('--ws-resize-extra-space', `${spacing}px`)
+          }
+          availableSpace -= rowGrowth
+        }
+        element.style.minHeight = `${nextHeight}px`
+      } else {
+        for (const section of sections) section.style.removeProperty('--ws-resize-extra-space')
       }
     }
     if (finish) {
@@ -236,7 +285,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       if (block.type === 'divider') element.style.removeProperty('--ws-strip-height')
       useConfigStore.getState().updateBlockProps(block.id, drag.kind === 'move'
         ? { layoutLeft: Math.round(nextLeft), layoutTop: Math.round(nextTop) }
-        : { layoutLeft: Math.round(nextLeft), layoutTop: Math.round(nextTop), layoutWidth: Math.round(nextWidth), layoutHeight: Math.round(nextHeight), ...(block.type === 'divider' ? { height: Math.round(nextHeight) } : {}) })
+        : { layoutLeft: Math.round(nextLeft), layoutTop: Math.round(nextTop), layoutWidth: Math.round(nextWidth), layoutHeight: Math.round(savedHeight), ...spacingUpdates, ...(block.type === 'divider' ? { height: Math.round(savedHeight) } : {}) })
     } else if (drag.kind === 'move') {
       element.style.marginLeft = `${nextLeft}%`
       element.style.marginTop = `${nextTop}px`
@@ -397,6 +446,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         if (element) {
           element.removeAttribute('data-ws-hero-resizing')
           element.style.removeProperty('--ws-hero-height')
+          element.querySelectorAll<HTMLElement>('[data-editor-section]').forEach(section => section.style.removeProperty('--ws-resize-extra-space'))
           element.style.width = `${width}%`
           element.style.marginLeft = `${left}%`
           element.style.marginTop = `${top}px`
