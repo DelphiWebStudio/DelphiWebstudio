@@ -32,8 +32,8 @@ begin
   if Phase = 1 then PostMessage(Window, WM_COMMAND, IDNO, 0)
   else PostMessage(Window, WM_COMMAND, IDYES, 0);
 end;
-var Folder, Value, Recovery, Hint, Script: string; Deadline: UInt64; Driver: TDriver;
-  Archive: TZipFile; Actual, Expected: TBytes; Phase: Integer;
+var Folder, Value, Hint, Script: string; Deadline: UInt64; Driver: TDriver;
+  Actual, Expected: TBytes; Phase: Integer;
 begin
   Folder := ExtractFilePath(ParamStr(0));
   if not TFile.Exists(TPath.Combine(Folder, 'editor\fixture.json')) or
@@ -68,21 +68,16 @@ begin
       Deadline := GetTickCount64 + 45000;
       repeat CheckSynchronize(0); Application.ProcessMessages; Sleep(50); Value := MainForm.StatusLabel.Caption;
       until (Value <> 'Waiting for test save') and (Value <> 'Checking project before replacement...') and
-        (Value <> 'Creating recovery ZIP before replacing project...') or (GetTickCount64 >= Deadline);
+        (Value <> 'Replacing project...') or (GetTickCount64 >= Deadline);
       if Phase = 1 then begin
         if (Value <> 'Replacement canceled; existing project was not changed.') or (TFile.ReadAllText(Driver.JsonTarget) <> 'original project') then raise Exception.Create('Canceled replacement changed the original: ' + Value);
       end else if (Phase = 2) or (Phase = 4) then begin
-        if Pos('Project replaced. Recovery ZIP: ', Value) <> 1 then raise Exception.Create('Confirmed replacement did not complete: ' + Value);
-        Recovery := Copy(Value, Length('Project replaced. Recovery ZIP: ') + 1, MaxInt);
-        if not TFile.Exists(Recovery) then raise Exception.Create('Recovery ZIP was not found.');
-        Archive := TZipFile.Create;
-        try
-          Archive.Open(Recovery, zmRead);
-          if Phase = 2 then begin Archive.Read('existing.webstudio.json', Actual); Expected := TFile.ReadAllBytes(TPath.Combine(Folder, 'editor\fixture.json')) end
-          else begin Archive.Read('existing.zip', Actual); Expected := TFile.ReadAllBytes(TPath.Combine(Folder, 'editor\fixture.zip')) end;
-        finally Archive.Free end;
-        if ((Phase = 2) and (TEncoding.UTF8.GetString(Actual) <> 'original project')) or
-          ((Phase = 4) and (TEncoding.UTF8.GetString(Actual) <> 'original zip project')) then raise Exception.Create('Recovery ZIP differs from original.');
+        if Value <> 'Project saved.' then raise Exception.Create('Confirmed replacement did not complete: ' + Value);
+        if (Length(TDirectory.GetFiles(Folder, '.webstudio-previous-*')) <> 0) or
+          (Length(TDirectory.GetDirectories(Folder, '.webstudio-recovery-*')) <> 0) then
+          raise Exception.Create('A successful save left a previous project behind.');
+        if Phase = 2 then Expected := TFile.ReadAllBytes(TPath.Combine(Folder, 'editor\fixture.json'))
+        else Expected := TFile.ReadAllBytes(TPath.Combine(Folder, 'editor\fixture.zip'));
         if Phase = 2 then Actual := TFile.ReadAllBytes(Driver.JsonTarget) else Actual := TFile.ReadAllBytes(Driver.ZipTarget);
         if (Length(Actual) <> Length(Expected)) or ((Length(Expected) > 0) and not CompareMem(@Actual[0], @Expected[0], Length(Expected))) then raise Exception.Create('Replacement project bytes differ.');
       end else begin

@@ -158,7 +158,7 @@ begin
 end;
 
 function TDownloadStateHandler.Invoke(const sender: ICoreWebView2DownloadOperation; const args: IUnknown): HResult;
-var State: COREWEBVIEW2_DOWNLOAD_STATE; RecoveryZip, RetainedOriginal: string;
+var State: COREWEBVIEW2_DOWNLOAD_STATE; RetainedOriginal: string;
   StageStream, EntryStream: TStream; Zip: TZipFile; ZipHeader: TZipHeader;
   Bytes: TBytes; Document, Config, Pages: TJSONValue; Index, ManifestIndex, ManifestCount: Integer;
   ExtraByte: Byte; ValidatedStage: TByHandleFileInformation;
@@ -227,15 +227,15 @@ begin
               if not (Pages is TJSONArray) or (TJSONArray(Pages).Count = 0) then
                 raise EArgumentException.Create('The staged project has no pages.');
             finally Document.Free end;
-            FOwner.StatusLabel.Caption := 'Creating recovery ZIP before replacing project...';
+            FOwner.StatusLabel.Caption := 'Replacing project...';
             FOwner.StatusLabel.Update;
-            ReplaceStagedProjectFile(FStagedPath, FTargetPath, 512 * 1024 * 1024,
-              FConfirmedOriginal, ValidatedStage, RecoveryZip, RetainedOriginal);
-            FOwner.StatusLabel.Hint := 'Recovery ZIP: ' + RecoveryZip;
+            ReplaceStagedProjectFile(FStagedPath, FTargetPath,
+              FConfirmedOriginal, ValidatedStage, RetainedOriginal);
+            FOwner.StatusLabel.Hint := '';
             if RetainedOriginal <> '' then begin
-              FOwner.StatusLabel.Hint := FOwner.StatusLabel.Hint + sLineBreak + 'Original also retained: ' + RetainedOriginal;
+              FOwner.StatusLabel.Hint := 'Original also retained: ' + RetainedOriginal;
               FOwner.StatusLabel.Caption := 'Project replaced; original also retained. Hover for paths.';
-            end else FOwner.StatusLabel.Caption := 'Project replaced. Recovery ZIP: ' + RecoveryZip;
+            end else FOwner.StatusLabel.Caption := 'Project saved.';
             if (FSaveToken <> '') and (FOwner.EditorBrowser.DefaultInterface <> nil) then
               FOwner.EditorBrowser.DefaultInterface.PostWebMessageAsJson(PWideChar('{"version":1,"kind":"project.save.complete","token":"' + FSaveToken + '"}'));
             Exit;

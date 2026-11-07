@@ -175,7 +175,7 @@ object MainForm: TMainForm
     CommonButtons = [tcbYes, tcbNo]
     DefaultButton = tcbNo
     MainIcon = 1
-    Text = 'Replace the selected project? A recovery ZIP of the existing file will be created in a recovery folder beside it first. Projects larger than 512 MiB cannot be replaced yet.'
+    Text = 'Replace the selected project? The previous version will not be kept after the new file is saved successfully.'
     Title = 'Replace the existing project?'
     Left = 872
     Top = 48

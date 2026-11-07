@@ -14,13 +14,13 @@ procedure SaveNewProjectFile(const TargetPath: string; const Contents: TBytes);
   Neither a failed move nor an existing target deletes the staged file. }
 procedure CommitStagedProjectFile(const StagedPath, TargetPath: string);
 
-{ Replaces a caller-confirmed existing project with a staged file, after a
-  verified ZIP recovery copy. The caller must own and validate the staged file
+{ Replaces a caller-confirmed existing project with a staged file. The caller
+  must own and validate the staged file
   and obtain explicit confirmation. On failure, inspect all named files;
   Windows may have moved the original even when replacement reports an error. }
 procedure ReplaceStagedProjectFile(const StagedPath, TargetPath: string;
-  MaximumSourceBytes: UInt64; const ConfirmedOriginal, ValidatedStage: TByHandleFileInformation;
-  out RecoveryZipPath, RetainedOriginalPath: string);
+  const ConfirmedOriginal, ValidatedStage: TByHandleFileInformation;
+  out RetainedOriginalPath: string);
 
 { Creates a ZIP containing the current source file at a new, caller-selected
   recovery path. This does not replace the project or grant permission to do
@@ -42,24 +42,17 @@ function SetFileInformationByHandle(FileHandle: THandle; FileInformationClass: I
   external 'kernel32.dll' name 'SetFileInformationByHandle';
 
 procedure ReplaceStagedProjectFile(const StagedPath, TargetPath: string;
-  MaximumSourceBytes: UInt64; const ConfirmedOriginal, ValidatedStage: TByHandleFileInformation;
-  out RecoveryZipPath, RetainedOriginalPath: string);
+  const ConfirmedOriginal, ValidatedStage: TByHandleFileInformation;
+  out RetainedOriginalPath: string);
 const FileDispositionInfo = 4;
 var
-  FullStage, FullTarget, RecoveryDir, RawDir, RawPath: string;
+  FullStage, FullTarget, RawPath: string;
   OriginalHandle, CurrentHandle, StageHandle, RawHandle: THandle;
   OriginalInfo, CurrentInfo, RawInfo, StageInfo, ResultInfo: TByHandleFileInformation;
   Id: TGUID;
-  OriginalStream, EntryStream: TStream;
-  ZipInput: TFileStream;
-  Archive: TZipFile;
-  Header: TZipHeader;
-  SourceBuffer, EntryBuffer: array[0..65535] of Byte;
-  Count, ReadCount: Integer;
   DeleteFlag: Byte;
   Replaced: Boolean;
 begin
-  RecoveryZipPath := '';
   RetainedOriginalPath := '';
   if (Length(StagedPath) < 4) or not CharInSet(StagedPath[1], ['A'..'Z', 'a'..'z']) or
     (StagedPath[2] <> ':') or not CharInSet(StagedPath[3], ['\', '/']) or
@@ -75,7 +68,6 @@ begin
     nil, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
   if OriginalHandle = INVALID_HANDLE_VALUE then RaiseLastOSError;
   Replaced := False;
-  RecoveryDir := '';
   RawPath := '';
   try
     try
@@ -100,35 +92,9 @@ begin
         (StageInfo.nFileSizeLow <> ValidatedStage.nFileSizeLow) or
         not CompareMem(@StageInfo.ftLastWriteTime, @ValidatedStage.ftLastWriteTime, SizeOf(TFileTime)) then
         raise EWriteError.Create('The staged file changed after validation.');
-      if CreateGUID(Id) <> 0 then raise EInvalidOpException.Create('Could not create a recovery folder name.');
-      RecoveryDir := TPath.Combine(TPath.GetDirectoryName(FullTarget), '.webstudio-recovery-' + GUIDToString(Id));
-      if not CreateDirectory(PChar(RecoveryDir), nil) then RaiseLastOSError;
-      RawDir := TPath.Combine(RecoveryDir, 'original');
-      if not CreateDirectory(PChar(RawDir), nil) then RaiseLastOSError;
-      RawPath := TPath.Combine(RawDir, TPath.GetFileName(FullTarget));
-      RecoveryZipPath := TPath.Combine(RecoveryDir, 'previous-project.zip');
-      SaveProjectRecoveryZip(FullTarget, RecoveryZipPath, MaximumSourceBytes);
-      OriginalStream := THandleStream.Create(OriginalHandle);
-      try
-        OriginalStream.Position := 0;
-        ZipInput := TFileStream.Create(RecoveryZipPath, fmOpenRead or fmShareDenyWrite);
-        try
-          Archive := TZipFile.Create;
-          try
-            Archive.Open(ZipInput, zmRead);
-            if (Archive.FileCount <> 1) or (Archive.FileName[0] <> TPath.GetFileName(FullTarget)) then
-              raise EWriteError.Create('Recovery ZIP has an unexpected entry.');
-            Archive.Read(0, EntryStream, Header, True);
-            try
-              repeat
-                Count := OriginalStream.Read(SourceBuffer, SizeOf(SourceBuffer));
-                ReadCount := EntryStream.Read(EntryBuffer, Count);
-                if (ReadCount <> Count) or ((Count > 0) and not CompareMem(@SourceBuffer[0], @EntryBuffer[0], Count)) then
-                  raise EWriteError.Create('Recovery ZIP does not match the selected project.');
-              until Count = 0;
-              if EntryStream.Read(EntryBuffer, 1) <> 0 then raise EWriteError.Create('Recovery ZIP contains unexpected data.');
-            finally EntryStream.Free end;
-          finally Archive.Free end;
+      if CreateGUID(Id) <> 0 then raise EInvalidOpException.Create('Could not create a temporary original filename.');
+      RawPath := TPath.Combine(TPath.GetDirectoryName(FullTarget), '.webstudio-previous-' + GUIDToString(Id) + '.tmp');
+      if TFile.Exists(RawPath) or TDirectory.Exists(RawPath) then raise EInvalidOpException.Create('Temporary original filename is already in use.');
       CurrentHandle := CreateFile(PChar(FullTarget), GENERIC_READ, FILE_SHARE_READ or FILE_SHARE_DELETE,
         nil, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
       if CurrentHandle = INVALID_HANDLE_VALUE then RaiseLastOSError;
@@ -180,14 +146,12 @@ begin
             if not SetFileInformationByHandle(RawHandle, FileDispositionInfo, @DeleteFlag, SizeOf(DeleteFlag)) then
               RetainedOriginalPath := RawPath;
           finally CloseHandle(RawHandle) end;
-        finally ZipInput.Free end;
-      finally OriginalStream.Free end;
     except
       on E: Exception do begin
         if Replaced then
-          raise EInOutError.CreateFmt('Replacement completed but needs inspection. Recovery ZIP: %s; original path: %s. %s', [RecoveryZipPath, RawPath, E.Message])
+          raise EInOutError.CreateFmt('Replacement completed but needs inspection. Original path: %s. %s', [RawPath, E.Message])
         else
-          raise EInOutError.CreateFmt('Replacement did not complete. Check the project, staged file and recovery folder %s. %s', [RecoveryDir, E.Message]);
+          raise EInOutError.CreateFmt('Replacement did not complete. Check the project, staged file and temporary original %s. %s', [RawPath, E.Message]);
       end;
     end;
   finally CloseHandle(OriginalHandle) end;
