@@ -19,6 +19,18 @@ const baseConfig: SiteConfig = {
 }
 
 describe('exportSiteToHTML', () => {
+  it('keeps a mid-page image in the responsive row beside its text without changing saved positions', () => {
+    const block = { id: 'responsive-pair', type: 'content' as const, variant: 'prose', props: { body: '', section1Objects: [
+      { id: 'earlier', type: 'text', text: 'Earlier content', x: 0, y: 0, width: 50, height: 80 },
+      { id: 'message', type: 'text', text: 'Message', x: 11, y: 200, width: 26, height: 295 },
+      { id: 'photo', type: 'image', src: 'assets/photo.jpg', x: 54, y: 285, width: 29, height: 520 },
+    ] } }
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
+    expect(html.match(/data-ws-responsive-row="true"/g)).toHaveLength(2)
+    expect(html).toContain('--ws-row-columns:minmax(0, 26fr) minmax(0, 29fr)')
+    expect(html).toContain('left:54%;top:285px;width:29%;height:520px')
+    expect(block.props.section1Objects[2].x).toBe(54)
+  })
   it('preserves bulleted text and its formatting in the exported page', () => {
     const block = { id: 'bullets', type: 'content' as const, variant: 'prose', props: { body: '', section1Objects: [
       { id: 'schedule', type: 'text', text: '', x: 0, y: 0, width: 40, height: 80, layer: 1 },
@@ -136,9 +148,9 @@ describe('exportSiteToHTML', () => {
     const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
     expect(html).toContain('data-ws-empty-panel="true"')
     expect(html).toContain('data-ws-responsive-column="0"')
-    expect(html).toContain('data-ws-responsive-column="1"')
+    expect(html).toContain('data-ws-responsive-row="true"')
     expect(html).toMatch(/data-ws-object-group="true" data-ws-group-panel="true"[^>]*>[\s\S]*?data-section-object="panel"[\s\S]*?data-section-object="portrait"/)
-    expect(html).toContain('--ws-grid-column:9;--ws-grid-span:2;--ws-item-width:16.33')
+    expect(html).toContain('--ws-grid-column:2;--ws-grid-span:11;--ws-item-width:16.33')
     expect(html).toContain('left:70.3%;top:38px;width:16.33%')
     expect(block.props.section1Objects[1].width).toBe(16.33)
   })

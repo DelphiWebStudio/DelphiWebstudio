@@ -155,13 +155,35 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
     }
   }
   const visibleObjects = objects.filter(item => item && typeof item.id === 'string' && ['text', 'image', 'button', 'panel', 'collage', 'divider'].includes(item.type))
+  const groups = visibleObjects.filter(item => item.type === 'panel' || !visibleObjects.some(value => value.id === item.parentId && value.type === 'panel')).map(item => {
+    const members = [item, ...visibleObjects.filter(value => value.type !== 'panel' && value.parentId === item.id)]
+    return { item, members, left: Math.min(...members.map(value => Number(value.x) || 0)), right: Math.max(...members.map(value => (Number(value.x) || 0) + (Number(value.width) || 30))), top: Math.min(...members.map(value => Number(value.y) || 0)), bottom: Math.max(...members.map(value => (Number(value.y) || 0) + (Number(value.height) || 80))) }
+  }).sort((a, b) => a.top - b.top || a.left - b.left)
+  const rows: { bottom: number; groups: typeof groups }[] = []
+  for (const group of groups) {
+    const row = rows[rows.length - 1]
+    if (row && group.top < row.bottom - 1) { row.groups.push(group); row.bottom = Math.max(row.bottom, group.bottom) }
+    else rows.push({ bottom: group.bottom, groups: [group] })
+  }
+  const responsiveRows = rows.map(row => {
+    const columns: { left: number; right: number; groups: typeof groups }[] = []
+    for (const group of [...row.groups].sort((a, b) => a.left - b.left)) {
+      const column = columns[columns.length - 1]
+      if (column && group.left < column.right - 1) { column.groups.push(group); column.right = Math.max(column.right, group.right) }
+      else columns.push({ left: group.left, right: group.right, groups: [group] })
+    }
+    return columns
+  })
+  const columnsById = new Map(responsiveRows.flatMap(columns => columns.flatMap(column => column.groups.flatMap(group => group.members.map(item => [item.id, column] as const)))))
   const renderedObjects = new Map(visibleObjects.map(item => {
       const x = Math.max(0, Math.min(95, Number(item.x) || 0)), y = Math.max(0, Number(item.y) || 0)
       const width = Math.max(5, Math.min(100 - x, Number(item.width) || 30)), height = Math.max(24, Number(item.height) || 80)
       const link = typeof item.url === 'string' && /^(https?:\/\/|\/(?!\/)|#)/i.test(item.url) ? item.url : undefined
       const parent = objects.find(value => value?.id === item.parentId && value.type === 'panel')
-      const gridColumn = Math.min(Number(parent?.x ?? x) >= 60 ? 12 : 8, Math.max(1, Math.floor(x / 100 * 12) + 1))
-      const gridSpan = Math.min((Number(parent?.x ?? x) >= 60 ? 13 : 9) - gridColumn, x < 5 && width >= 55 ? 8 : Math.max(1, Math.round(width / 100 * 12)))
+      const column = columnsById.get(item.id)
+      const columnWidth = Math.max(1, (column?.right ?? 100) - (column?.left ?? 0))
+      const gridColumn = Math.max(1, Math.min(12, Math.round((x - (column?.left ?? 0)) / columnWidth * 12) + 1))
+      const gridSpan = Math.max(1, Math.min(13 - gridColumn, Math.round(width / columnWidth * 12)))
       const emptyPanel = item.type === 'panel' && !item.text && !item.src && !block.props[`sectionObject_${item.id}`] && !block.props[`sectionObject_${item.id}Rich`] && objects.some(value => value?.parentId === item.id)
       return [item.id, <div key={item.id} id={typeof item.anchorName === 'string' && /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(item.anchorName) ? item.anchorName : undefined} data-section-object={item.id} data-ws-object-type={item.type} data-ws-parented={parent ? 'true' : undefined} data-ws-empty-panel={emptyPanel ? 'true' : undefined} tabIndex={editable ? 0 : undefined} aria-label={editable ? `${item.type} in section ${section}` : undefined} style={{ position: 'absolute', left: `${x}%`, top: y, width: `${width}%`, height: item.type === 'text' ? 'auto' : height, minHeight: item.type === 'text' ? height : undefined, order: responsiveOrder.indexOf(item.id), '--ws-grid-column': gridColumn, '--ws-grid-span': gridSpan, '--ws-item-width': width, '--ws-parent-background': parent && /^#[0-9a-f]{6}$/i.test(parent.color || '') ? parent.color : 'transparent', zIndex: Number(item.layer) || 1, pointerEvents: 'auto', outline: editable && multiSelection.some(value => value.blockId === block.id && value.section === section && value.id === item.id) ? '1px solid #005a9e' : undefined, touchAction: editable ? 'none' : undefined, cursor: editable ? 'move' : undefined, background: item.type === 'panel' && /^#[0-9a-f]{6}$/i.test(item.color || '') ? item.color : undefined, color: /^#[0-9a-f]{6}$/i.test(item.textColor || '') ? item.textColor : undefined, fontSize: Number(item.fontSize) >= 6 && Number(item.fontSize) <= 200 ? Number(item.fontSize) : undefined } as CSSProperties}
         onContextMenu={event => { if (!editable || (editing === item.id && event.target instanceof Element && event.target.closest('[contenteditable="true"]'))) return; event.preventDefault(); event.stopPropagation(); useEditorStore.getState().selectBlock(block.id); useEditorStore.getState().selectSection(section); setSelected(item.id); const layers = Array.from(new Set(document.elementsFromPoint(event.clientX, event.clientY).map(element => element.closest<HTMLElement>('[data-section-object]')).filter((element): element is HTMLElement => !!element && element.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id') === block.id && Number(element.closest<HTMLElement>('[data-editor-section]')?.dataset.editorSection) === section).map(element => element.dataset.sectionObject || '').filter(id => objects.some(value => value.id === id)))); setMenu({ id: item.id, x: event.clientX, y: event.clientY, layers }) }}
@@ -197,8 +219,9 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
       </div>] as const
     }))
   return <><div data-section-object-area={section} data-ws-has-right={objects.some(item => item && Number(objects.find(value => value?.id === item.parentId && value.type === 'panel')?.x ?? item.x) >= 60) ? 'true' : undefined} className="ws-stack-mobile" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-    {[0, 1].map(column => <div key={column} data-ws-responsive-column={column} style={{ display: 'contents' }}>
-      {visibleObjects.filter(item => item.type === 'panel' || !visibleObjects.some(value => value.id === item.parentId && value.type === 'panel')).filter(item => (Number(item.x) >= 60 ? 1 : 0) === column).map(item => {
+    {responsiveRows.map((columns, rowIndex) => <div key={rowIndex} data-ws-responsive-row style={{ display: 'contents', '--ws-row-columns': columns.map(column => `minmax(0, ${Math.max(1, column.right - column.left)}fr)`).join(' ') } as CSSProperties}>
+    {columns.map((column, columnIndex) => <div key={columnIndex} data-ws-responsive-column={columnIndex} style={{ display: 'contents' }}>
+      {column.groups.sort((a, b) => a.top - b.top || a.left - b.left).map(({ item }) => {
         const children = item.type === 'panel' ? visibleObjects.filter(value => value.type !== 'panel' && value.parentId === item.id) : []
         const background = /^#[0-9a-f]{6}$/i.test(item.color || '') ? item.color : 'transparent'
         return <div key={item.id} data-ws-object-group data-ws-group-panel={children.length ? 'true' : undefined} style={{ display: 'contents', order: responsiveOrder.indexOf(item.id), '--ws-group-width': Number(item.width) || 30, '--ws-group-background': background } as CSSProperties}>
@@ -206,6 +229,7 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
           {children.map(child => renderedObjects.get(child.id))}
         </div>
       })}
+    </div>)}
     </div>)}
   </div>
   {editable && (guides.vertical || guides.horizontal) && createPortal(<div aria-hidden="true" style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 10000 }}>
