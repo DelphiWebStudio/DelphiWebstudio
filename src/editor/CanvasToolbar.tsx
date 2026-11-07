@@ -37,12 +37,16 @@ const viewports: { value: Viewport; icon: typeof Monitor; label: string }[] = [
   { value: 'mobile', icon: Smartphone, label: 'Mobile' },
 ]
 
-function AddPagePopover({ onAdd, onClose }: { onAdd: (name: string, path: string) => void; onClose: () => void }) {
+function AddPageDialog({ onAdd, onClose }: { onAdd: (name: string, path: string) => void; onClose: () => void }) {
   const [name, setName] = useState('')
   const [path, setPath] = useState('')
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [error, setError] = useState('')
+  const dialog = useRef<HTMLDialogElement>(null)
 
-  useEffect(() => { inputRef.current?.focus() }, [])
+  useEffect(() => {
+    const element = dialog.current
+    if (element && !element.open) element.showModal()
+  }, [])
 
   function submit() {
     const trimmed = name.trim()
@@ -50,45 +54,40 @@ function AddPagePopover({ onAdd, onClose }: { onAdd: (name: string, path: string
     const cleanPath = path.trim() || `/${trimmed.toLowerCase().replace(/\s+/g, '-')}`
     try {
       onAdd(trimmed, cleanPath)
-      onClose()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Page could not be added')
+      dialog.current?.close()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Page could not be added')
     }
   }
 
   return (
-    <div className="absolute top-full left-0 mt-1 bg-bg-2 border border-border-default rounded-lg p-2.5 shadow-[0_8px_24px_rgba(0,0,0,0.4)] z-20 w-52">
-      <div className="space-y-2">
-        <div>
-          <label className="block text-[10px] text-text-3 mb-0.5">Page name</label>
-          <input
-            ref={inputRef}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') onClose() }}
-            placeholder="About"
-            className="w-full px-2 py-1.5 rounded border border-border-default bg-bg-3 text-text-0 text-[11.5px] outline-none focus:border-green"
-          />
+    <dialog ref={dialog} onClose={onClose} aria-labelledby="add-page-title" className="m-auto w-[min(92vw,26rem)] rounded-xl border border-border-default bg-bg-1 p-5 text-text-0 shadow-xl backdrop:bg-black/60">
+      <h2 id="add-page-title" className="text-lg font-semibold">Add page</h2>
+      <form onSubmit={event => { event.preventDefault(); submit() }}>
+        <label htmlFor="add-page-name" className="mt-4 block text-sm">Page name</label>
+        <input
+          id="add-page-name"
+          value={name}
+          onChange={event => { setName(event.target.value); setError('') }}
+          className="mt-1 w-full rounded border border-border-default bg-bg-2 px-3 py-2 text-sm"
+        />
+        <label htmlFor="add-page-path" className="mt-3 block text-sm">Page address <span className="text-text-2">(optional)</span></label>
+        <input
+          id="add-page-path"
+          value={path}
+          onChange={event => { setPath(event.target.value); setError('') }}
+          placeholder="/about"
+          aria-describedby="add-page-path-hint"
+          className="mt-1 w-full rounded border border-border-default bg-bg-2 px-3 py-2 text-sm"
+        />
+        <p id="add-page-path-hint" className="mt-1 text-xs text-text-2">Leave blank to use the page name.</p>
+        {error && <p role="alert" className="mt-2 text-sm text-status-red">{error}</p>}
+        <div className="mt-5 flex justify-end gap-2">
+          <button type="button" onClick={() => dialog.current?.close()} className="rounded border border-border-default px-3 py-2 text-sm">Cancel</button>
+          <button type="submit" disabled={!name.trim()} className="rounded bg-green px-3 py-2 text-sm font-semibold text-black disabled:opacity-50">Add page</button>
         </div>
-        <div>
-          <label className="block text-[10px] text-text-3 mb-0.5">Path</label>
-          <input
-            value={path}
-            onChange={(e) => setPath(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') onClose() }}
-            placeholder="/about"
-            className="w-full px-2 py-1.5 rounded border border-border-default bg-bg-3 text-text-0 text-[11.5px] outline-none focus:border-green font-mono"
-          />
-        </div>
-        <button
-          onClick={submit}
-          disabled={!name.trim()}
-          className="w-full py-1.5 rounded bg-green text-black text-[11px] font-semibold hover:bg-green-dim transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-        >
-          Add Page
-        </button>
-      </div>
-    </div>
+      </form>
+    </dialog>
   )
 }
 
@@ -301,6 +300,7 @@ export function CanvasToolbar({ settingsOpen = false, onOpenSettings }: { settin
 
   return (
     <>
+    {showAddPage && <AddPageDialog onAdd={addPage} onClose={() => setShowAddPage(false)} />}
     {showPlanPages && <PlanPages onClose={() => setShowPlanPages(false)} />}
     {showSiteChecks && <SiteChecks onClose={() => setShowSiteChecks(false)} />}
     {pageToDelete && <DeletePageDialog page={pageToDelete} linkedPages={linkedPages} onCancel={() => setDeletingPage(null)} onConfirm={() => { removePage(pageToDelete.id); setDeletingPage(null) }} />}
@@ -339,27 +339,25 @@ export function CanvasToolbar({ settingsOpen = false, onOpenSettings }: { settin
           />
         ))}
       </div>
-        <div className="relative shrink-0">
-          <button
-            onClick={() => setShowAddPage(!showAddPage)}
-            className="w-6 h-6 rounded flex items-center justify-center text-text-3 hover:text-green hover:bg-bg-2 transition-all"
-            title="Add page"
-            aria-label="Add page"
-          >
-            <Plus size={12} />
-          </button>
-          {showAddPage && (
-            <AddPagePopover
-              onAdd={(name, path) => addPage(name, path)}
-              onClose={() => setShowAddPage(false)}
-            />
-          )}
-        </div>
+      <button type="button" aria-haspopup="dialog" onClick={() => setShowAddPage(true)} className="inline-flex shrink-0 items-center gap-1.5 rounded border border-border-default bg-bg-2 px-2.5 text-xs font-medium text-text-0 hover:bg-bg-3">
+        <Plus size={14} aria-hidden="true" /> Add page
+      </button>
 
       {/* Right side */}
       <div className="flex flex-wrap justify-start items-center gap-1 min-w-0">
-        {portableProjectsEnabled && <details className="studio-page-tools relative text-xs"><summary className="cursor-pointer rounded px-2 py-2">Page tools</summary><div className="absolute top-full z-50 w-36 rounded border border-border-default bg-bg-1 p-1 shadow-xl"><button type="button" onClick={() => setShowPlanPages(true)} className="px-2 py-1 rounded text-xs text-text-1 hover:bg-bg-3">Plan pages</button>
-        <button type="button" onClick={() => setShowSiteChecks(true)} className="px-2 py-1 rounded text-xs text-text-1 hover:bg-bg-3">Check site</button></div></details>}
+        {portableProjectsEnabled && <details className="studio-page-tools relative text-xs">
+          <summary className="cursor-pointer rounded px-2 py-2">Page tools</summary>
+          <div className="absolute top-full z-50 w-36 rounded border border-border-default bg-bg-1 p-1 shadow-xl">
+            <button type="button" aria-haspopup="dialog" onClick={event => {
+              const menu = event.currentTarget.closest('details')
+              menu?.removeAttribute('open')
+              menu?.querySelector('summary')?.focus()
+              setShowAddPage(true)
+            }} className="block w-full rounded px-2 py-1 text-left text-text-0 hover:bg-bg-3">Add page</button>
+            <button type="button" onClick={() => setShowPlanPages(true)} className="block w-full rounded px-2 py-1 text-left text-text-1 hover:bg-bg-3">Plan pages</button>
+            <button type="button" onClick={() => setShowSiteChecks(true)} className="block w-full rounded px-2 py-1 text-left text-text-1 hover:bg-bg-3">Check site</button>
+          </div>
+        </details>}
         <label className="text-xs text-text-1 flex items-center gap-1">
           Mode
           <select aria-label="Editor mode" value={mode} onChange={event => setMode(event.target.value as EditorMode)} className="rounded bg-bg-2 border border-border-default px-1 py-1 text-text-0">
