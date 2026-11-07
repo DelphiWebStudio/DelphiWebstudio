@@ -188,13 +188,13 @@ export function MediaPanel({ picker = false, onAdded, onSelect, accept }: { pick
         await importFiles(files)
       })()
     }}>
-      <details className="shrink-0 rounded border border-border-default p-2" open={!picker}><summary className="cursor-pointer text-sm font-semibold">Import files and folders</summary><div className="mt-2 flex flex-wrap items-end gap-4"><label className="text-xs text-text-1">When files match
+      <details className="shrink-0 rounded border border-border-default p-2" open={!picker || accept === 'application/pdf'}><summary className="cursor-pointer text-sm font-semibold">Import files and folders</summary><div className="mt-2 flex flex-wrap items-end gap-4"><label className="text-xs text-text-1">When files match
         <select aria-label="Duplicate files" value={duplicateMode} disabled={mediaBusy} onChange={event => setDuplicateMode(event.target.value as 'reuse' | 'keep' | 'skip')} className="ml-2 bg-bg-2 border border-border-default rounded p-1">
           <option value="reuse">Reuse existing</option><option value="keep">Keep separate copies</option><option value="skip">Skip duplicates</option>
         </select>
       </label>
       <label className="text-xs font-semibold text-text-0">Import media
-        <input aria-label="Import media files" type="file" multiple onChange={event => { const input = event.currentTarget; const files = Array.from(input.files ?? []); input.value = ''; void importFiles(files) }} disabled={mediaBusy} className="block w-full mt-2 text-xs text-text-1" />
+        <input aria-label="Import media files" type="file" accept={accept === 'application/pdf' ? '.pdf,application/pdf' : undefined} multiple onChange={event => { const input = event.currentTarget; const files = Array.from(input.files ?? []); input.value = ''; void importFiles(files) }} disabled={mediaBusy} className="block w-full mt-2 text-xs text-text-1" />
       </label>
       <label className="text-xs text-text-1">Import folder
         <input aria-label="Import media folder" type="file" {...{ webkitdirectory: '' }} multiple onChange={event => { const input = event.currentTarget; const files = Array.from(input.files ?? []); input.value = ''; void importFiles(files) }} disabled={mediaBusy} className="block w-full mt-1 text-xs" />

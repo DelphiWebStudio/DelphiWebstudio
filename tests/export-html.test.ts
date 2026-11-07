@@ -19,6 +19,17 @@ const baseConfig: SiteConfig = {
 }
 
 describe('exportSiteToHTML', () => {
+  it('exports the current and four previous weekly bulletin PDFs without editor controls', () => {
+    const block = { id: 'bulletins', type: 'documentLibrary' as const, variant: 'weekly-bulletins', props: {
+      items: [{ title: 'Unassigned' }, { title: 'Photo', src: 'assets/photo.png' }, ...Array.from({ length: 6 }, (_, index) => ({ title: `Bulletin ${6 - index}`, src: `assets/bulletin-${6 - index}.pdf` }))],
+    } }
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
+    expect(html).toContain('Current bulletin')
+    expect(html.match(/href="assets\/bulletin-\d\.pdf"/g)).toEqual([6, 5, 4, 3, 2].map(number => `href="assets/bulletin-${number}.pdf"`))
+    expect(html).not.toContain('href="assets/photo.png"')
+    expect(html).not.toContain('Add bulletin PDF')
+    expect(exportSiteToHTML({ ...baseConfig, blocks: [{ ...block, props: { items: [] } }] })).toContain('No bulletins have been posted yet.')
+  })
   it('keeps a mid-page image in the responsive row beside its text without changing saved positions', () => {
     const block = { id: 'responsive-pair', type: 'content' as const, variant: 'prose', props: { body: '', section1Objects: [
       { id: 'earlier', type: 'text', text: 'Earlier content', x: 0, y: 0, width: 50, height: 80 },
