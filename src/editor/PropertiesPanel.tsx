@@ -793,7 +793,7 @@ function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: Fie
                     {siteSearchEnabled && <option value="/search.html">Search</option>}
                     {(pages ?? []).some(page => page.webstudioArticle?.status === 'ready') && <option value="/articles/index.html">Articles</option>}
                   </select>}
-                  {mediaItems && key === imageKey && portableProjectsEnabled && <button type="button" aria-label={`Browse ${documentItems ? 'document' : 'image'} for ${field.label} item ${i + 1}`} className="mt-1 rounded border border-border-default px-3 py-2 text-xs" onClick={() => window.dispatchEvent(new CustomEvent('webstudio.media', { detail: { accept: documentItems ? undefined : 'image/', onSelect: (image: MediaAsset) => {
+                  {mediaItems && key === imageKey && portableProjectsEnabled && <button type="button" aria-label={`Browse ${documentItems ? 'document' : 'image'} for ${field.label} item ${i + 1}`} className="mt-1 rounded border border-border-default px-3 py-2 text-xs" onClick={() => window.dispatchEvent(new CustomEvent('webstudio.media', { detail: { accept: documentItems ? block.variant === 'weekly-bulletins' ? 'application/pdf' : undefined : 'image/', onSelect: (image: MediaAsset) => {
                     const updated = [...items]
                     updated[i] = { ...updated[i], [imageKey]: image.path, assetId: image.id, ...(documentItems && !updated[i].title ? { title: image.name } : {}) }
                     onChange(updated)
