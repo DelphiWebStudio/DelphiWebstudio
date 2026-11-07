@@ -58,11 +58,11 @@ export function DocumentLibraryBlock({ block, editable = false }: { block: Block
         {editable && <p className="mt-4 text-sm text-slate-700">The first PDF is the current bulletin. Add the newest one last, or reorder the entries in Properties.</p>}
       </div>
       {selectedBulletin && <dialog ref={bulletinDialog} aria-label={`Bulletin PDF: ${selectedBulletin.title}`} onClose={() => setSelectedBulletin(null)} onClick={event => event.stopPropagation()}
-        className="m-auto max-h-[92dvh] w-[min(94vw,56rem)] max-w-none overflow-auto rounded-xl border border-slate-300 bg-white text-slate-900 shadow-2xl backdrop:bg-black/60">
-        <div className="sticky top-0 z-10 flex justify-end border-b border-slate-200 bg-white px-4 py-2">
+        className="m-auto h-[96dvh] w-[96vw] max-h-none max-w-none overflow-hidden rounded-xl border border-slate-300 bg-white text-slate-900 shadow-2xl open:flex open:flex-col backdrop:bg-black/60 [color-scheme:light]">
+        <div className="flex shrink-0 justify-end border-b border-slate-200 px-4 py-2">
           <button type="button" onClick={() => bulletinDialog.current?.close()} className="rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50">Close PDF</button>
         </div>
-        <PdfBlock block={{ ...block, props: { ...selectedBulletin, showPrint: false } }} />
+        <PdfBlock block={{ ...block, props: { ...selectedBulletin, showPrint: false } }} fillWindow />
       </dialog>}
     </section>
   }
