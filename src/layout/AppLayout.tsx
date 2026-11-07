@@ -1,3 +1,4 @@
+import { MediaLibraryDialog } from '@/media/MediaLibraryDialog'
 import { Outlet, useLocation } from 'react-router-dom'
 import { TopNav } from './TopNav'
 import { Toaster } from 'sonner'
@@ -9,7 +10,7 @@ export function AppLayout() {
   const location = useLocation()
 
   return (
-    <div className="h-screen w-screen flex flex-col overflow-hidden">
+    <div className="studio-app h-screen w-screen flex flex-col overflow-hidden">
       <a href="#main-content" className="skip-to-content">Skip to content</a>
       <TopNav />
       {(configDraftReadFailed || projectDraftReadFailed) && <div role="alert" className="mt-12 bg-status-yellow text-black px-4 py-2 text-sm">Local drafts could not be read. Existing drafts are protected from overwrite; save any new work to a separate project file and restart to retry.</div>}
@@ -29,7 +30,7 @@ export function AppLayout() {
           },
         }}
       />
-      <ShortcutsModal />
+      <ShortcutsModal /><MediaLibraryDialog />
     </div>
   )
 }

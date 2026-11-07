@@ -24,6 +24,7 @@ export function Canvas() {
   const setActivePage = useConfigStore((s) => s.setActivePage)
   const { selectedBlockId, selectBlock, viewport, customViewportWidth, activeProjectId, previewMode } = useEditorStore()
   const textPlacement = useEditorStore(state => state.textPlacement)
+  const mediaPlacement = useEditorStore(state => state.mediaPlacement)
   const movingCollage = useEditorStore(state => state.movingCollage)
   const revision = useProjectsStore(state => state.projects.find(project => project.id === activeProjectId)?.mediaRevision ?? 0)
   const webmasterEmail = useProjectsStore(state => state.projects.find(project => project.id === activeProjectId)?.settings?.webmasterEmail ?? '')
@@ -62,11 +63,11 @@ export function Canvas() {
   const previewWidth = customViewportWidth ?? (viewport === 'desktop' ? 1200 : viewport === 'tablet' ? 768 : 375)
 
   useEffect(() => {
-    if (!textPlacement && !movingCollage) return
-    const cancel = (event: KeyboardEvent) => { if (event.key === 'Escape') { useEditorStore.getState().setTextPlacement(null); useEditorStore.getState().setMovingCollage(null) } }
+    if (!textPlacement && !movingCollage && !mediaPlacement) return
+    const cancel = (event: KeyboardEvent) => { if (event.key === 'Escape') { useEditorStore.getState().setTextPlacement(null); useEditorStore.getState().setMediaPlacement(null); useEditorStore.getState().setMovingCollage(null) } }
     window.addEventListener('keydown', cancel)
     return () => window.removeEventListener('keydown', cancel)
-  }, [textPlacement, movingCollage])
+  }, [textPlacement, movingCollage, mediaPlacement])
 
   const canvasContent = (
     <div
@@ -75,6 +76,31 @@ export function Canvas() {
       onPointerDownCapture={event => {
         // React portals bubble through the canvas even though their menus are outside it.
         if (!(event.target instanceof Node) || !event.currentTarget.contains(event.target)) return
+        if (mediaPlacement && !previewMode && event.button === 0) {
+          event.preventDefault(); event.stopPropagation()
+          const editor = useEditorStore.getState()
+          editor.setMediaPlacement(null)
+          if (mediaPlacement.projectId !== editor.activeProjectId || mediaPlacement.pageId !== useConfigStore.getState().activePageId) { toast.error('The page changed. Select the image again.'); return }
+          const section = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-editor-section]') : null
+          const number = Number(section?.dataset.editorSection)
+          const blockId = section?.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id')
+          const block = useConfigStore.getState().getActivePageBlocks().find(item => item.id === blockId)
+          const area = section?.querySelector<HTMLElement>(`[data-section-object-area="${number}"]`)
+          if (block && area && number >= 1 && number <= 4) {
+            const bounds = area.getBoundingClientRect(), key = `section${number}Objects`
+            const items = Array.isArray(block.props[key]) ? block.props[key] as Array<Record<string, unknown>> : []
+            const id = `object-${crypto.randomUUID()}`, width = 30
+            const parentId = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-section-object]')?.dataset.sectionObject : undefined
+            const parent = items.find(item => item.id === parentId && item.type === 'panel')
+            useConfigStore.getState().updateBlockProps(block.id, { [key]: [...items, { id, type: 'image', src: mediaPlacement.path, assetId: mediaPlacement.id, alt: mediaPlacement.name, x: Math.max(0, Math.min(70, (event.clientX - bounds.left) / Math.max(1, bounds.width) * 100)), y: Math.max(0, event.clientY - bounds.top), width, height: mediaPlacement.width && mediaPlacement.height ? Math.max(24, bounds.width * .3 * mediaPlacement.height / mediaPlacement.width) : 180, layer: Math.max(0, ...items.map(item => Number(item.layer) || 0)) + 1, ...(parent ? { parentId: parent.id } : {}) }] })
+            selectBlock(block.id); editor.selectSection(number); editor.selectSectionObject({ blockId: block.id, section: number, id })
+          } else {
+            const id = `block-${crypto.randomUUID()}`
+            useConfigStore.getState().addBlock({ id, type: 'image', variant: 'hero-image', props: { assetId: mediaPlacement.id, src: mediaPlacement.path, alt: mediaPlacement.name, layoutWidth: 40 } })
+            selectBlock(id)
+          }
+          return
+        }
         if (!previewMode && event.button === 0 && event.target instanceof Element && !event.target.closest('button,[contenteditable="true"]')) {
           const object = event.target.closest<HTMLElement>('[data-section-object]')
           const blockId = object?.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id')
@@ -167,7 +193,7 @@ export function Canvas() {
           const newBlockId = `block-${crypto.randomUUID()}`
           const bounds = event.currentTarget.getBoundingClientRect()
           const x = bounds.width ? Math.max(0, Math.min(70, (event.clientX - bounds.left) / bounds.width * 100)) : 0
-          useConfigStore.getState().addBlock({ id: newBlockId, type: 'content', variant: meta.variants[0], props: { ...structuredClone(meta.defaultProps), title: '', body: '', section1Objects: [{ id, type: isLine ? 'divider' : isPanel ? 'panel' : 'text', text: isPanel ? 'Panel' : isLine ? '' : 'Text', color: isPanel ? '#b9aeb6' : '', textColor: '#000000', fontSize: '', x, y: 0, width: isLine && textPlacement.lineOrientation === 'vertical' ? 5 : 30, height: isLine ? (textPlacement.lineOrientation === 'vertical' ? 140 : 24) : isPanel ? 160 : 80, layer: 1, ...(isLine ? { lineOrientation: textPlacement.lineOrientation, lineStyle: textPlacement.lineStyle, lineThickness: textPlacement.lineThickness } : {}) }] } })
+          useConfigStore.getState().addBlock({ id: newBlockId, type: 'content', variant: meta.variants[0], props: { ...structuredClone(meta.defaultProps), title: '', body: '', section1Objects: [{ id, type: isLine ? 'divider' : isPanel ? 'panel' : 'text', text: isPanel ? 'Panel' : isLine ? '' : textPlacement.text || 'Text', color: isPanel ? '#b9aeb6' : '', textColor: '#000000', fontSize: textPlacement.fontSize || '', x, y: 0, width: isLine && textPlacement.lineOrientation === 'vertical' ? 5 : 30, height: isLine ? (textPlacement.lineOrientation === 'vertical' ? 140 : 24) : isPanel ? 160 : 80, layer: 1, ...(isLine ? { lineOrientation: textPlacement.lineOrientation, lineStyle: textPlacement.lineStyle, lineThickness: textPlacement.lineThickness } : {}) }] } })
           selectBlock(newBlockId)
           useEditorStore.getState().selectSection(1)
           if (isPanel || isLine) useEditorStore.getState().selectSectionObject({ blockId: newBlockId, section: 1, id })
@@ -187,7 +213,7 @@ export function Canvas() {
         const x = Math.max(0, Math.min(70, (event.clientX - bounds.left) / bounds.width * 100))
         const y = Math.max(0, event.clientY - bounds.top)
         const layer = Math.max(0, ...items.map(item => Number(item.layer) || 0)) + 1
-        useConfigStore.getState().updateBlockProps(block.id, { [key]: [...items, { id, type: isLine ? 'divider' : isPanel ? 'panel' : 'text', text: isPanel ? 'Panel' : isLine ? '' : 'Text', color: isPanel ? '#b9aeb6' : '', textColor: '#000000', fontSize: '', x, y, width: isLine && textPlacement.lineOrientation === 'vertical' ? 5 : 30, height: isLine ? (textPlacement.lineOrientation === 'vertical' ? 140 : 24) : isPanel ? 160 : 80, layer, ...(!isPanel && parent ? { parentId: parent.id } : {}), ...(isLine ? { lineOrientation: textPlacement.lineOrientation, lineStyle: textPlacement.lineStyle, lineThickness: textPlacement.lineThickness } : {}) }] })
+        useConfigStore.getState().updateBlockProps(block.id, { [key]: [...items, { id, type: isLine ? 'divider' : isPanel ? 'panel' : 'text', text: isPanel ? 'Panel' : isLine ? '' : textPlacement.text || 'Text', color: isPanel ? '#b9aeb6' : '', textColor: '#000000', fontSize: textPlacement.fontSize || '', x, y, width: isLine && textPlacement.lineOrientation === 'vertical' ? 5 : 30, height: isLine ? (textPlacement.lineOrientation === 'vertical' ? 140 : 24) : isPanel ? 160 : 80, layer, ...(!isPanel && parent ? { parentId: parent.id } : {}), ...(isLine ? { lineOrientation: textPlacement.lineOrientation, lineStyle: textPlacement.lineStyle, lineThickness: textPlacement.lineThickness } : {}) }] })
         selectBlock(block.id)
         useEditorStore.getState().selectSection(sectionNumber)
         if (isPanel || isLine) useEditorStore.getState().selectSectionObject({ blockId: block.id, section: sectionNumber, id })
@@ -291,7 +317,7 @@ export function Canvas() {
       aria-label={`Site preview, ${blocks.length} blocks, ${viewport} viewport`}
     >
       {marquee && <div aria-hidden="true" style={{ position: 'fixed', left: Math.min(marquee.x, marquee.endX), top: Math.min(marquee.y, marquee.endY), width: Math.abs(marquee.endX - marquee.x), height: Math.abs(marquee.endY - marquee.y), border: '1px solid #0078d4', background: 'rgba(0,120,212,.12)', pointerEvents: 'none', zIndex: 10000 }} />}
-      {(textPlacement || movingCollage) && <div className="absolute left-0 top-0 z-50 bg-blue-700 px-3 py-2 text-sm text-white" style={{ pointerEvents: 'none' }}>{movingCollage ? 'Click the destination section for the collage.' : textPlacement?.kind === 'divider' ? 'Click inside a section to place the line.' : textPlacement?.kind === 'panel' ? 'Click inside a section to place the panel.' : 'Click inside a section or on a panel to place text.'} Press Esc to cancel.</div>}
+      {(textPlacement || movingCollage || mediaPlacement) && <div className="absolute left-0 top-0 z-50 bg-blue-700 px-3 py-2 text-sm text-white" style={{ pointerEvents: 'none' }}>{mediaPlacement ? 'Click inside a section or panel to place the image.' : movingCollage ? 'Click the destination section for the collage.' : textPlacement?.kind === 'divider' ? 'Click inside a section to place the line.' : textPlacement?.kind === 'panel' ? 'Click inside a section to place the panel.' : 'Click inside a section or on a panel to place text.'} Press Esc to cancel.</div>}
       {!previewMode && viewport === 'desktop' && <div aria-hidden="true" className="absolute inset-y-0 left-1/2 z-30 pointer-events-none" style={{ width: 'min(1100px, calc(100% - 32px))', transform: 'translateX(-50%)', borderLeft: '1px dashed #8996a2', borderRight: '1px dashed #8996a2' }} />}
       {activeArticle && (activeArticle.author || activeArticle.summary || activeArticle.tags?.length) && <header className="px-6 py-3 text-text-1">
         {activeArticle.author && <p className="text-sm">By {activeArticle.author}</p>}

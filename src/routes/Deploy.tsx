@@ -178,7 +178,7 @@ export function Deploy() {
     <div className="h-full overflow-y-auto">
       <div className="px-4 md:px-12 pt-8">
         <h1 className="text-[22px] font-display font-semibold tracking-tight animate-fade-in-up stagger-1">Export</h1>
-        <p className="text-text-2 text-[13px] mt-1 animate-fade-in-up stagger-2">Download or publish your site</p>
+        <p className="text-text-2 text-[13px] mt-1 animate-fade-in-up stagger-2">Download website files or manage hosting</p>
       </div>
 
       <div className="px-4 md:px-12 pt-6">

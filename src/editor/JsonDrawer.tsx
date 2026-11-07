@@ -180,7 +180,7 @@ export function JsonDrawer() {
             <span className="w-1.5 h-1.5 rounded-full bg-green" />
             Live
           </div>
-          <button type="button" aria-label="Close code panel" onClick={() => { toggleJsonDrawer(); document.querySelector<HTMLButtonElement>('[aria-controls="editor-code-panel"]')?.focus() }} className="text-[10px] text-text-2 hover:text-text-0">Close</button>
+          <button type="button" aria-label="Close code panel" onClick={() => { toggleJsonDrawer(); document.querySelector<HTMLElement>('[data-editor-menu="Advanced"]')?.focus() }} className="text-[10px] text-text-2 hover:text-text-0">Close</button>
         </div>
       </div>
 

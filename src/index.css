@@ -1,5 +1,28 @@
 @import "tailwindcss";
 
+/* Application chrome is independent of the website's typography. */
+.studio-app { font-family: 'Segoe UI', system-ui, sans-serif; }
+[aria-label^="Site preview,"] { font-family: var(--font-sans); }
+.studio-menu-bar { display: flex; align-items: center; gap: 2px; font-size: 13px; }
+.studio-menu-bar details { position: relative; }
+.studio-menu-bar summary { padding: 7px 12px; cursor: pointer; border-radius: 5px; list-style: none; }
+.studio-menu-bar summary:hover, .studio-menu-bar details[open] summary { background: var(--color-bg-3); }
+.studio-menu-bar [role="menu"] { position: absolute; top: 100%; left: 0; z-index: 300; min-width: 240px; padding: 5px; color: #172033; background: white; border: 1px solid #64748b; border-radius: 7px; box-shadow: 0 8px 24px #0003; }
+.studio-menu-bar [role="menuitem"] { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 24px; text-align: left; padding: 8px 10px; border-radius: 4px; }
+.studio-menu-bar [role="menuitem"]:hover, .studio-menu-bar [role="menuitem"]:focus-visible { background: #e8f1ff; }
+.studio-menu-bar kbd { font: 11px 'Segoe UI', sans-serif; color: #59677a; white-space: nowrap; }
+.studio-toolbar button, .studio-toolbar select { min-height: 32px; font-size: 12px; }
+.studio-toolbar button { min-width: 32px; }
+#editor-left-panel { width: 260px; }
+#editor-left-panel button, #editor-left-panel input, #editor-left-panel select { min-height: 32px; font-size: 12px; }
+#editor-left-panel p, #editor-left-panel summary { font-size: 12px; }
+.studio-window, [data-studio-window] { font-family: 'Segoe UI', system-ui, sans-serif; color: #172033; background: white; border: 1px solid #64748b; border-radius: 10px; box-shadow: 0 12px 36px #10223a33; }
+.studio-window button, [data-studio-window] button { min-height: 32px; font-size: 13px; }
+.studio-window input:not([type="checkbox"]):not([type="radio"]), .studio-window select, .studio-window textarea, [data-studio-window] input:not([type="checkbox"]):not([type="radio"]), [data-studio-window] select { min-height: 34px; border: 1px solid #7b8797; border-radius: 5px; font-size: 13px; padding: 6px 8px; }
+.studio-window label, [data-studio-window] label { font-size: 12px; }
+.studio-window summary { min-height: 34px; display: flex; align-items: center; font-size: 12px; }
+@media (prefers-reduced-motion: reduce) { .studio-app *, .studio-app *::before, .studio-app *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
+
 .ws-pdf-mobile-link { display: none; }
 @container (max-width: 479px) {
   .ws-pdf-mobile-link { display: block; }
@@ -302,3 +325,12 @@ textarea:focus-visible {
   background: transparent;
   border: 0;
 }
+
+.studio-media-library { width:min(1120px,96vw); height:min(820px,92vh); max-width:none; max-height:92vh; }
+.studio-media-library[open] { display:flex; flex-direction:column; }
+.studio-media-picker { --color-bg-1:#fff; --color-bg-2:#f8fafc; --color-bg-3:#e2e8f0; --color-text-0:#0f172a; --color-text-1:#1e293b; --color-text-2:#475569; --color-text-3:#64748b; --color-border-default:#94a3b8; --color-green:#145bb4; color:#172033; font-family:'Segoe UI',sans-serif; }
+.studio-media-picker button:disabled { opacity:.4; }
+.studio-media-picker button { min-height:30px; }
+.studio-media-picker :focus-visible { outline:2px solid #1769ca; outline-offset:2px; }
+
+.studio-app > header .font-display { font-family: 'Segoe UI',system-ui,sans-serif; }

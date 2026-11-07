@@ -30,6 +30,12 @@ export function RightSidebar({ collapsed = false, onClose }: { collapsed?: boole
   if (selection.blockId !== selectedBlockId || selection.objectKey !== objectKey) {
     setSelection({ blockId: selectedBlockId, objectKey, tab: selectedBlock ? 'properties' : selection.tab })
   }
+  useEffect(() => {
+    if (collapsed) return
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    windowRef.current?.querySelector<HTMLElement>('[aria-label="Close settings"]')?.focus({ preventScroll: true })
+    return () => { if (previous?.isConnected) previous.focus({ preventScroll: true }) }
+  }, [collapsed])
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = 0 }, [selectedBlockId, objectKey])
   useEffect(() => {
     const element = windowRef.current
@@ -55,13 +61,14 @@ export function RightSidebar({ collapsed = false, onClose }: { collapsed?: boole
     const blockElement = Array.from(document.querySelectorAll<HTMLElement>('[data-webstudio-block-id]')).find(element => element.dataset.webstudioBlockId === selectedBlockId)
     const target = selectedObject ? Array.from(blockElement?.querySelectorAll<HTMLElement>('[data-section-object]') ?? []).find(element => element.dataset.sectionObject === selectedObject.id) ?? blockElement : selectedCompositeItem ? Array.from(blockElement?.querySelectorAll<HTMLElement>('[data-ws-item-field]') ?? []).find(element => element.dataset.wsItemField === selectedCompositeItem.field && Number(element.dataset.wsItemIndex) === selectedCompositeItem.index) ?? blockElement : selectedPlacedMedia ? Array.from(blockElement?.querySelectorAll<HTMLElement>('[data-placed-media]') ?? []).find(element => element.dataset.placedMedia === selectedPlacedMedia.id) ?? blockElement : blockElement
     const targetBounds = target?.getBoundingClientRect(), bounds = windowElement.getBoundingClientRect(), gap = 12
-    let left = window.innerWidth - bounds.width - gap, top = 72
+    let left = window.innerWidth - bounds.width - gap, top = 24
+    try { const saved = JSON.parse(localStorage.getItem('webstudio-properties-position') || 'null'); if (saved && Number.isFinite(saved.left) && Number.isFinite(saved.top)) { left = saved.left; top = saved.top } } catch { /* Automatic placement remains available. */ }
     if (targetBounds && activeTab === 'properties') {
       if (targetBounds.right + gap + bounds.width <= window.innerWidth) left = targetBounds.right + gap
       else if (targetBounds.left - gap >= bounds.width) left = targetBounds.left - gap - bounds.width
       else if (targetBounds.bottom + gap + bounds.height <= window.innerHeight) { left = targetBounds.left; top = targetBounds.bottom + gap }
       else if (targetBounds.top - gap >= bounds.height) { left = targetBounds.left; top = targetBounds.top - gap - bounds.height }
-      top = top === 72 ? targetBounds.top : top
+      top = top === 24 ? targetBounds.top : top
     }
     windowElement.style.right = 'auto'
     windowElement.style.left = `${Math.max(0, Math.min(left, window.innerWidth - bounds.width))}px`
@@ -69,7 +76,7 @@ export function RightSidebar({ collapsed = false, onClose }: { collapsed?: boole
   }, [collapsed, selectedBlockId, objectKey, activeTab]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div ref={windowRef} id="editor-right-panel" role="dialog" aria-label="Editor settings" aria-modal="false" className={collapsed ? 'hidden' : 'fixed z-[100] flex flex-col overflow-hidden rounded-lg border border-border-default bg-bg-1 shadow-2xl'} style={{ width: 'min(400px, calc(100vw - 24px))', maxHeight: 'min(480px, calc(100vh - 48px))', right: 16, top: 72, color: '#172033', '--color-bg-1': '#ffffff', '--color-bg-2': '#f7f9fc', '--color-bg-3': '#eaf1f9', '--color-bg-4': '#dce9f7', '--color-border-default': '#64748b', '--color-border-subtle': '#64748b', '--color-text-0': '#172033', '--color-text-1': '#253550', '--color-text-2': '#45566f', '--color-text-3': '#62738b', '--color-green': '#1769ca', '--color-green-dim': '#1457a8', '--color-green-glow': '#e8f1ff' } as React.CSSProperties}>
+    <div ref={windowRef} id="editor-right-panel" role="dialog" onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); onClose?.() } }} aria-label="Editor settings" aria-modal="false" className={collapsed ? 'hidden' : 'fixed studio-window z-[100] flex flex-col overflow-hidden rounded-lg border border-border-default bg-bg-1 shadow-2xl'} style={{ width: 'min(460px, calc(100vw - 24px))', maxHeight: 'min(620px, calc(100vh - 48px))', right: 16, top: 72, color: '#172033', '--color-bg-1': '#ffffff', '--color-bg-2': '#f7f9fc', '--color-bg-3': '#eaf1f9', '--color-bg-4': '#dce9f7', '--color-border-default': '#64748b', '--color-border-subtle': '#64748b', '--color-text-0': '#172033', '--color-text-1': '#253550', '--color-text-2': '#45566f', '--color-text-3': '#62738b', '--color-green': '#1769ca', '--color-green-dim': '#1457a8', '--color-green-glow': '#e8f1ff' } as React.CSSProperties}>
       <div className="flex shrink-0 items-center justify-between rounded-t-lg border-b border-border-default bg-bg-2 px-3 py-2" style={{ cursor: 'move', touchAction: 'none' }} title="Drag to move the settings window" onPointerDown={event => {
         if (event.button !== 0 || (event.target instanceof Element && event.target.closest('button'))) return
         const rect = windowRef.current?.getBoundingClientRect(); if (!rect) return
@@ -78,8 +85,8 @@ export function RightSidebar({ collapsed = false, onClose }: { collapsed?: boole
       }} onPointerMove={event => {
         const drag = dragRef.current; const rect = windowRef.current?.getBoundingClientRect(); if (!drag || !rect) return
         if (windowRef.current) { windowRef.current.style.right = 'auto'; windowRef.current.style.left = `${Math.max(0, Math.min(window.innerWidth - rect.width, drag.left + event.clientX - drag.x))}px`; windowRef.current.style.top = `${Math.max(8, Math.min(window.innerHeight - rect.height - 24, drag.top + event.clientY - drag.y))}px` }
-      }} onPointerUp={() => { dragRef.current = null }} onPointerCancel={() => { dragRef.current = null }}>
-        <span className="text-xs font-semibold text-text-0">{activeTab === 'design' ? 'Site design' : selectedObject || selectedCompositeItem || selectedPlacedMedia ? 'Object settings' : selectedBlock ? `${selectedBlock.type} settings` : 'Settings'}</span>
+      }} onPointerUp={() => { if (dragRef.current && windowRef.current) { const rect = windowRef.current.getBoundingClientRect(); try { localStorage.setItem('webstudio-properties-position', JSON.stringify({ left: rect.left, top: rect.top })) } catch { /* Position is optional. */ } }; dragRef.current = null }} onPointerCancel={() => { dragRef.current = null }}>
+        <span className="text-xs font-semibold text-text-0">{activeTab === 'design' ? 'Site design' : selectedObject || selectedCompositeItem || selectedPlacedMedia ? 'Object settings' : selectedBlock ? `${selectedBlock.type === 'navbar' ? 'Navigation' : selectedBlock.type === 'cta' ? 'Button section' : selectedBlock.type.charAt(0).toUpperCase() + selectedBlock.type.slice(1)} properties` : 'Settings'}</span>
         <button type="button" aria-label="Close settings" onClick={onClose} className="rounded px-2 py-1 text-base text-text-1 hover:bg-bg-3">×</button>
       </div>
       {/* Tabs */}

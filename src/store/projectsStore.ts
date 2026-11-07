@@ -11,6 +11,7 @@ export interface Project {
   id: string
   name: string
   status: 'published' | 'draft'
+  modifiedAt?: string
   updatedAt: string
   blockCount: number
   config?: SiteConfig
@@ -66,7 +67,7 @@ export const useProjectsStore = create<ProjectsState>()(
               id,
               name,
               status: 'draft' as const,
-              updatedAt: 'Just now',
+              updatedAt: 'Just now', modifiedAt: new Date().toISOString(),
               blockCount: 0,
               ...(projectFile ? {
                 config: structuredClone(projectFile.config),
@@ -87,7 +88,7 @@ export const useProjectsStore = create<ProjectsState>()(
         } : project),
       })),
       mediaChanged: (id) => set(state => ({
-        projects: state.projects.map(project => project.id === id ? { ...project, mediaRevision: (project.mediaRevision ?? 0) + 1 } : project),
+        projects: state.projects.map(project => project.id === id ? { ...project, modifiedAt: new Date().toISOString(), mediaRevision: (project.mediaRevision ?? 0) + 1 } : project),
       })),
       duplicateProject: async (id) => {
         const state = useProjectsStore.getState()
@@ -99,7 +100,7 @@ export const useProjectsStore = create<ProjectsState>()(
           id: newId,
           name: `${original.name} (Copy)`,
           status: 'draft' as const,
-          updatedAt: 'Just now',
+          updatedAt: 'Just now', modifiedAt: new Date().toISOString(),
           ...(original.projectFile ? {
             projectFile: { ...structuredClone(original.projectFile), projectId: crypto.randomUUID() },
           } : {}),
@@ -125,7 +126,7 @@ export const useProjectsStore = create<ProjectsState>()(
       renameProject: (id, name) =>
         set((state) => ({
           projects: state.projects.map((p) =>
-            p.id === id ? { ...p, name } : p
+            p.id === id ? { ...p, name, modifiedAt: new Date().toISOString() } : p
           ),
         })),
       updateProjectConfig: (id, config) => {
@@ -134,14 +135,14 @@ export const useProjectsStore = create<ProjectsState>()(
           : config.blocks.length
         set((state) => ({
           projects: state.projects.map((p) =>
-            p.id === id ? { ...p, config, blockCount: totalBlocks, updatedAt: 'Just now' } : p
+            p.id === id ? { ...p, config, blockCount: totalBlocks, updatedAt: 'Just now', modifiedAt: new Date().toISOString() } : p
           ),
         }))
       },
       updateProjectSettings: (id, settings) =>
         set((state) => ({
           projects: state.projects.map((p) =>
-            p.id === id ? { ...p, settings: { ...p.settings, ...settings } } : p
+            p.id === id ? { ...p, settings: { ...p.settings, ...settings }, modifiedAt: new Date().toISOString() } : p
           ),
         })),
       setDeployInfo: (id, url, deploymentId) =>

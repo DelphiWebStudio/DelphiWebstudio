@@ -2,13 +2,13 @@
   "name": "delphi-web-studio",
   "private": false,
   "version": "1.0.0",
-  "description": "Open-source website builder. Framer-quality visual editor + AI generation + JSON-first architecture.",
+  "description": "Visual website editor with a Delphi desktop host, portable projects, local media, and optional AI tools.",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/tmartindub/DelphiWebStudio.git"
+    "url": "https://github.com/DelphiWebStudio/DelphiWebstudio.git"
   },
-  "homepage": "https://github.com/tmartindub/DelphiWebStudio",
+  "homepage": "https://github.com/DelphiWebStudio/DelphiWebstudio",
   "keywords": [
     "website-builder",
     "page-builder",

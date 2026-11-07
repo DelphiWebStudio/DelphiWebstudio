@@ -75,6 +75,12 @@ export function RichText({ blockId, field, text, value, editable = false, multil
     useConfigStore.getState().updateBlockProps(blockId, { [field]: plain, [`${field}Rich`]: output, ...(needsHeight ? { [key]: items.map(item => item.id === object?.dataset.sectionObject ? { ...item, height: measuredHeight } : item) } : {}) })
   }
 
+  useEffect(() => {
+    const element = root.current
+    element?.addEventListener('webstudio-flush-text', save)
+    return () => element?.removeEventListener('webstudio-flush-text', save)
+  })
+
   function apply(style: Partial<CSSStyleDeclaration>) {
     const range = savedRange.current
     if (!range || range.collapsed || !root.current?.contains(range.commonAncestorContainer)) return
@@ -299,7 +305,7 @@ export function RichText({ blockId, field, text, value, editable = false, multil
       {guides.vertical && <div style={{ position: 'fixed', left: guides.vertical.x, top: guides.vertical.top, height: guides.vertical.height, width: 1, background: '#1683e5' }} />}
       {guides.horizontal && <div style={{ position: 'fixed', left: guides.horizontal.left, top: guides.horizontal.y, width: guides.horizontal.width, height: 1, background: '#1683e5' }} />}
     </div>, document.body)}
-    {menu && createPortal(<div ref={menuElement} data-rich-menu role="dialog" aria-label="Text settings" className="fixed z-[10001] flex w-80 max-w-[calc(100vw-16px)] flex-col rounded border border-gray-300 bg-white p-4 text-sm font-normal text-black shadow-xl" style={{ left: menu.x, top: menu.y }} onContextMenu={event => event.preventDefault()} onClick={event => event.stopPropagation()}>
+    {menu && createPortal(<div ref={menuElement} data-rich-menu data-studio-window role="dialog" aria-label="Text settings" className="fixed z-[10001] flex w-80 max-w-[calc(100vw-16px)] flex-col rounded border border-gray-300 bg-white p-4 text-sm font-normal text-black shadow-xl" style={{ left: menu.x, top: menu.y }} onContextMenu={event => event.preventDefault()} onClick={event => event.stopPropagation()}>
       <div className="order-first mb-4 flex items-center justify-between border-b border-gray-200 pb-3" style={{ cursor: 'move', touchAction: 'none' }} title="Drag to move the settings window" onPointerDown={event => { if (event.button !== 0 || (event.target instanceof Element && event.target.closest('button'))) return; const bounds = menuElement.current?.getBoundingClientRect(); if (!bounds) return; menuDrag.current = { x: event.clientX, y: event.clientY, left: bounds.left, top: bounds.top }; event.currentTarget.setPointerCapture(event.pointerId); event.preventDefault() }} onPointerMove={event => { const drag = menuDrag.current, element = menuElement.current; if (!drag || !element) return; menuMoved.current = true; element.style.left = `${Math.max(0, Math.min(window.innerWidth - element.offsetWidth, drag.left + event.clientX - drag.x))}px`; element.style.top = `${Math.max(0, Math.min(window.innerHeight - 80, drag.top + event.clientY - drag.y))}px` }} onPointerUp={() => { menuDrag.current = null }} onPointerCancel={() => { menuDrag.current = null }}><strong className="text-base">Text settings</strong><button type="button" aria-label="Close text settings" className="rounded px-2 text-lg hover:bg-gray-100" onClick={close}>×</button></div>
       <details className="order-4 mt-3 border-t border-gray-200 pt-2"><summary className="cursor-pointer text-xs">More actions</summary>
       <button type="button" className="mt-2 block w-full rounded border border-gray-400 px-2 py-1 text-left" onClick={() => { close(); document.querySelector<HTMLButtonElement>('[aria-label="Expand right panel"]')?.click(); requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('[data-properties-tab]')?.click()) }}>Block properties</button>

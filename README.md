@@ -1,17 +1,18 @@
-# WebStudio (experimental)
+# Delphi Web Studio (experimental)
 
-WebStudio is being developed as a free, offline-first visual website designer for Windows, extending [OpenPage](https://github.com/buildingopen/openpage). This repository currently contains the upstream browser editor and M0 engineering baseline. It is not a finished desktop application.
+Delphi Web Studio is an offline-first visual website editor for Windows. The desktop application hosts a React and TypeScript editor in an IDE-editable Delphi WebView2 form. It extends [OpenPage](https://github.com/buildingopen/openpage); the original license and attribution remain in the repository.
 
-Project repository: [tmartindub/DelphiWebStudio](https://github.com/tmartindub/DelphiWebStudio).
+Project repository: [DelphiWebStudio/DelphiWebstudio](https://github.com/DelphiWebStudio/DelphiWebstudio).
 
-The intended application combines a React/TypeScript canvas with an IDE-editable Delphi shell. Users own their projects and exported sites. Save, Preview and Publish remain separate. No ecommerce, payments, subscriptions, forced account, injected advertising or automatic publishing is in the WebStudio scope.
+Use the [illustrated editor reference](docs/pdf/Delphi%20Web%20Studio%20Editor%20Reference.pdf) for the current menus, properties windows, Save and Save As, and project media library. The [editable reference](docs/guides/Delphi%20Web%20Studio%20Editor%20Reference.docx) is also available.
 
 ## Current status
 
-The experimental browser editor includes portable multi-page projects, page-aware undo, local starter designs, an IndexedDB media library and a bundled PDF viewer. Enable these project features with `VITE_WEBSTUDIO_PROJECTS=true`. See [project files](docs/PROJECT_FILES.md), [editor experience](docs/EDITOR_EXPERIENCE.md), and [media library](docs/MEDIA_LIBRARY.md).
+The editor supports local multi-page projects, reusable sections, independent objects and responsive layout, imported media, and portable JSON or ZIP project files. The Windows host validates project replacements and distinguishes saving a project from exporting a website. For a walkthrough, see [project files](docs/PROJECT_FILES.md), [editor experience](docs/EDITOR_EXPERIENCE.md), and [media library](docs/MEDIA_LIBRARY.md).
 
-Website export embeds its styles and uses system font fallbacks; user-supplied remote media and optional analytics can still need a network. Secure publishing, local AI, native safe saves and the Delphi shell are not yet implemented. The inherited dependency audit reports 29 vulnerabilities, including two critical; this is not release-ready software.
-See [baseline evidence](docs/UPSTREAM_BASELINE.md), [architecture](docs/WEBSTUDIO_ARCHITECTURE.md), [limitations](docs/KNOWN_LIMITATIONS.md), [compatibility](docs/COMPATIBILITY.md) and [roadmap](docs/ROADMAP.md).
+The Win32 and Win64 release builds are staged locally under `bin/Win32` and `bin/Win64`. Each executable uses the `editor` folder and matching WebView2 loader beside it. GitHub stores the source and documentation. This is experimental software; test a copy of important projects and review exported pages on your target devices. Local exports do not publish a site.
+
+The [upstream baseline](docs/UPSTREAM_BASELINE.md) and [milestone handoff](docs/WEBSTUDIO_CODEX_HANDOFF.md) record earlier implementation requirements and evidence.
 
 ## Development
 

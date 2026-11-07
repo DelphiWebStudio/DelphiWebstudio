@@ -36,21 +36,41 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
   const mediaImporting = useEditorStore(state => state.mediaImporting)
   const project = useProjectsStore(state => state.projects.find(item => item.id === activeProjectId))
   const savedSnapshot = useEditorStore(state => state.savedProjectSnapshot)
+  const location = useEditorStore(state => activeProjectId ? state.fileLocations[activeProjectId] : undefined)
+  const [nativeSaving, setNativeSaving] = useState(false)
+  const [browserDownload, setBrowserDownload] = useState(false)
+  const [uncommittedText, setUncommittedText] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const signature = project ? JSON.stringify({ config, name: project.name, settings: project.settings ?? {}, mediaRevision: project.mediaRevision ?? 0 }) : ''
 
+  useEffect(() => {
+    const changed = (event: Event) => { if (event.target instanceof Element && event.target.closest('[data-rich-editor]')) setUncommittedText(true) }
+    document.addEventListener('input', changed, true)
+    return () => document.removeEventListener('input', changed, true)
+  }, [])
+  useEffect(() => { setUncommittedText(false) }, [activeProjectId, config])
   useEffect(() => {
     if (window.location.origin !== 'https://webstudio.local') return
     const webview = (window as unknown as { chrome?: { webview?: { postMessage: (value: unknown) => void; addEventListener: (type: string, listener: (event: MessageEvent) => void) => void; removeEventListener: (type: string, listener: (event: MessageEvent) => void) => void } } }).chrome?.webview
     if (!webview) return
-    webview.postMessage({ version: 1, kind: 'project.dirty', editing: window.location.hash.startsWith('#/editor'), dirty: !project || !(savedSnapshot?.projectId === project.id && savedSnapshot.signature === signature) })
+    webview.postMessage({ version: 1, kind: 'project.dirty', editing: window.location.hash.startsWith('#/editor'), dirty: !project || uncommittedText || !(savedSnapshot?.projectId === project.id && savedSnapshot.signature === signature) })
     const input = (event: Event) => {
       if (event.target instanceof Element && event.target.closest('[data-ws-content]')) { inputVersion.current++; webview.postMessage({ version: 1, kind: 'project.dirty', editing: true, dirty: true }) }
     }
     const receive = (event: MessageEvent) => {
+      if (event.data?.version === 1 && event.data.kind === 'project.file.location' && typeof event.data.projectId === 'string' && typeof event.data.path === 'string') { useEditorStore.getState().setFileLocation(event.data.projectId, event.data.path); return }
+      if (event.data?.version === 1 && event.data.kind === 'project.save.result' && typeof event.data.token === 'string' && pendingSaves.current.has(event.data.token)) {
+        pendingSaves.current.delete(event.data.token); setNativeSaving(false)
+        if (event.data.status === 'failed') setSaveError(typeof event.data.message === 'string' ? event.data.message : 'Save failed')
+        return
+      }
       if (event.data?.version !== 1 || event.data?.kind !== 'project.save.complete' || typeof event.data.token !== 'string') return
       const pending = pendingSaves.current.get(event.data.token)
       if (!pending) return
       pendingSaves.current.delete(event.data.token)
+      setNativeSaving(false)
+      if (typeof event.data.path === 'string') useEditorStore.getState().setFileLocation(pending.projectId, event.data.path, new Date().toISOString())
+      setSaveError('')
       useProjectsStore.getState().saveProjectFile(pending.projectId, pending.document)
       useEditorStore.getState().setSavedProjectSnapshot(inputVersion.current === pending.inputVersion ? { projectId: pending.projectId, signature: pending.signature } : null)
       const current = useProjectsStore.getState().projects.find(item => item.id === pending.projectId)
@@ -60,7 +80,7 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
     webview.addEventListener('message', receive)
     document.addEventListener('input', input, true)
     return () => { webview.removeEventListener('message', receive); document.removeEventListener('input', input, true) }
-  }, [project, signature, savedSnapshot])
+  }, [project, signature, savedSnapshot, uncommittedText])
 
   useEffect(() => {
     let active = true
@@ -240,6 +260,8 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
       useConfigStore.getState().setConfig(project.config)
       const opened = useProjectsStore.getState().projects.find(item => item.id === id)
       if (!migrated && opened) useEditorStore.getState().setSavedProjectSnapshot({ projectId: id, signature: JSON.stringify({ config: project.config, name: opened.name, settings: opened.settings ?? {}, mediaRevision: opened.mediaRevision ?? 0 }) })
+      const native = (window as unknown as { chrome?: { webview?: { postMessageWithAdditionalObjects?: (message: unknown, files: File[]) => void } } }).chrome?.webview
+      if (window.location.origin === 'https://webstudio.local' && native?.postMessageWithAdditionalObjects) native.postMessageWithAdditionalObjects({ version: 1, kind: 'project.opened', projectId: id }, [file])
       navigate('/editor')
       toast.success(migrated ? 'Legacy project opened. Save a new WebStudio file to keep the upgrade.' : 'Project opened as a separate local copy.')
     } catch (error) {
@@ -324,13 +346,22 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
     } finally { setSavingRawDraft(false) }
   }
 
-  async function saveProject(checkpoint = false) {
-    if (!project || useEditorStore.getState().mediaImporting) return
+  async function saveProject(checkpoint = false, saveAs = false) {
+    // Commit inline edits before native menu commands or Ctrl+S take a snapshot.
+    document.querySelectorAll('[data-rich-editor]').forEach(element => element.dispatchEvent(new Event('webstudio-flush-text')))
+    if (document.activeElement instanceof HTMLElement && document.activeElement.isContentEditable) document.activeElement.blur()
+    const projectId = useEditorStore.getState().activeProjectId
+    const project = useProjectsStore.getState().projects.find(item => item.id === projectId)
+    const config = useConfigStore.getState().config
+    if (!project || useEditorStore.getState().mediaImporting || nativeSaving) return
     setSaving(true)
+    setSaveError('')
+    setBrowserDownload(false)
     useEditorStore.getState().setMediaImporting(true)
     const preparationToast = toast.loading('Preparing project. Keep this window open until the save finishes.')
     try {
       if (!checkpoint) {
+        if (saveAs) (window as unknown as { chrome?: { webview?: { postMessage: (message: unknown) => void } } }).chrome?.webview?.postMessage({ version: 1, kind: 'project.saveAs' })
         await requestDesktopAction('project.save', project.id)
         if (useEditorStore.getState().activeProjectId !== project.id || useConfigStore.getState().config !== config) throw new Error('The current project changed. Save it again.')
       }
@@ -393,9 +424,10 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
       const token = crypto.randomUUID()
       if (window.location.origin === 'https://webstudio.local') {
         if (pendingSaves.current.size >= 8) pendingSaves.current.delete(pendingSaves.current.keys().next().value!)
+        setNativeSaving(true)
         pendingSaves.current.set(token, { projectId: project.id, signature: JSON.stringify({ config, name: project.name, settings: project.settings ?? {}, mediaRevision: project.mediaRevision ?? 0 }), document: projectDocument, inputVersion: inputVersion.current })
         link.download = filename.replace(/\.webstudio\.(json|zip)$/i, `--ws-save-${token}.webstudio.$1`)
-      } else link.download = filename
+      } else { link.download = filename; setBrowserDownload(true) }
       link.click()
       URL.revokeObjectURL(url)
       const currentProject = useProjectsStore.getState().projects.find(item => item.id === project.id)
@@ -405,6 +437,8 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
     } catch (error) {
       if (!checkpoint) (window as Window & { chrome?: { webview?: { postMessage: (message: unknown) => void } } }).chrome?.webview?.postMessage({ version: 1, kind: 'project.save.failed' })
       toast.error(error instanceof Error ? error.message : 'Project could not be saved.')
+      setNativeSaving(false)
+      setSaveError(error instanceof Error ? error.message : 'Save failed')
     } finally {
       toast.dismiss(preparationToast)
       setSaving(false)
@@ -419,12 +453,14 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
         className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-text-1 hover:bg-bg-3 disabled:opacity-50">
         <FolderOpen size={14} />{opening ? 'Opening…' : 'Open project'}
       </button>
-      {project && <button data-project-command="save" type="button" disabled={mediaImporting} onClick={() => void saveProject()}
+      {project && <button data-project-command="save" type="button" disabled={mediaImporting || nativeSaving} onClick={() => void saveProject()}
         className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-text-1 hover:bg-bg-3 disabled:opacity-50">
         <Save size={14} />{saving ? 'Preparing project…' : 'Save project'}
       </button>}
+      {project && <button data-project-command="save-as" type="button" disabled={mediaImporting || nativeSaving} onClick={() => void saveProject(false, true)} className="rounded px-2 py-1 text-xs text-text-1 hover:bg-bg-3">Save as…</button>}
+      {project && <span role="status" title={location?.path || 'No project file has been confirmed in this session.'} className="max-w-80 truncate text-xs text-text-2">{saving || mediaImporting ? 'Working…' : saveError ? 'Save failed' : !uncommittedText && savedSnapshot?.projectId === project.id && savedSnapshot.signature === signature ? 'Saved' : browserDownload ? 'Download requested; verify destination' : 'Unsaved changes'}{location?.path ? ` · ${location.path.split(/[\\/]/).pop()}` : ' · Local draft'}{location?.savedAt && ` · ${new Date(location.savedAt).toLocaleTimeString()}`}</span>}
       <input ref={staticInputRef} type="file" multiple {...{ webkitdirectory: '' }} className="hidden" aria-label="Choose static website folder" onChange={previewStaticHtml} />
-      <button type="button" onClick={() => staticInputRef.current?.click()} disabled={opening || mediaImporting} className="rounded px-2 py-1 text-xs text-text-1 hover:bg-bg-3 disabled:opacity-50">Import HTML folder</button>
+      <button data-project-command="import-html" type="button" hidden onClick={() => staticInputRef.current?.click()} disabled={opening || mediaImporting} className="rounded px-2 py-1 text-xs text-text-1 hover:bg-bg-3 disabled:opacity-50">Import HTML folder</button>
       {staticPreview && <div role="region" aria-label="HTML import report" className="basis-full rounded border border-border-default bg-bg-1 p-3 text-xs text-text-1">
         <p>Found {staticPreview.pages} HTML pages, {staticPreview.stylesheets} stylesheets and {staticPreview.images.length} images; {staticPreview.skipped} other files will not be copied. A separate project will be created.</p>
         <p>Text, recognized headings, lists and emphasis become editable. Supported local images and links to selected HTML pages are placed where recognized. Unconverted HTML is retained as read-only source on the page and is not included in website export. Original HTML and CSS are also retained as inactive project data and may contain private information. Layout, styling, scripts, unmatched links and other assets require manual review. Original files are not changed.</p>
@@ -440,7 +476,7 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
         <button type="button" disabled={mediaImporting} className="rounded px-2 py-1 hover:bg-bg-3 disabled:opacity-50" onClick={() => setStaticPreview(null)}>Cancel</button>
       </div>}
       <input ref={wordpressInputRef} type="file" accept=".xml,application/xml,text/xml" className="hidden" aria-label="Choose WordPress XML export" onChange={previewWordPress} />
-      <button type="button" onClick={() => wordpressInputRef.current?.click()} disabled={opening || mediaImporting} className="rounded px-2 py-1 text-xs text-text-1 hover:bg-bg-3 disabled:opacity-50">Import WordPress XML</button>
+      <button data-project-command="import-wordpress" type="button" hidden onClick={() => wordpressInputRef.current?.click()} disabled={opening || mediaImporting} className="rounded px-2 py-1 text-xs text-text-1 hover:bg-bg-3 disabled:opacity-50">Import WordPress XML</button>
       {wordpressPreview && <div role="region" aria-label="WordPress import report" className="basis-full rounded border border-border-default bg-bg-1 p-3 text-xs text-text-1">
         <p>Found {wordpressPreview.pages} pages and {wordpressPreview.posts} posts; {wordpressPreview.skipped} other items will not be converted. A separate project will be created.</p>
         <p>Text and recognized headings and links become editable. Original XML is retained as inactive project data and may include private author details. Layout, other formatting, unmatched links, media, plugins and themes need manual review; media must be imported separately. Posts and unpublished pages start as drafts; unpublished pages use article draft controls. The original file is not changed.</p>

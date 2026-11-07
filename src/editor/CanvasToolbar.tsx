@@ -6,8 +6,6 @@ import {
   Smartphone,
   Undo2,
   Redo2,
-  Code,
-  Clock,
   Eye,
   Plus,
   HelpCircle,
@@ -25,6 +23,7 @@ import { useConfigStore } from '@/store/configStore'
 import { useProjectsStore } from '@/store/projectsStore'
 import type { PageConfig } from '@/blocks/types'
 import { exportToHTML, downloadHTML, exportSiteZip } from '@/lib/export-html'
+import { EditorMenus } from './EditorMenus'
 import { ProjectFileCommands } from '@/project/ProjectFileCommands'
 import { portableProjectsEnabled } from '@/project/project-file'
 import { ProjectMediaLibrary } from '@/media/media-library'
@@ -232,7 +231,7 @@ function DeletePageDialog({ page, linkedPages, onCancel, onConfirm }: {
 
 export function CanvasToolbar({ settingsOpen = false, onOpenSettings }: { settingsOpen?: boolean; onOpenSettings?: () => void } = {}) {
   const navigate = useNavigate()
-  const { viewport, setViewport, customViewportWidth, setCustomViewportWidth, mode, setMode, toggleJsonDrawer, jsonDrawerOpen, toggleHistory, togglePreview, toggleShortcutsModal, previewMode, activeProjectId } = useEditorStore()
+  const { viewport, setViewport, customViewportWidth, setCustomViewportWidth, mode, setMode, togglePreview, toggleShortcutsModal, previewMode, activeProjectId } = useEditorStore()
   const { undo, redo, canUndo, canRedo } = useConfigStore()
   const undoStack = useConfigStore((s) => s.undoStack)
   const redoStack = useConfigStore((s) => s.redoStack)
@@ -307,8 +306,8 @@ export function CanvasToolbar({ settingsOpen = false, onOpenSettings }: { settin
     {pageToDelete && <DeletePageDialog page={pageToDelete} linkedPages={linkedPages} onCancel={() => setDeletingPage(null)} onConfirm={() => { removePage(pageToDelete.id); setDeletingPage(null) }} />}
     {pageToEditPath && <EditPagePathDialog page={pageToEditPath} onCancel={() => setEditingPath(null)} onSave={(path, updateLinks) => { changePagePath(pageToEditPath.id, path, updateLinks); setEditingPath(null) }} />}
     {pageToEditSeo && <EditPageSeoDialog page={pageToEditSeo} onCancel={() => setEditingSeo(null)} onSave={(title, description) => { updatePageSeo(pageToEditSeo.id, title, description); setEditingSeo(null) }} />}
-    {portableProjectsEnabled && <div className="bg-bg-1 border-b border-border-default px-3 py-1"><ProjectFileCommands /></div>}
-    <div className="min-h-10 bg-bg-1 border-b border-border-default flex flex-wrap items-center px-3 py-1 gap-1">
+    {portableProjectsEnabled && <div className="bg-bg-1 border-b border-border-default px-3 py-1"><div className="flex flex-wrap items-center justify-between gap-2"><EditorMenus /><ProjectFileCommands /></div></div>}
+    <div className="studio-toolbar min-h-10 bg-bg-1 border-b border-border-default flex flex-wrap items-center px-3 py-1 gap-1">
       {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 text-xs text-text-3 shrink-0">
         <span
@@ -359,8 +358,8 @@ export function CanvasToolbar({ settingsOpen = false, onOpenSettings }: { settin
 
       {/* Right side */}
       <div className="flex flex-wrap justify-start items-center gap-1 min-w-0">
-        {portableProjectsEnabled && <button type="button" onClick={() => setShowPlanPages(true)} className="px-2 py-1 rounded text-xs text-text-1 hover:bg-bg-3">Plan pages</button>}
-        {portableProjectsEnabled && <button type="button" onClick={() => setShowSiteChecks(true)} className="px-2 py-1 rounded text-xs text-text-1 hover:bg-bg-3">Check site</button>}
+        {portableProjectsEnabled && <details className="studio-page-tools relative text-xs"><summary className="cursor-pointer rounded px-2 py-2">Page tools</summary><div className="absolute top-full z-50 w-36 rounded border border-border-default bg-bg-1 p-1 shadow-xl"><button type="button" onClick={() => setShowPlanPages(true)} className="px-2 py-1 rounded text-xs text-text-1 hover:bg-bg-3">Plan pages</button>
+        <button type="button" onClick={() => setShowSiteChecks(true)} className="px-2 py-1 rounded text-xs text-text-1 hover:bg-bg-3">Check site</button></div></details>}
         <label className="text-xs text-text-1 flex items-center gap-1">
           Mode
           <select aria-label="Editor mode" value={mode} onChange={event => setMode(event.target.value as EditorMode)} className="rounded bg-bg-2 border border-border-default px-1 py-1 text-text-0">
@@ -405,7 +404,7 @@ export function CanvasToolbar({ settingsOpen = false, onOpenSettings }: { settin
           }}
           disabled={!canUndo()}
           className="w-7 h-7 rounded flex items-center justify-center text-text-3 hover:text-text-1 hover:bg-bg-3 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-          title="Undo"
+          title="Undo (Ctrl+Z)"
           aria-label="Undo"
         >
           <Undo2 size={14} />
@@ -418,7 +417,7 @@ export function CanvasToolbar({ settingsOpen = false, onOpenSettings }: { settin
           }}
           disabled={!canRedo()}
           className="w-7 h-7 rounded flex items-center justify-center text-text-3 hover:text-text-1 hover:bg-bg-3 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-          title="Redo"
+          title="Redo (Ctrl+Y)"
           aria-label="Redo"
         >
           <Redo2 size={14} />
@@ -427,7 +426,7 @@ export function CanvasToolbar({ settingsOpen = false, onOpenSettings }: { settin
         <div className="w-px h-5 bg-border-default mx-1" />
 
         {/* Preview toggle */}
-        {!previewMode && <button type="button" aria-label={settingsOpen ? 'Settings window open' : 'Expand right panel'} aria-expanded={settingsOpen} aria-controls="editor-right-panel" onClick={onOpenSettings} className="h-7 rounded px-2 text-[11px] text-text-1 hover:bg-bg-3">Settings</button>}
+        {!previewMode && <button type="button" aria-label={settingsOpen ? 'Settings window open' : 'Expand right panel'} aria-expanded={settingsOpen} aria-controls="editor-right-panel" onClick={onOpenSettings} className="h-7 rounded px-2 text-[11px] text-text-1 hover:bg-bg-3">Object properties</button>}
         <button
           onClick={togglePreview}
           className={`h-7 px-2 rounded flex items-center gap-1 text-[11px] transition-all ${
@@ -439,33 +438,6 @@ export function CanvasToolbar({ settingsOpen = false, onOpenSettings }: { settin
         >
           <Eye size={13} />
           <span>Preview</span>
-        </button>
-
-        {/* JSON drawer toggle */}
-        <button
-          onClick={toggleJsonDrawer}
-          className={`h-7 px-2 rounded flex items-center gap-1 text-[11px] transition-all ${
-            jsonDrawerOpen ? 'bg-green-glow text-green' : 'text-text-3 hover:text-text-1 hover:bg-bg-3'
-          }`}
-          title="JSON (J)"
-          aria-label="Toggle JSON drawer"
-          aria-pressed={jsonDrawerOpen}
-          aria-expanded={jsonDrawerOpen}
-          aria-controls="editor-code-panel"
-        >
-          <Code size={13} />
-          <span>JSON</span>
-        </button>
-
-        {/* History */}
-        <button
-          onClick={toggleHistory}
-          className="h-7 px-2 rounded flex items-center gap-1 text-[11px] text-text-3 hover:text-text-1 hover:bg-bg-3 transition-all"
-          title="History (H)"
-          aria-label="Toggle undo history"
-        >
-          <Clock size={13} />
-          <span>History</span>
         </button>
 
         {/* Shortcuts help */}
