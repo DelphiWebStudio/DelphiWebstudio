@@ -59,7 +59,7 @@ export const blockMetadata: BlockMeta[] = [
     description: 'Page footer with links and copyright',
     category: 'Navigation',
     variants: ['simple', 'multi-column', 'minimal', 'resources'],
-    defaultProps: { logo: 'Brand', copyright: '', links: [] },
+    defaultProps: { logo: '', copyright: '', links: [] },
   },
   {
     type: 'testimonials',

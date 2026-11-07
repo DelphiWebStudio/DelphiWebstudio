@@ -93,6 +93,17 @@ describe('preview link and image fidelity', () => {
     expect(await exportToHTML({ name: 'Site', blocks: [block] })).not.toContain('href="/contact"')
   })
 
+  it.each(['simple', 'multi-column', 'resources'])('hides the legacy placeholder and retains supplied branding in a %s footer', async variant => {
+    const block: BlockConfig = { id: 'footer', type: 'footer', variant, props: { logo: 'Brand', copyright: '', links: [] } }
+    const render = () => renderToStaticMarkup(createElement(FooterBlock, { block }))
+    const exportPage = () => exportToHTML({ name: 'Community', blocks: [block] })
+    expect(render()).not.toContain('>Brand<')
+    expect(await exportPage()).not.toContain('>Brand<')
+    block.props.logo = 'Community'
+    expect(render()).toContain('>Community<')
+    expect(await exportPage()).toMatch(/<footer[^>]*>[\s\S]*>Community</)
+  })
+
   it('renders only supplied multi-column footer content in preview and export', async () => {
     const block: BlockConfig = { id: 'footer', type: 'footer', variant: 'multi-column', props: { logo: 'Community', copyright: '', links: [] } }
     const render = () => renderToStaticMarkup(createElement(FooterBlock, { block }))

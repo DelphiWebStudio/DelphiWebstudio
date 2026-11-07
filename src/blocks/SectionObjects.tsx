@@ -45,7 +45,26 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
   const [menu, setMenu] = useState<{ id: string; x: number; y: number; layers: string[] } | null>(null)
   const [destination, setDestination] = useState<{ id: string; kind: 'anchor' | 'link'; value: string; error: string; x: number; y: number } | null>(null)
   const [guides, setGuides] = useState<{ vertical?: { x: number; top: number; height: number }; horizontal?: { y: number; left: number; width: number } }>({})
-  const drag = useRef<{ id: string; startX: number; startY: number; grabX: number; grabY: number; x: number; y: number; width: number; height: number; parentWidth: number; resize: false | string; imageAspect?: number; group?: string[] } | null>(null)
+  const drag = useRef<{ id: string; startX: number; startY: number; grabX: number; grabY: number; x: number; y: number; width: number; height: number; parentWidth: number; resize: false | string; imageAspect?: number; group?: string[]; editOnClick?: boolean } | null>(null)
+
+  function editText(object: HTMLElement, id: string, point?: { x: number; y: number }) {
+    setEditing(id)
+    requestAnimationFrame(() => {
+      const editor = object.querySelector<HTMLElement>('[contenteditable="true"]')
+      if (!editor) return
+      editor.focus({ preventScroll: true })
+      let caret = point ? document.caretRangeFromPoint?.(point.x, point.y) : null
+      if (!caret || !editor.contains(caret.startContainer)) {
+        caret = document.createRange()
+        caret.selectNodeContents(editor)
+        caret.collapse(false)
+      }
+      const selection = window.getSelection()
+      selection?.removeAllRanges()
+      selection?.addRange(caret)
+    })
+  }
+
   function move(event: PointerEvent<HTMLElement>, finish = false) {
     const state = drag.current
     if (!state) return
@@ -60,6 +79,7 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
       }
       drag.current = null
       setGuides({})
+      if (element && state.editOnClick) editText(element, state.id, { x: event.clientX, y: event.clientY })
       event.preventDefault(); event.stopPropagation()
       return
     }
@@ -185,25 +205,55 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
       const gridColumn = Math.max(1, Math.min(12, Math.round((x - (column?.left ?? 0)) / columnWidth * 12) + 1))
       const gridSpan = Math.max(1, Math.min(13 - gridColumn, Math.round(width / columnWidth * 12)))
       const emptyPanel = item.type === 'panel' && !item.text && !item.src && !block.props[`sectionObject_${item.id}`] && !block.props[`sectionObject_${item.id}Rich`] && objects.some(value => value?.parentId === item.id)
-      return [item.id, <div key={item.id} id={typeof item.anchorName === 'string' && /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(item.anchorName) ? item.anchorName : undefined} data-section-object={item.id} data-ws-object-type={item.type} data-ws-parented={parent ? 'true' : undefined} data-ws-empty-panel={emptyPanel ? 'true' : undefined} tabIndex={editable ? 0 : undefined} aria-label={editable ? `${item.type} in section ${section}` : undefined} style={{ position: 'absolute', left: `${x}%`, top: y, width: `${width}%`, height: item.type === 'text' ? 'auto' : height, minHeight: item.type === 'text' ? height : undefined, order: responsiveOrder.indexOf(item.id), '--ws-grid-column': gridColumn, '--ws-grid-span': gridSpan, '--ws-item-width': width, '--ws-parent-background': parent && /^#[0-9a-f]{6}$/i.test(parent.color || '') ? parent.color : 'transparent', zIndex: Number(item.layer) || 1, pointerEvents: 'auto', outline: editable && multiSelection.some(value => value.blockId === block.id && value.section === section && value.id === item.id) ? '1px solid #005a9e' : undefined, touchAction: editable ? 'none' : undefined, cursor: editable ? 'move' : undefined, background: item.type === 'panel' && /^#[0-9a-f]{6}$/i.test(item.color || '') ? item.color : undefined, color: /^#[0-9a-f]{6}$/i.test(item.textColor || '') ? item.textColor : undefined, fontSize: Number(item.fontSize) >= 6 && Number(item.fontSize) <= 200 ? Number(item.fontSize) : undefined } as CSSProperties}
+      // Route the first click to the editor element even when its formatted text is raw markup.
+      const textHitArea = editable && (item.type === 'text' || item.type === 'panel')
+        ? '[&_[data-rich-text]:not(:focus)>*]:pointer-events-none' : undefined
+      return [item.id, <div key={item.id} id={typeof item.anchorName === 'string' && /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(item.anchorName) ? item.anchorName : undefined} data-section-object={item.id} data-ws-object-type={item.type} className={textHitArea} data-ws-parented={parent ? 'true' : undefined} data-ws-empty-panel={emptyPanel ? 'true' : undefined} tabIndex={editable ? 0 : undefined} aria-label={editable ? `${item.type} in section ${section}` : undefined} style={{ position: 'absolute', left: `${x}%`, top: y, width: `${width}%`, height: item.type === 'text' ? 'auto' : height, minHeight: item.type === 'text' ? height : undefined, order: responsiveOrder.indexOf(item.id), '--ws-grid-column': gridColumn, '--ws-grid-span': gridSpan, '--ws-item-width': width, '--ws-parent-background': parent && /^#[0-9a-f]{6}$/i.test(parent.color || '') ? parent.color : 'transparent', zIndex: Number(item.layer) || 1, pointerEvents: 'auto', outline: editable && multiSelection.some(value => value.blockId === block.id && value.section === section && value.id === item.id) ? '1px solid #005a9e' : undefined, touchAction: editable ? 'none' : undefined, cursor: editable ? 'move' : undefined, background: item.type === 'panel' && /^#[0-9a-f]{6}$/i.test(item.color || '') ? item.color : undefined, color: /^#[0-9a-f]{6}$/i.test(item.textColor || '') ? item.textColor : undefined, fontSize: Number(item.fontSize) >= 6 && Number(item.fontSize) <= 200 ? Number(item.fontSize) : undefined } as CSSProperties}
         onContextMenu={event => { if (!editable || (editing === item.id && event.target instanceof Element && event.target.closest('[contenteditable="true"]'))) return; event.preventDefault(); event.stopPropagation(); useEditorStore.getState().selectBlock(block.id); useEditorStore.getState().selectSection(section); setSelected(item.id); const layers = Array.from(new Set(document.elementsFromPoint(event.clientX, event.clientY).map(element => element.closest<HTMLElement>('[data-section-object]')).filter((element): element is HTMLElement => !!element && element.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id') === block.id && Number(element.closest<HTMLElement>('[data-editor-section]')?.dataset.editorSection) === section).map(element => element.dataset.sectionObject || '').filter(id => objects.some(value => value.id === id)))); setMenu({ id: item.id, x: event.clientX, y: event.clientY, layers }) }}
-        onDoubleClick={event => { if (!editable) return; const element = event.currentTarget; event.stopPropagation(); useEditorStore.getState().selectBlock(block.id); useEditorStore.getState().selectSection(section); setSelected(item.id); if (item.type === 'text' || item.type === 'panel') { setEditing(item.id); requestAnimationFrame(() => element.querySelector<HTMLElement>('[contenteditable="true"]')?.focus()) } }}
+        onDoubleClick={event => {
+          if (!editable || (item.type !== 'text' && item.type !== 'panel') || (event.target instanceof Element && event.target.closest('[contenteditable="true"]'))) return
+          event.stopPropagation()
+          useEditorStore.getState().selectBlock(block.id)
+          useEditorStore.getState().selectSection(section)
+          setSelected(item.id)
+          editText(event.currentTarget, item.id, { x: event.clientX, y: event.clientY })
+        }}
+        onKeyDownCapture={event => {
+          if (!editable) return
+          if (event.key === 'Escape' && editing === item.id && event.target instanceof HTMLElement && event.target.isContentEditable && !document.querySelector('[data-rich-menu]')) {
+            event.preventDefault()
+            event.stopPropagation()
+            event.target.blur()
+            setEditing(null)
+            event.currentTarget.focus({ preventScroll: true })
+          } else if ((event.key === 'Enter' || event.key === 'F2') && event.target === event.currentTarget && (item.type === 'text' || item.type === 'panel')) {
+            event.preventDefault()
+            event.stopPropagation()
+            useEditorStore.getState().selectBlock(block.id)
+            useEditorStore.getState().selectSection(section)
+            setSelected(item.id)
+            editText(event.currentTarget, item.id)
+          }
+        }}
         onCopy={event => { if (!editable || event.target !== event.currentTarget) return; const current = useConfigStore.getState().getActivePageBlocks().find(value => value.id === block.id); const saved = Array.isArray(current?.props[key]) ? current.props[key] as SectionObject[] : []; const original = saved.find(value => value.id === item.id); if (!original || !current) return; const token = crypto.randomUUID(); useEditorStore.getState().setCopiedSectionObject({ token, projectId: useEditorStore.getState().activeProjectId, item: structuredClone(original) as unknown as Record<string, unknown>, text: structuredClone(current.props[`sectionObject_${item.id}`]), rich: structuredClone(current.props[`sectionObject_${item.id}Rich`]) }); event.clipboardData.setData('text/plain', `WebStudio object:${token}`); event.preventDefault(); event.stopPropagation() }}
         onKeyDown={event => { if (!editable || event.target !== event.currentTarget) return; const current = useConfigStore.getState().getActivePageBlocks().find(value => value.id === block.id); const saved = Array.isArray(current?.props[key]) ? current.props[key] as SectionObject[] : []; if (event.key === 'Enter' && item.type === 'image' && current) { const spaceKey = `section${section}ExtraSpace`; useConfigStore.getState().updateBlockProps(block.id, { [spaceKey]: Math.min(4000, Math.max(0, Number(current.props[spaceKey]) || 0) + 32) }); event.preventDefault(); event.stopPropagation(); return }; if (event.key === 'Delete' || ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'd')) { const index = saved.findIndex(value => value.id === item.id); if (index >= 0) useConfigStore.getState().editBlockItems(block.id, key, index, index, event.key === 'Delete' ? 'remove' : 'duplicate'); if (event.key === 'Delete') setSelected(null); event.preventDefault(); event.stopPropagation(); return }; if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return; event.preventDefault(); event.stopPropagation(); const step = event.shiftKey ? 10 : 1; const area = event.currentTarget.closest<HTMLElement>('[data-section-object-area]'); const horizontal = area?.clientWidth ? step / area.clientWidth * 100 : 0; useConfigStore.getState().updateBlockProps(block.id, { [key]: saved.map(value => { const nextX = Math.max(0, Math.min(100 - width, x + (event.key === 'ArrowRight' ? horizontal : event.key === 'ArrowLeft' ? -horizontal : 0))); const nextY = Math.max(0, y + (event.key === 'ArrowDown' ? step : event.key === 'ArrowUp' ? -step : 0)); return value.id === item.id ? { ...value, x: nextX, y: nextY } : item.type === 'panel' && value.parentId === item.id ? { ...value, x: value.x + nextX - x, y: value.y + nextY - y } : value }) }) }}
         onPointerDown={event => {
           if (!editable || event.button !== 0 || (event.target instanceof Element && event.target.closest('[data-rich-menu]'))) return
+          const text = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-rich-text]') : null
+          if (selected === item.id && editing === item.id && text?.isContentEditable) return
+          const moveHandle = event.target instanceof Element && event.target.closest('[data-text-move-handle]')
+          const editOnClick = !event.ctrlKey && !event.metaKey && !event.altKey && !moveHandle && (item.type === 'text' || (item.type === 'panel' && !!text?.textContent?.trim()))
           const textMenu = document.querySelector<HTMLButtonElement>('[aria-label="Close text settings"]')
           if (item.type === 'panel' && textMenu) { textMenu.click(); setEditing(null) }
           if (event.shiftKey) { event.preventDefault(); event.stopPropagation(); useEditorStore.getState().selectBlock(block.id); useEditorStore.getState().selectSection(section); useEditorStore.getState().toggleSectionObject({ blockId: block.id, section, id: item.id }); setEditing(null); return }
-          if (item.type !== 'panel' && !event.ctrlKey && !event.metaKey && useEditorStore.getState().selectionPreference === 'parent' && (editing !== item.id || textMenu)) {
+          if (item.type !== 'text' && item.type !== 'panel' && !event.ctrlKey && !event.metaKey && useEditorStore.getState().selectionPreference === 'parent' && (editing !== item.id || textMenu)) {
             const underlying = document.elementsFromPoint(event.clientX, event.clientY).map(element => element.closest<HTMLElement>('[data-section-object]')).find(element => element && element.dataset.wsObjectType === 'panel' && element.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id') === block.id && Number(element.closest<HTMLElement>('[data-editor-section]')?.dataset.editorSection) === section)
             const panelId = underlying?.dataset.sectionObject
             if (panelId) { textMenu?.click(); useEditorStore.getState().selectBlock(block.id); useEditorStore.getState().selectSection(section); setSelected(panelId); setEditing(null); underlying?.focus({ preventScroll: true }); event.preventDefault(); event.stopPropagation(); return }
           }
-          if (!textMenu && selected === item.id && editing === item.id && event.target instanceof Element && event.target.closest('[contenteditable="true"]')) return
           const area = event.currentTarget.closest<HTMLElement>('[data-section-object-area]'); if (!area?.clientWidth) return
           const group = useEditorStore.getState().selectedSectionObjects.filter(value => value.blockId === block.id && value.section === section).map(value => value.id)
-          const bounds = event.currentTarget.getBoundingClientRect(); event.preventDefault(); event.stopPropagation(); event.currentTarget.focus({ preventScroll: true }); useEditorStore.getState().selectBlock(block.id); useEditorStore.getState().selectSection(section); if (!group.includes(item.id)) setSelected(item.id); setEditing(null); drag.current = { id: item.id, startX: event.clientX, startY: event.clientY, grabX: event.clientX - bounds.left, grabY: event.clientY - bounds.top, x, y, width, height, parentWidth: area.clientWidth, resize: false, group: group.includes(item.id) ? group : undefined }; event.currentTarget.setPointerCapture(event.pointerId)
+          const bounds = event.currentTarget.getBoundingClientRect(); event.preventDefault(); event.stopPropagation(); event.currentTarget.focus({ preventScroll: true }); useEditorStore.getState().selectBlock(block.id); useEditorStore.getState().selectSection(section); if (!group.includes(item.id)) setSelected(item.id); setEditing(null); drag.current = { id: item.id, startX: event.clientX, startY: event.clientY, grabX: event.clientX - bounds.left, grabY: event.clientY - bounds.top, x, y, width, height, parentWidth: area.clientWidth, resize: false, group: group.includes(item.id) ? group : undefined, editOnClick }; event.currentTarget.setPointerCapture(event.pointerId)
         }} onPointerMove={event => move(event)} onPointerUp={event => move(event, true)} onPointerCancel={() => { drag.current = null; setGuides({}) }}>
         {(item.type === 'image' || item.type === 'panel') && item.src && (item.type === 'image' && link
           ? <a href={link} onClick={editable ? event => event.preventDefault() : undefined} style={{ display: 'block', width: '100%', height: '100%' }}><img src={item.src} alt={item.alt || ''} style={{ width: '100%', height: '100%', objectFit: 'contain' }} draggable={false} /></a>
@@ -214,7 +264,7 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
         {item.type === 'divider' && <div aria-label={item.lineOrientation === 'vertical' ? 'Vertical line' : 'Horizontal line'} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}><div style={item.lineOrientation === 'vertical' ? { height: '100%', borderLeft: `${Math.max(1, Math.min(20, Number(item.lineThickness) || 1))}px ${['solid', 'dashed', 'dotted', 'double'].includes(item.lineStyle || '') ? item.lineStyle : 'solid'} ${/^#[0-9a-f]{6}$/i.test(item.textColor || '') ? item.textColor : '#808080'}` } : { width: '100%', borderTop: `${Math.max(1, Math.min(20, Number(item.lineThickness) || 1))}px ${['solid', 'dashed', 'dotted', 'double'].includes(item.lineStyle || '') ? item.lineStyle : 'solid'} ${/^#[0-9a-f]{6}$/i.test(item.textColor || '') ? item.textColor : '#808080'}` }} /></div>}
         {(item.type === 'text' || item.type === 'panel') && <RichText blockId={block.id} field={`sectionObject_${item.id}`} text={typeof block.props[`sectionObject_${item.id}`] === 'string' ? block.props[`sectionObject_${item.id}`] as string : item.text || ''} value={block.props[`sectionObject_${item.id}Rich`]} editable={editable && editing === item.id} multiline onDeleteBox={item.type === 'text' ? () => { const current = useConfigStore.getState().getActivePageBlocks().find(value => value.id === block.id); const saved = Array.isArray(current?.props[key]) ? current.props[key] as SectionObject[] : []; const index = saved.findIndex(value => value.id === item.id); if (index >= 0) useConfigStore.getState().editBlockItems(block.id, key, index, index, 'remove'); setEditing(null); setSelected(null) } : undefined} />}
         {item.type === 'button' && (link ? <a href={link} onClick={editable ? event => event.preventDefault() : undefined} className="inline-block rounded border border-current px-4 py-2">{item.text || 'Button'}</a> : <span className="inline-block rounded border border-current px-4 py-2">{item.text || 'Button'}</span>)}
-        {editable && selected === item.id && <div aria-hidden="true" title="Drag to move" style={{ position: 'absolute', left: 6, right: 6, top: 0, height: 7, zIndex: 1, cursor: 'move', touchAction: 'none' }} />}
+        {editable && selected === item.id && <div aria-hidden="true" data-text-move-handle title="Drag to move" style={{ position: 'absolute', left: 6, right: 6, top: 0, height: 7, zIndex: 1, cursor: 'move', touchAction: 'none' }} />}
         {editable && selected === item.id && (['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const).map(direction => <button key={direction} type="button" aria-label={`Resize object ${direction}`} style={{ position: 'absolute', left: direction.includes('w') ? -6 : direction.includes('e') ? 'calc(100% - 6px)' : 'calc(50% - 6px)', top: direction.includes('n') ? -6 : direction.includes('s') ? 'calc(100% - 6px)' : 'calc(50% - 6px)', width: 12, height: 12, zIndex: 2, background: 'white', border: '1px solid black', cursor: `${direction}-resize`, touchAction: 'none' }} onPointerDown={event => { const parent = event.currentTarget.closest<HTMLElement>('[data-section-object-area]'); if (!parent?.clientWidth) return; event.preventDefault(); event.stopPropagation(); const object = event.currentTarget.parentElement; const image = item.type === 'image' ? object?.querySelector<HTMLImageElement>('img') : null; const aspect = image?.naturalWidth && image.naturalHeight ? image.naturalWidth / image.naturalHeight : undefined; let startX = x, startY = y, startWidth = width, startHeight = height; if (aspect && object) { const bounds = object.getBoundingClientRect(); const visibleWidth = Math.min(bounds.width, bounds.height * aspect); const visibleHeight = visibleWidth / aspect; startX += (bounds.width - visibleWidth) / 2 / parent.clientWidth * 100; startY += (bounds.height - visibleHeight) / 2; startWidth = visibleWidth / parent.clientWidth * 100; startHeight = visibleHeight }; drag.current = { id: item.id, startX: event.clientX, startY: event.clientY, grabX: 0, grabY: 0, x: startX, y: startY, width: startWidth, height: startHeight, parentWidth: parent.clientWidth, resize: direction, imageAspect: aspect }; event.currentTarget.setPointerCapture(event.pointerId) }} onPointerMove={event => move(event)} onPointerUp={event => move(event, true)} onPointerCancel={() => { drag.current = null }} />)}
       </div>] as const
     }))

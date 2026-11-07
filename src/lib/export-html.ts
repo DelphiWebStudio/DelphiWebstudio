@@ -671,7 +671,8 @@ function renderCta(block: BlockConfig): string {
 // ---------------------------------------------------------------------------
 
 function renderFooterSimple(block: BlockConfig): string {
-  const logo = escapeHtml(prop(block.props, 'logo', 'Brand'))
+  const logoText = typeof block.props.logo === 'string' ? block.props.logo.trim() : ''
+  const logo = logoText === 'Brand' ? '' : escapeHtml(logoText)
   const logoImage = prop<string>(block.props, 'logoImage', '')
   const copyright = escapeHtml(prop(block.props, 'copyright', ''))
   const links = prop<string[]>(block.props, 'links', [])
@@ -687,14 +688,14 @@ function renderFooterSimple(block: BlockConfig): string {
 
   const footerLogoHtml = logoImage
     ? `<img src="${escapeHtml(logoImage)}" alt="${logo}" class="h-6 w-auto max-w-[96px] shrink-0 object-contain" />`
-    : `<div class="w-6 h-6 rounded-md bg-green/10 flex items-center justify-center"><div class="w-3 h-3 rounded-full bg-green"></div></div>`
+    : ''
 
   return `  <footer class="px-6 @md:px-10 py-8 border-t border-border-subtle">
       <div class="flex flex-col @lg:flex-row items-center justify-between gap-4">
-        <div class="flex min-w-0 items-center gap-2">
+        ${logo || footerLogoHtml ? `<div class="flex min-w-0 items-center gap-2">
           ${footerLogoHtml}
-          <span class="min-w-0 text-sm font-semibold text-text-1">${logo}</span>
-        </div>
+          ${logo ? `<span class="min-w-0 text-sm font-semibold text-text-1">${logo}</span>` : ''}
+        </div>` : ''}
         <div class="flex flex-wrap items-center gap-4">
 ${linksHtml}
         </div>
@@ -704,7 +705,8 @@ ${linksHtml}
 }
 
 function renderFooterMultiColumn(block: BlockConfig): string {
-  const logo = escapeHtml(prop(block.props, 'logo', 'Brand'))
+  const logoText = typeof block.props.logo === 'string' ? block.props.logo.trim() : ''
+  const logo = logoText === 'Brand' ? '' : escapeHtml(logoText)
   const logoImage = prop<string>(block.props, 'logoImage', '')
   const description = prop<string>(block.props, 'description', '')
   const copyright = escapeHtml(prop(block.props, 'copyright', ''))
@@ -743,17 +745,17 @@ ${colLinks}
 
   const mcLogoHtml = logoImage
     ? `<img src="${escapeHtml(logoImage)}" alt="${logo}" class="h-7 w-auto max-w-[96px] shrink-0 object-contain" />`
-    : `<div class="w-7 h-7 rounded-md bg-green/10 flex items-center justify-center"><div class="w-3.5 h-3.5 rounded-full bg-green"></div></div>`
+    : ''
 
   return `  <footer class="px-6 @md:px-10 py-12 border-t border-border-subtle">
       <div class="grid grid-cols-2 @2xl:grid-cols-5 gap-8 mb-10">
-        <div class="col-span-2 @2xl:col-span-1">
-          <div class="flex min-w-0 items-center gap-2 mb-3">
+        ${logo || mcLogoHtml || description ? `<div class="col-span-2 @2xl:col-span-1">
+          ${logo || mcLogoHtml ? `<div class="flex min-w-0 items-center gap-2 mb-3">
             ${mcLogoHtml}
-            <span class="min-w-0 text-sm font-semibold">${logo}</span>
-          </div>
+            ${logo ? `<span class="min-w-0 text-sm font-semibold">${logo}</span>` : ''}
+          </div>` : ''}
           ${description ? `<p class="text-[12px] text-text-3 leading-relaxed max-w-[200px]">${escapeHtml(description)}</p>` : ''}
-        </div>
+        </div>` : ''}
 ${colsHtml}
       </div>
       <div class="pt-6 border-t border-border-subtle flex flex-col @lg:flex-row items-center justify-between gap-3">

@@ -225,7 +225,7 @@ export function LayersPanel() {
           <option value="parent">Select panel first</option>
           <option value="child">Select top item first</option>
         </select>
-        <span className="block pt-1 text-[10px]">Ctrl+click selects the top item; Shift+click selects several objects.</span>
+        <span className="block pt-1 text-[10px]">Click text to edit. Ctrl+click selects the top item. Shift+click selects several objects.</span>
       </label>
 
       <div className="flex-1 overflow-y-auto px-2 pb-2">
