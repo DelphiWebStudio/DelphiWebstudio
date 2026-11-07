@@ -36,8 +36,8 @@ describe('editor section guides', () => {
     const block = { id: 'space-test', type: 'content' as const, variant: 'prose', props: { section1ExtraSpace: 64, section1Objects: [{ id: 'photo', type: 'image', src: 'assets/photo.png', x: 0, y: 100, width: 30, height: 200, layer: 1 }] } }
     for (const editable of [true, false]) {
       const html = renderToStaticMarkup(createElement(BlockColumns, { block, editable }))
-      expect(html).toContain('min-height:364px')
-      expect(html).toContain('padding-bottom:64px')
+      expect(html).toContain(editable ? 'min-height:calc(300px + var(--ws-resize-extra-space, 64px))' : 'min-height:364px')
+      expect(html).toContain(editable ? 'padding-bottom:var(--ws-resize-extra-space, 64px)' : 'padding-bottom:64px')
       expect(html).toContain('data-section-object="photo"')
     }
   })
