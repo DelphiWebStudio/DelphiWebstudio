@@ -26,6 +26,7 @@ describe('exportSiteToHTML', () => {
     const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
     expect(html).toContain('Current bulletin')
     expect(html.match(/href="assets\/bulletin-\d\.pdf"/g)).toEqual([6, 5, 4, 3, 2].map(number => `href="assets/bulletin-${number}.pdf"`))
+    expect(html.match(/<a[^>]+href="assets\/bulletin-\d\.pdf"[^>]*>/g)?.every(link => !link.includes('download'))).toBe(true)
     expect(html).not.toContain('href="assets/photo.png"')
     expect(html).not.toContain('Add bulletin PDF')
     expect(exportSiteToHTML({ ...baseConfig, blocks: [{ ...block, props: { items: [] } }] })).toContain('No bulletins have been posted yet.')

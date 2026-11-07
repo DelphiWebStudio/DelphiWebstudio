@@ -1,11 +1,19 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useConfigStore } from '@/store/configStore'
 import { useEditorStore } from '@/store/editorStore'
 import type { MediaAsset } from '@/media/media-library'
+import { PdfBlock } from '../pdf/PdfBlock'
 import type { BlockConfig } from '../types'
 
 export function DocumentLibraryBlock({ block, editable = false }: { block: BlockConfig; editable?: boolean }) {
   const [query, setQuery] = useState('')
+  const [selectedBulletin, setSelectedBulletin] = useState<{ src: string; title: string } | null>(null)
+  const bulletinDialog = useRef<HTMLDialogElement>(null)
+  useEffect(() => {
+    const dialog = bulletinDialog.current
+    if (selectedBulletin && dialog && !dialog.open) dialog.showModal()
+  }, [selectedBulletin])
+
   const weekly = block.variant === 'weekly-bulletins'
   const title = typeof block.props.title === 'string' && block.props.title ? block.props.title : weekly ? 'Weekly Bulletin' : 'Documents'
   const items = Array.isArray(block.props.items) ? block.props.items : []
@@ -34,15 +42,28 @@ export function DocumentLibraryBlock({ block, editable = false }: { block: Block
         {recent.length === 0 ? <p className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-4 text-slate-700">No bulletins have been posted yet.</p> : <ul className="space-y-2">
           {recent.map(({ item, index }, position) => {
             const label = typeof item.title === 'string' && item.title.trim() ? item.title : 'Open bulletin'
+            const local = item.src.startsWith('blob:')
             return <li key={index} data-ws-item-field="items" data-ws-item-index={index} className={position === 0 ? 'rounded-lg border border-blue-300 bg-blue-50 p-4' : 'rounded-lg border border-slate-200 px-4 py-3'}>
               {position === 0 && <p className="mb-1 text-sm font-semibold text-blue-900">Current bulletin</p>}
-              <a href={item.src} target="_blank" rel="noopener" download={item.src.startsWith('blob:') ? `${label.replace(/\.pdf$/i, '')}.pdf` : undefined} className="break-words font-medium text-blue-800 underline">{label} <span className="text-sm">(PDF)</span></a>
+              <a href={item.src} target={local ? undefined : '_blank'} rel={local ? undefined : 'noopener'} aria-haspopup={local ? 'dialog' : undefined}
+                onClick={local ? event => {
+                  event.preventDefault()
+                  setSelectedBulletin({ src: item.src, title: label })
+                } : undefined}
+                className="break-words font-medium text-blue-800 underline">{label} <span className="text-sm">(PDF)</span></a>
               {typeof item.description === 'string' && item.description && <p className="mt-1 text-sm text-slate-700">{item.description}</p>}
             </li>
           })}
         </ul>}
         {editable && <p className="mt-4 text-sm text-slate-700">The first PDF is the current bulletin. Add the newest one last, or reorder the entries in Properties.</p>}
       </div>
+      {selectedBulletin && <dialog ref={bulletinDialog} aria-label={`Bulletin PDF: ${selectedBulletin.title}`} onClose={() => setSelectedBulletin(null)} onClick={event => event.stopPropagation()}
+        className="m-auto max-h-[92dvh] w-[min(94vw,56rem)] max-w-none overflow-auto rounded-xl border border-slate-300 bg-white text-slate-900 shadow-2xl backdrop:bg-black/60">
+        <div className="sticky top-0 z-10 flex justify-end border-b border-slate-200 bg-white px-4 py-2">
+          <button type="button" onClick={() => bulletinDialog.current?.close()} className="rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50">Close PDF</button>
+        </div>
+        <PdfBlock block={{ ...block, props: { ...selectedBulletin, showPrint: false } }} />
+      </dialog>}
     </section>
   }
   const visible = items.filter(item => item && typeof item === 'object' && !Array.isArray(item) && `${typeof item.title === 'string' ? item.title : ''} ${typeof item.description === 'string' ? item.description : ''}`.toLocaleLowerCase().includes(query.toLocaleLowerCase()))
