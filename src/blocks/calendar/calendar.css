@@ -1,0 +1,19 @@
+[data-ws-calendar-days] td {
+  height: 2.5rem;
+  border: 1px solid #dce4e8;
+}
+
+[data-ws-calendar-days] td:empty {
+  background: #f7f9fa;
+}
+
+[data-ws-calendar-days] [data-ws-calendar-has-events] {
+  color: #254d3b;
+  background: #dceadf;
+  font-weight: 700;
+}
+
+[data-ws-calendar-days] [aria-current="date"] {
+  box-shadow: inset 0 0 0 2px #526b85;
+  font-weight: 700;
+}

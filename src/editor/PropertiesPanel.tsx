@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronDown, ChevronRight, Code } from 'lucide-react'
 import { toast } from 'sonner'
-import type { BlockConfig, BlockType, NavbarDestination, NavigationDestination } from '@/blocks/types'
+import type { BlockConfig, BlockType, CalendarEvent, NavbarDestination, NavigationDestination } from '@/blocks/types'
 import { useConfigStore } from '@/store/configStore'
 import { portableProjectsEnabled } from '@/project/project-file'
 import { useEditorStore } from '@/store/editorStore'
@@ -31,6 +31,7 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
   ] }] },
   document: { sections: [{ title: 'Document', fields: [{ key: 'title', label: 'Title', type: 'text' }] }] },
   documentLibrary: { sections: [{ title: 'Document library', fields: [{ key: 'title', label: 'Title', type: 'text' }, { key: 'items', label: 'Documents', type: 'array-items' }] }] },
+  calendar: { sections: [{ title: 'Calendar heading', fields: [{ key: 'title', label: 'Title', type: 'text' }, { key: 'intro', label: 'Introduction', type: 'textarea' }] }] },
   audio: { sections: [{ title: 'Audio', fields: [{ key: 'title', label: 'Title', type: 'text' }] }] },
   mediaVideo: { sections: [{ title: 'Video', fields: [{ key: 'title', label: 'Title', type: 'text' }] }] },
   pdfViewer: { sections: [{ title: 'PDF', fields: [
@@ -401,6 +402,7 @@ function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: Fie
   const siteSearchEnabled = useProjectsStore((s) => s.projects.find(project => project.id === projectId)?.settings?.siteSearch === 'on')
   const [itemMenu, setItemMenu] = useState<{ index: number; x: number; y: number } | null>(null)
   const [expandedNavIndex, setExpandedNavIndex] = useState<number | null>(null)
+  const [expandedEventId, setExpandedEventId] = useState<string | null>(null)
   const [focusedNumericKey, setFocusedNumericKey] = useState<string | null>(null)
   const imageItems = field.type === 'array-items' && ((field.key === 'images' && (block.type === 'gallery' || block.type === 'image' || block.type === 'collage')) || (field.key === 'items' && block.type === 'features') || (field.key === 'members' && block.type === 'team') || (field.key === 'resources' && block.type === 'footer') || /^section[1-4](Items|Objects)$/.test(field.key))
   const documentItems = field.type === 'array-items' && block.type === 'documentLibrary' && field.key === 'items'
@@ -428,6 +430,43 @@ function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: Fie
     } else {
       updateBlockProps(block.id, block.type === 'divider' && field.key === 'height' ? { height: newValue, layoutHeight: newValue } : field.key === 'src' ? { [field.key]: newValue, assetId: undefined } : (block.type === 'hero' && ['headline', 'subheadline'].includes(field.key)) || (block.type === 'content' && field.key === 'body' && block.variant !== 'columns') || (block.type === 'panel' && ['title', 'body'].includes(field.key)) || /^section[2-4]Text$/.test(field.key) ? { [field.key]: newValue, [`${field.key}Rich`]: undefined } : { [field.key]: newValue })
     }
+  }
+
+  if (block.type === 'calendar' && field.key === 'events') {
+    const events = Array.isArray(value) ? value as CalendarEvent[] : []
+    const inputClass = 'mt-1 w-full rounded border border-border-default bg-bg-2 px-2 py-1.5 text-sm text-text-0'
+    return <div className="space-y-2">
+      <p className="text-xs text-text-2">Enter a name and date to show an event. Time, location and details are optional.</p>
+      <button type="button" className="rounded border border-border-default bg-bg-2 px-3 py-1.5 text-xs font-semibold hover:bg-bg-3" onClick={() => {
+        const event = { id: crypto.randomUUID(), title: '', date: '', time: '', location: '', details: '' }
+        onChange([...events, event])
+        setExpandedEventId(event.id)
+      }}>Add event</button>
+      {!events.length && <p className="text-xs text-text-3">No events added yet.</p>}
+      {events.map((event, index) => {
+        if (!event || typeof event !== 'object') return null
+        const id = event.id || String(index)
+        const expanded = expandedEventId === id
+        const change = (key: keyof CalendarEvent, text: string) => onChange(events.map((entry, position) => position === index ? { ...entry, [key]: text } : entry))
+        return <div key={id} className="rounded border border-border-default bg-bg-2">
+          <button type="button" aria-expanded={expanded} className="flex w-full items-center justify-between gap-2 px-2 py-2 text-left text-xs" onClick={() => setExpandedEventId(expanded ? null : id)}>
+            <span className="min-w-0 truncate font-semibold">{(typeof event.title === 'string' && event.title.trim()) || 'New event'}</span>
+            <span className="shrink-0 text-text-3">{event.date || 'Choose date'}</span>
+          </button>
+          {expanded && <div className="grid grid-cols-2 gap-2 border-t border-border-default p-2 text-xs text-text-2">
+            <label className="col-span-2 min-w-0">Event name<input className={inputClass} value={event.title ?? ''} onChange={e => change('title', e.target.value)} /></label>
+            <label className="min-w-0">Date<input type="date" className={inputClass} value={event.date ?? ''} onChange={e => change('date', e.target.value)} /></label>
+            <label className="min-w-0">Time<input type="time" className={inputClass} value={event.time ?? ''} onChange={e => change('time', e.target.value)} /></label>
+            <label className="col-span-2 min-w-0">Location<input className={inputClass} value={event.location ?? ''} onChange={e => change('location', e.target.value)} /></label>
+            <label className="col-span-2 min-w-0">Details<textarea rows={3} className={inputClass} value={event.details ?? ''} onChange={e => change('details', e.target.value)} /></label>
+            <button type="button" className="col-span-2 justify-self-start rounded border border-border-default px-2 py-1 hover:text-status-red" onClick={() => {
+              onChange(events.filter((_, position) => position !== index))
+              setExpandedEventId(null)
+            }}>Remove event</button>
+          </div>}
+        </div>
+      })}
+    </div>
   }
 
   switch (field.type) {
@@ -986,6 +1025,9 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
       </div>
 
       {/* Property sections */}
+      {block.type === 'calendar' && <Section title="Calendar events">
+        <PropertyField block={block} field={{ key: 'events', label: 'Events', type: 'array-items' }} />
+      </Section>}
       <Section title="Anchor (jump destination)" defaultOpen={false}>
         <label className="block text-xs text-text-2">Anchor name<input aria-label="Block anchor name" value={typeof block.props.anchorName === 'string' ? block.props.anchorName : ''} onChange={event => updateBlockProps(block.id, { anchorName: event.target.value })} placeholder="e.g. parish-mass-times" className="mt-1 w-full rounded border border-border-default bg-bg-2 p-1 text-xs" /></label>
         <p className="mt-1 text-[10px] text-text-3">Give this block a unique name, then choose it as the destination of an image or link on this page. Start with a letter; use letters, numbers, hyphens or underscores.</p>

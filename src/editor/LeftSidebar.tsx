@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Search, Layout, Type, Grid3X3, DollarSign, Megaphone, PanelBottom, MessageSquare, BarChart3, HelpCircle, Users, Mail, Newspaper, Image, Plus, Minus, Flag, FileText, ImageIcon, Play, GalleryHorizontalEnd } from 'lucide-react'
+import { Search, Layout, Type, Grid3X3, DollarSign, Megaphone, PanelBottom, MessageSquare, BarChart3, HelpCircle, Users, Mail, Newspaper, Image, Plus, Minus, Flag, FileText, ImageIcon, Play, GalleryHorizontalEnd, CalendarDays } from 'lucide-react'
 import { LayersPanel } from './LayersPanel'
 import { useConfigStore } from '@/store/configStore'
 import { useEditorStore } from '@/store/editorStore'
@@ -15,7 +15,7 @@ const blockIcons: Record<BlockType, typeof Layout> = {
   newsletter: Newspaper, logocloud: Image, divider: Minus, banner: Flag,
   content: FileText, image: ImageIcon, video: Play, gallery: GalleryHorizontalEnd, pdfViewer: FileText,
   document: FileText, documentLibrary: FileText, audio: Play, mediaVideo: Play,
-  collage: GalleryHorizontalEnd, panel: PanelBottom,
+  collage: GalleryHorizontalEnd, panel: PanelBottom, calendar: CalendarDays,
 }
 
 const noReusableSections: NonNullable<import('@/blocks/types').SiteConfig['webstudioReusableSections']> = []

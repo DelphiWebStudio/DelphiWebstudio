@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./blocks/navbar/navbar-submenu.css";
+@import "./blocks/calendar/calendar.css";
 
 /* Application chrome is independent of the website's typography. */
 .studio-app { font-family: 'Segoe UI', system-ui, sans-serif; }
