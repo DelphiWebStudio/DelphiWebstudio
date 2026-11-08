@@ -514,7 +514,7 @@ export const useConfigStore = create<ConfigState>()(
                 return originalPath === page.path || originalPath === encodeURI(page.path) ? `[${label}](${path}${split < 0 ? '' : destination.slice(split)})` : match
               })
             }
-            if ((block.type === 'navbar' || block.type === 'footer') && Array.isArray(block.props.navItems)) for (const navItem of block.props.navItems) {
+            if ((block.type === 'navbar' || block.type === 'footer') && Array.isArray(block.props.navItems)) for (const navItem of block.props.navItems.flatMap(item => [item, ...(block.type === 'navbar' && Array.isArray(item?.children) ? item.children : [])])) {
               if (!navItem || typeof navItem.url !== 'string') continue
               const trimmed = navItem.url.trim()
               const split = trimmed.search(/[?#]/)

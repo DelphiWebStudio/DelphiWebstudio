@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronDown, ChevronRight, Code } from 'lucide-react'
 import { toast } from 'sonner'
-import type { BlockConfig, BlockType } from '@/blocks/types'
+import type { BlockConfig, BlockType, NavbarDestination, NavigationDestination } from '@/blocks/types'
 import { useConfigStore } from '@/store/configStore'
 import { portableProjectsEnabled } from '@/project/project-file'
 import { useEditorStore } from '@/store/editorStore'
@@ -640,59 +640,105 @@ function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: Fie
         return blockTemplates[block.type]?.[field.key] || (/^section[1-4]Items$/.test(field.key) ? { src: '', alt: '', text: '', url: '' } : { title: '', description: '' })
       }
 
-      if (block.type === 'navbar' && field.key === 'navItems') return (
-        <details open className="mb-2.5 rounded border border-border-default bg-bg-2">
-          <summary className="cursor-pointer px-2 py-1.5 text-xs font-medium text-text-1">Navigation Links ({items.length})</summary>
-          <div className="border-t border-border-default p-2">
-            <p className="mb-1 text-[10px] text-text-3">Drag a link to reorder it, or use the arrow buttons.</p>
-            {items.map((item, i) => <div key={i} className="mb-1 rounded border border-border-default bg-bg-3" onDragOver={event => {
-              if (event.dataTransfer.types.includes('application/x-webstudio-property-item')) { event.preventDefault(); event.dataTransfer.dropEffect = 'move' }
-            }} onDrop={event => {
-              const data = event.dataTransfer.getData('application/x-webstudio-property-item')
-              if (!data) return
-              event.preventDefault(); event.stopPropagation()
-              try {
-                const source = JSON.parse(data) as { block: string; field: string; index: number }
-                if (source.block !== block.id || source.field !== field.key || !Number.isInteger(source.index) || source.index < 0 || source.index >= items.length || source.index === i) return
-                useConfigStore.getState().editBlockItems(block.id, field.key, source.index, i)
-                setExpandedNavIndex(null)
-              } catch (error) { toast.error(error instanceof Error ? error.message : 'The link could not be moved.') }
-            }}>
-              <div className="flex items-center gap-1 px-1 py-1">
-                <button type="button" draggable aria-label={`Drag link ${i + 1}`} title="Drag to reorder" className="cursor-grab rounded border border-border-default px-1.5 text-xs active:cursor-grabbing" onDragStart={event => {
-                  event.dataTransfer.setData('application/x-webstudio-property-item', JSON.stringify({ block: block.id, field: field.key, index: i })); event.dataTransfer.effectAllowed = 'move'
-                }}>↕</button>
-                <button type="button" aria-expanded={expandedNavIndex === i} className="min-w-0 flex-1 truncate px-1 text-left text-xs text-text-0" onClick={() => setExpandedNavIndex(expandedNavIndex === i ? null : i)}>{item.label?.trim() || `New link ${i + 1}`}</button>
-                {([-1, 1] as const).map(delta => <button key={delta} type="button" aria-label={`Move link ${i + 1} ${delta < 0 ? 'up' : 'down'}`} disabled={i + delta < 0 || i + delta >= items.length} className="rounded border border-border-default px-1 text-xs disabled:opacity-40" onClick={() => {
-                  try { useConfigStore.getState().editBlockItems(block.id, field.key, i, i + delta); setExpandedNavIndex(null) } catch (error) { toast.error(error instanceof Error ? error.message : 'The link could not be moved.') }
-                }}>{delta < 0 ? '↑' : '↓'}</button>)}
-              </div>
-              {expandedNavIndex === i && <div className="border-t border-border-default p-2">
-                <label className="block text-[10px] text-text-3">Label<input aria-label={`Link ${i + 1} label`} value={item.label || ''} onChange={event => { const updated = [...items]; updated[i] = { ...updated[i], label: event.target.value }; onChange(updated) }} className="mt-1 w-full rounded border border-border-subtle bg-bg-2 px-1.5 py-1 text-xs text-text-0" /></label>
-                <label className="mt-2 block text-[10px] text-text-3">Destination<input aria-label={`Link ${i + 1} destination`} value={item.url || ''} onChange={event => { const updated = [...items]; updated[i] = { ...updated[i], url: event.target.value }; onChange(updated) }} className="mt-1 w-full rounded border border-border-subtle bg-bg-2 px-1.5 py-1 text-xs text-text-0" /></label>
-                {portableProjectsEnabled && (pages ?? []).some(page => page.webstudioArticle?.status !== 'draft') && <select aria-label={`Choose a page for link ${i + 1}`} value={(pages ?? []).some(page => page.path === item.url && page.webstudioArticle?.status !== 'draft') || (item.url === '/search.html' && siteSearchEnabled) || (item.url === '/articles/index.html' && (pages ?? []).some(page => page.webstudioArticle?.status === 'ready')) ? item.url : ''} onChange={event => {
-                  if (!event.target.value) return
-                  const updated = [...items]; updated[i] = { ...updated[i], url: event.target.value }; onChange(updated)
-                }} className="mt-1 w-full rounded border border-border-subtle bg-bg-2 px-1.5 py-1 text-xs text-text-0">
-                  <option value="">Choose a site page...</option>
-                  {(pages ?? []).filter(page => page.webstudioArticle?.status !== 'draft').map(page => <option key={page.id} value={page.path}>{page.name} ({page.path})</option>)}
-                  {siteSearchEnabled && <option value="/search.html">Search</option>}
-                  {(pages ?? []).some(page => page.webstudioArticle?.status === 'ready') && <option value="/articles/index.html">Articles</option>}
-                </select>}
-                <button type="button" className="mt-2 text-xs text-text-2 hover:text-status-red" onClick={() => {
-                  try { useConfigStore.getState().editBlockItems(block.id, field.key, i, i, 'remove'); setExpandedNavIndex(null) } catch (error) { toast.error(error instanceof Error ? error.message : 'The link could not be removed.') }
-                }}>Remove link</button>
-              </div>}
-            </div>)}
-            <button type="button" className="mt-1 text-xs text-green hover:text-green-dim" onClick={() => {
-              const legacy = Array.isArray(block.props.links) && block.props.links.every(link => typeof link === 'string') ? block.props.links : []
-              if (legacy.length) updateBlockProps(block.id, { navItems: [...items, ...legacy.map(label => ({ label, url: '' })), createEmptyItem()], links: [] })
-              else onChange([...items, createEmptyItem()])
-              setExpandedNavIndex(items.length + legacy.length)
-            }}>+ Add link</button>
-          </div>
-        </details>
-      )
+      if (block.type === 'navbar' && field.key === 'navItems') {
+        const navItems = (Array.isArray(value) ? value : []) as NavbarDestination[]
+        const pageChoices = (pages ?? []).filter(page => page.webstudioArticle?.status !== 'draft').map(page => ({ label: `${page.name} (${page.path})`, url: page.path }))
+        if (siteSearchEnabled) pageChoices.push({ label: 'Search', url: '/search.html' })
+        if ((pages ?? []).some(page => page.webstudioArticle?.status === 'ready')) pageChoices.push({ label: 'Articles', url: '/articles/index.html' })
+        const inputClass = 'mt-1 w-full rounded border border-border-subtle bg-bg-2 px-1.5 py-1 text-xs text-text-0'
+        const renderFields = (item: NavigationDestination, name: string, update: (item: NavigationDestination) => void) => <>
+          <label className="block text-[10px] text-text-3">Label<input aria-label={`${name} label`} value={item?.label || ''} onChange={event => update({ ...item, label: event.target.value })} className={inputClass} /></label>
+          <label className="mt-2 block text-[10px] text-text-3">Destination<input aria-label={`${name} destination`} value={item?.url || ''} onChange={event => update({ ...item, url: event.target.value })} className={inputClass} /></label>
+          {portableProjectsEnabled && pageChoices.length > 0 && <select aria-label={`Choose a page for ${name.toLowerCase()}`} value={pageChoices.some(page => page.url === item?.url) ? item.url : ''} onChange={event => {
+            if (event.target.value) update({ ...item, url: event.target.value })
+          }} className={inputClass}>
+            <option value="">Choose a site page...</option>
+            {pageChoices.map((page, index) => <option key={index} value={page.url}>{page.label}</option>)}
+          </select>}
+        </>
+        return (
+          <details open className="mb-2.5 rounded border border-border-default bg-bg-2">
+            <summary className="cursor-pointer px-2 py-1.5 text-xs font-medium text-text-1">Navigation Links ({items.length})</summary>
+            <div className="border-t border-border-default p-2">
+              <p className="mb-1 text-[10px] text-text-3">Drag a link to reorder it, or use the arrow buttons.</p>
+              {navItems.map((item, i) => {
+                const children = Array.isArray(item.children) ? item.children : []
+                const update = (next: NavbarDestination) => onChange(navItems.map((entry, index) => index === i ? next : entry))
+                const updateChildren = (next: NavigationDestination[]) => update({ ...item, children: next })
+                const moveChild = (from: number, to: number) => {
+                  if (!Number.isInteger(from) || from < 0 || from >= children.length || to < 0 || to >= children.length || from === to) return
+                  const next = [...children]
+                  next.splice(to, 0, next.splice(from, 1)[0])
+                  updateChildren(next)
+                }
+                const childDragType = 'application/x-webstudio-navbar-child'
+                return <div key={i} className="mb-1 rounded border border-border-default bg-bg-3" onDragOver={event => {
+                    if (event.dataTransfer.types.includes('application/x-webstudio-property-item')) { event.preventDefault(); event.dataTransfer.dropEffect = 'move' }
+                  }} onDrop={event => {
+                    const data = event.dataTransfer.getData('application/x-webstudio-property-item')
+                    if (!data) return
+                    event.preventDefault(); event.stopPropagation()
+                    try {
+                      const source = JSON.parse(data) as { block: string; field: string; index: number }
+                      if (source.block !== block.id || source.field !== field.key || !Number.isInteger(source.index) || source.index < 0 || source.index >= items.length || source.index === i) return
+                      useConfigStore.getState().editBlockItems(block.id, field.key, source.index, i)
+                      setExpandedNavIndex(null)
+                    } catch (error) { toast.error(error instanceof Error ? error.message : 'The link could not be moved.') }
+                  }}>
+                    <div className="flex items-center gap-1 px-1 py-1">
+                      <button type="button" draggable aria-label={`Drag link ${i + 1}`} title="Drag to reorder" className="cursor-grab rounded border border-border-default px-1.5 text-xs active:cursor-grabbing" onDragStart={event => {
+                        event.dataTransfer.setData('application/x-webstudio-property-item', JSON.stringify({ block: block.id, field: field.key, index: i })); event.dataTransfer.effectAllowed = 'move'
+                      }}>↕</button>
+                      <button type="button" aria-expanded={expandedNavIndex === i} className="min-w-0 flex-1 truncate px-1 text-left text-xs text-text-0" onClick={() => setExpandedNavIndex(expandedNavIndex === i ? null : i)}>{item.label?.trim() || `New link ${i + 1}`}</button>
+                      {([-1, 1] as const).map(delta => <button key={delta} type="button" aria-label={`Move link ${i + 1} ${delta < 0 ? 'up' : 'down'}`} disabled={i + delta < 0 || i + delta >= items.length} className="rounded border border-border-default px-1 text-xs disabled:opacity-40" onClick={() => {
+                        try { useConfigStore.getState().editBlockItems(block.id, field.key, i, i + delta); setExpandedNavIndex(null) } catch (error) { toast.error(error instanceof Error ? error.message : 'The link could not be moved.') }
+                      }}>{delta < 0 ? '↑' : '↓'}</button>)}
+                    </div>
+                    {expandedNavIndex === i && <div className="border-t border-border-default p-2">
+                      {renderFields(item, `Link ${i + 1}`, update)}
+                      <fieldset className="mt-3 rounded border border-border-default px-2 pb-2">
+                        <legend className="px-1 text-xs text-text-1">Submenu</legend>
+                        {children.map((child, j) => <div key={j} className="mb-2 rounded border border-border-subtle p-2" onDragOver={event => {
+                          if (!event.dataTransfer.types.includes(childDragType)) return
+                          event.preventDefault()
+                          event.dataTransfer.dropEffect = 'move'
+                        }} onDrop={event => {
+                          const from = event.dataTransfer.getData(childDragType)
+                          if (!from) return
+                          event.preventDefault()
+                          event.stopPropagation()
+                          moveChild(Number(from), j)
+                        }}>
+                          <div className="mb-2 flex items-center gap-1 text-xs">
+                            <button type="button" draggable aria-label={`Drag submenu item ${j + 1}`} className="cursor-grab rounded border border-border-default px-1.5" onDragStart={event => {
+                              event.dataTransfer.setData(childDragType, String(j))
+                              event.dataTransfer.effectAllowed = 'move'
+                            }}>↕</button>
+                            <span className="flex-1">Item {j + 1}</span>
+                            {([-1, 1] as const).map(delta => <button key={delta} type="button" aria-label={`Move submenu item ${j + 1} ${delta < 0 ? 'up' : 'down'}`} disabled={j + delta < 0 || j + delta >= children.length} className="rounded border border-border-default px-1 disabled:opacity-40" onClick={() => moveChild(j, j + delta)}>{delta < 0 ? '↑' : '↓'}</button>)}
+                          </div>
+                          {renderFields(child, `Submenu item ${j + 1}`, next => updateChildren(children.map((entry, index) => index === j ? next : entry)))}
+                          <button type="button" className="mt-2 text-xs text-text-2 hover:text-status-red" aria-label={`Remove submenu item ${j + 1}`} onClick={() => updateChildren(children.filter((_, index) => index !== j))}>Remove</button>
+                        </div>)}
+                        <button type="button" className="text-xs text-green hover:text-green-dim" onClick={() => updateChildren([...children, { label: '', url: '' }])}>+ Add submenu item</button>
+                      </fieldset>
+                      <button type="button" className="mt-2 text-xs text-text-2 hover:text-status-red" onClick={() => {
+                        try { useConfigStore.getState().editBlockItems(block.id, field.key, i, i, 'remove'); setExpandedNavIndex(null) } catch (error) { toast.error(error instanceof Error ? error.message : 'The link could not be removed.') }
+                      }}>Remove link</button>
+                    </div>}
+                  </div>
+              })}
+              <button type="button" className="mt-1 text-xs text-green hover:text-green-dim" onClick={() => {
+                const legacy = Array.isArray(block.props.links) && block.props.links.every(link => typeof link === 'string') ? block.props.links : []
+                const newLink = { label: '', url: '' }
+                if (legacy.length) updateBlockProps(block.id, { navItems: [...items, ...legacy.map(label => ({ label, url: '' })), newLink], links: [] })
+                else onChange([...items, newLink])
+                setExpandedNavIndex(items.length + legacy.length)
+              }}>+ Add link</button>
+            </div>
+          </details>
+        )
+      }
 
       return (
         <div className="mb-2.5">

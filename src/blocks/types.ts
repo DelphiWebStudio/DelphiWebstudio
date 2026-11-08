@@ -28,6 +28,15 @@ export type BlockType =
 
 export type BlockVariant = string
 
+export interface NavigationDestination {
+  label: string
+  url: string
+}
+
+export interface NavbarDestination extends NavigationDestination {
+  children?: NavigationDestination[]
+}
+
 export interface BlockConfig {
   id: string
   type: BlockType

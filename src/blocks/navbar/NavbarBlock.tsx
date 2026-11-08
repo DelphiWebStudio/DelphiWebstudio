@@ -1,13 +1,48 @@
-import type { BlockConfig } from '../types'
+import { Fragment, useId } from 'react'
+import { ChevronDown } from 'lucide-react'
+import type { BlockConfig, NavbarDestination, NavigationDestination } from '../types'
 import { useEditorStore } from '@/store/editorStore'
 
 interface NavbarProps {
   logo: string
   logoImage?: string
   links: string[]
-  navItems?: { label: string; url: string }[]
+  navItems?: NavbarDestination[]
   ctaText: string
   ctaUrl?: string
+}
+
+export function NavbarLinks({ items, editable = false }: { items: NavbarDestination[]; editable?: boolean }) {
+  const id = useId()
+  const linkClass = 'text-[13px] text-text-2 underline-offset-4 hover:underline focus-visible:underline'
+
+  const renderDestination = ({ label, url }: NavigationDestination, parentIndex?: number) => {
+    const destination = url.trim()
+    const safe = destination && !/[\\\p{Cc}]/u.test(destination) && !destination.startsWith('//') &&
+      (!/^[a-z][a-z\d+.-]*:/i.test(destination) || /^(https?:|mailto:|tel:)/i.test(destination))
+    const draggable = editable && parentIndex !== undefined
+    const className = parentIndex !== undefined ? linkClass : undefined
+    return safe || draggable
+      ? <a href={safe ? destination : undefined} draggable={draggable} title={draggable ? 'Drag to reorder' : undefined} data-ws-nav-index={parentIndex} className={className}>{label}</a>
+      : <span className={className}>{label}</span>
+  }
+
+  return items.map((item, index) => {
+    const parent = renderDestination(item, index)
+    const children = Array.isArray(item.children) ? item.children.filter(child => typeof child?.label === 'string' && child.label.trim() && typeof child.url === 'string' && child.url.trim()) : []
+    if (!children.length) return <Fragment key={index}>{parent}</Fragment>
+
+    const submenuId = `${id}-submenu-${index}`
+    return <div key={index} className="inline-flex min-w-0 items-center gap-1">
+      {parent}
+      <button type="button" data-ws-navbar-toggle popoverTarget={submenuId} aria-label={`Submenu for ${item.label || 'navigation link'}`}>
+        <ChevronDown size={15} aria-hidden="true" />
+      </button>
+      <ul id={submenuId} popover="auto" data-ws-navbar-submenu>
+        {children.map((child, childIndex) => <li key={childIndex}>{renderDestination(child)}</li>)}
+      </ul>
+    </div>
+  })
 }
 
 function NavbarDefault({ props, editable }: { props: NavbarProps; editable: boolean }) {
@@ -24,7 +59,7 @@ function NavbarDefault({ props, editable }: { props: NavbarProps; editable: bool
 
       {/* Desktop nav links */}
       <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3 [overflow-wrap:anywhere]">
-        {navItems.map((item, i) => <a key={`nav-${i}`} href={item.url || undefined} draggable={editable} title={editable ? 'Drag to reorder' : undefined} data-ws-nav-index={i} className="text-[13px] text-text-2 underline-offset-4 hover:underline focus-visible:underline">{item.label}</a>)}
+        <NavbarLinks items={navItems} editable={editable} />
         {links.map((link, i) => (
           <span
             key={i}
@@ -57,7 +92,7 @@ function NavbarCentered({ props, editable }: { props: NavbarProps; editable: boo
     <nav data-ws-navbar className="px-6 @md:px-10 py-4 flex flex-wrap gap-3 items-center justify-between">
       {/* Left links */}
       <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3 flex-1 [overflow-wrap:anywhere]">
-        {navItems.map((item, i) => <a key={`nav-${i}`} href={item.url || undefined} draggable={editable} title={editable ? 'Drag to reorder' : undefined} data-ws-nav-index={i} className="text-[13px] text-text-2 underline-offset-4 hover:underline focus-visible:underline">{item.label}</a>)}
+        <NavbarLinks items={navItems} editable={editable} />
         {leftLinks.map((link, i) => (
           <span key={i} draggable={editable} title={editable ? 'Drag to reorder' : undefined} data-ws-nav-index={navItems.length + i} className="text-[13px] text-text-2 underline-offset-4 hover:underline cursor-pointer">
             {link}

@@ -94,6 +94,25 @@ describe('multi-page export', () => {
     expect(news.match(/href="\.\.\/about\.html"[^>]*>About club<\/a>/g)).toHaveLength(1)
     expect(news).toContain('Legacy')
   })
+  it.each(['default', 'centered'])('preserves and exports %s Navbar submenus in order', async variant => {
+    const site = structuredClone(config)
+    const navItems = [{ label: 'About', url: '/about', children: [
+      { label: 'History & photos', url: '/community/news?view=all#history' },
+      { label: 'Parish Guide', url: '/about#guide' },
+      { label: 'Unfinished', url: '' },
+    ] }]
+    site.pages![1].blocks.push({ id: 'submenu', type: 'navbar', variant, props: { navItems } })
+    const reopened = parseProjectFile(serializeProjectFile(createProjectFile(site, 'submenu-project'))).project.config
+    expect(reopened.pages![1].blocks.at(-1)?.props.navItems).toEqual(navItems)
+    const zip = await JSZip.loadAsync(await (await exportSiteZip(reopened)).arrayBuffer())
+    const news = await zip.file('community/news.html')!.async('string')
+    expect(news).toMatch(/href="\.\.\/about\.html"[^>]*>About<\/a>/)
+    const target = news.match(/popovertarget="([^"]+)" aria-label="Submenu for About"/i)?.[1]
+    expect(target).toBeTruthy()
+    const submenu = news.split(`<ul id="${target}" popover="auto"`)[1]?.split('</ul>')[0] ?? ''
+    expect(submenu).toMatch(/href="\.\.\/community\/news\.html\?view=all#history"[^>]*>History &amp; photos<\/a>.*href="\.\.\/about\.html#guide"[^>]*>Parish Guide<\/a>/)
+    expect(submenu).not.toContain('Unfinished')
+  })
   it('exports individual page search titles and descriptions with site-wide fallbacks', async () => {
     const site = structuredClone(config)
     site.pages![1].webstudioSeo = { title: 'News & updates', description: 'Latest "community" news' }
