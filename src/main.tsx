@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
+import './blocks/navbar/navbar-submenu-keyboard.js'
 import { App } from './App'
 
 if (window.location.origin === 'https://webstudio.local') {
