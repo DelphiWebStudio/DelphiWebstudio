@@ -6,6 +6,7 @@ import { BlockColumns } from '@/blocks/BlockColumns'
 import { RichText } from '@/blocks/RichText'
 import { PlacedMedia } from '@/blocks/PlacedMedia'
 import { NavbarLinks } from '@/blocks/navbar/NavbarBlock'
+import navbarSubmenuKeyboard from '@/blocks/navbar/navbar-submenu-keyboard.js?raw'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import JSZip from 'jszip'
@@ -1218,7 +1219,7 @@ function renderBlock(block: BlockConfig): string {
 // Main export
 // ---------------------------------------------------------------------------
 
-export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions): string {
+export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions, pageNavbar = ''): string {
   const theme = resolveTheme(config.theme)
   const settings = options?.settings
 
@@ -1312,6 +1313,8 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
   }).join('\n\n')}</main>`
   const documentLibraryScript = config.blocks.some(block => block.type === 'documentLibrary') ? `<script>document.querySelectorAll('[data-document-library]').forEach(function(library){var search=library.querySelector('[data-library-search]');search.addEventListener('input',function(){var query=search.value.toLocaleLowerCase();library.querySelectorAll('[data-library-item]').forEach(function(item){item.style.display=item.textContent.toLocaleLowerCase().includes(query)?'':'none';});});});</script>` : ''
   const localPdfNoticeScript = config.blocks.some(block => block.type === 'pdfViewer') ? `<script>if(location.protocol==='file:'){document.querySelectorAll('[data-webstudio-pdf-viewer]').forEach(function(frame){frame.hidden=true});document.querySelectorAll('[data-webstudio-pdf-local-notice]').forEach(function(notice){notice.hidden=false})}</script>` : ''
+  const navbarKeyboardScript = (pageNavbar + blocksHtml).includes(' data-ws-navbar-submenu="true"')
+    ? `<script data-ws-navbar-keyboard>\n${navbarSubmenuKeyboard}</script>` : ''
 
   const pageTitle = (settings?.seoTitle || settings?.siteName || config.name || 'Website').trim()
   const pageDescription = (settings?.seoDescription || settings?.siteDescription || '').trim()
@@ -1481,9 +1484,10 @@ ${posthogScript}
 </head>
 <body>
 <a class="skip-to-content" href="#main-content">Skip to main content</a>
-<!-- WEBSTUDIO_PAGE_NAV -->
+${pageNavbar}
 
 ${blocksHtml}
+${navbarKeyboardScript}
 ${localPdfNoticeScript}
 ${documentLibraryScript}
 ${faqScript}
@@ -1570,9 +1574,8 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
   if (articles.length) {
     const cards = articles.map(article => `<article class="p-4 rounded-lg border border-border-default"><h2 class="text-xl font-semibold"><a href="../${escapeHtml(encodeURI(paths[pages.indexOf(article)]))}" class="text-green hover:underline">${escapeHtml(article.name)}</a></h2>${article.webstudioArticle!.author ? `<p class="text-sm">By ${escapeHtml(article.webstudioArticle!.author)}</p>` : ''}${article.webstudioArticle!.summary ? `<p class="text-sm">${escapeHtml(article.webstudioArticle!.summary)}</p>` : ''}${article.webstudioArticle!.tags?.length ? `<p class="text-sm">Tags: ${article.webstudioArticle!.tags.map(escapeHtml).join(', ')}</p>` : ''}</article>`).join('')
     const content = `<main id="main-content" tabindex="-1" class="@container"><div class="max-w-3xl mx-auto px-6 py-12"><h1 class="text-3xl font-bold mb-4">Articles</h1><div class="space-y-4">${cards}</div>${siteBaseUrl ? '<p class="mt-4"><a href="../feed.xml" class="text-green hover:underline">RSS feed</a></p>' : ''}</div></main>`
-    const archive = exportSiteToHTML({ ...validated, name: 'Articles', blocks: [] }, { settings: { ...options?.settings, seoTitle: 'Articles' } })
+    const archive = exportSiteToHTML({ ...validated, name: 'Articles', blocks: [] }, { settings: { ...options?.settings, seoTitle: 'Articles' } }, generatedNavbars[0])
       .replace('</head>', canonicalBase ? `  <link rel="canonical" href="${escapeHtml(new URL('articles/index.html', canonicalBase).href)}" />\n  <meta property="og:url" content="${escapeHtml(new URL('articles/index.html', canonicalBase).href)}" />\n</head>` : '</head>')
-      .replace('<!-- WEBSTUDIO_PAGE_NAV -->', generatedNavbars[0])
       .replace('<main id="main-content" tabindex="-1" class="@container"></main>', content)
     zip.file('articles/index.html', archive, { date: new Date('1980-01-01T00:00:00Z') })
   }
@@ -1607,9 +1610,8 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
         matches.forEach(function(page) { var item = document.createElement('li'); var link = document.createElement('a'); link.href = page.href; link.textContent = page.title; link.className = 'text-green hover:underline'; item.appendChild(link); results.appendChild(item); });
       });
     </script>`
-    const searchPage = exportSiteToHTML({ ...validated, name: 'Search', blocks: [] }, { settings: { ...options.settings, seoTitle: 'Search' } })
+    const searchPage = exportSiteToHTML({ ...validated, name: 'Search', blocks: [] }, { settings: { ...options.settings, seoTitle: 'Search' } }, generatedNavbars[1])
       .replace('</head>', '<meta name="robots" content="noindex" />\n</head>')
-      .replace('<!-- WEBSTUDIO_PAGE_NAV -->', generatedNavbars[1])
       .replace('<main id="main-content" tabindex="-1" class="@container"></main>', searchContent)
       .replace('</body>', `${searchScript}\n</body>`)
     zip.file('search.html', searchPage, { date: new Date('1980-01-01T00:00:00Z') })
@@ -1653,7 +1655,6 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     const pageSettings = { ...options?.settings, ...(page.webstudioSeo?.title?.trim() ? { seoTitle: page.webstudioSeo.title } : {}), ...(page.webstudioSeo?.description?.trim() ? { seoDescription: page.webstudioSeo.description } : {}) }
     let html = exportSiteToHTML({ ...validated, name: page.name, blocks: page.blocks }, { settings: pageSettings })
       .replace('</head>', canonicalBase ? `  <link rel="canonical" href="${escapeHtml(new URL(encodeURI(paths[index]), canonicalBase).href)}" />\n  <meta property="og:url" content="${escapeHtml(new URL(encodeURI(paths[index]), canonicalBase).href)}" />\n</head>` : '</head>')
-      .replace('<!-- WEBSTUDIO_PAGE_NAV -->', '')
       .replace('<main id="main-content" tabindex="-1" class="@container">', `<main id="main-content" tabindex="-1" class="@container">${articleHeader}`)
       .replace(/\b(src|href|data)="assets\//g, `$1="${prefix}assets/`)
       .replace(/(<a\s[^>]*?\bhref=")([^"]*)(")/gi, (match, start: string, href: string, end: string) => {
