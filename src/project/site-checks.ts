@@ -48,7 +48,8 @@ export function checkSite(config: SiteConfig, settings?: { seoTitle?: string; se
         if (links.some(link => typeof link === 'string' && link.trim()) || hasColumnLinks) add('This block contains text-only navigation labels that do not link to pages. Add working links under Navigation destinations.')
       }
       if ((block.type === 'navbar' || block.type === 'footer') && Array.isArray(block.props.navItems)) {
-        for (const item of block.props.navItems) {
+        const destinations = block.props.navItems.flatMap(item => [item, ...(block.type === 'navbar' && Array.isArray(item?.children) ? item.children : [])])
+        for (const item of destinations) {
           if (!item || typeof item !== 'object') { add('A navigation destination is invalid.'); continue }
           const label = typeof item.label === 'string' ? item.label.trim() : ''
           const url = typeof item.url === 'string' ? item.url.trim() : ''

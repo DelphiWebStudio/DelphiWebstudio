@@ -5,6 +5,7 @@ import { RenderBlock } from '@/blocks/registry'
 import { BlockColumns } from '@/blocks/BlockColumns'
 import { RichText } from '@/blocks/RichText'
 import { PlacedMedia } from '@/blocks/PlacedMedia'
+import { NavbarLinks } from '@/blocks/navbar/NavbarBlock'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import JSZip from 'jszip'
@@ -153,9 +154,9 @@ function renderNavbar(block: BlockConfig): string {
   const navLinks = links.map(l =>
     `          <span class="text-[13px] text-text-2 underline-offset-4 hover:underline cursor-pointer">${escapeHtml(l)}</span>`
   )
-  const destinationLinks = navItems.filter(item => item && typeof item.label === 'string' && typeof item.url === 'string').map(item =>
-    renderLink(item.label, item.url, 'text-[13px] text-text-2 underline-offset-4 hover:underline focus-visible:underline')
-  )
+  const destinationLinks = renderToStaticMarkup(createElement(NavbarLinks, {
+    items: navItems.filter(item => item && typeof item.label === 'string' && typeof item.url === 'string'),
+  }), { identifierPrefix: `nav-${Array.from(block.id, character => character.codePointAt(0)!.toString(16)).join('-')}-` })
   const logoHtml = logoImage
     ? `<img src="${escapeHtml(logoImage)}" alt="${logo}" class="h-8 w-auto max-w-[96px] shrink-0 object-contain" />`
     : ''
@@ -163,7 +164,7 @@ function renderNavbar(block: BlockConfig): string {
   if (block.variant === 'centered') {
     const mid = Math.ceil(navLinks.length / 2)
     return `  <nav data-ws-navbar="true"${layoutAttr} class="px-6 @md:px-10 py-4 flex flex-wrap gap-3 items-center justify-between">
-    <div class="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3 flex-1 [overflow-wrap:anywhere]">${destinationLinks.join('\n')}${navLinks.slice(0, mid).join('\n')}</div>
+    <div class="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3 flex-1 [overflow-wrap:anywhere]">${destinationLinks}${navLinks.slice(0, mid).join('\n')}</div>
     ${logoImage || logo ? `<div class="flex min-w-0 items-center gap-2">${logoHtml}<span class="min-w-0 font-semibold text-[15px] text-text-0 tracking-tight">${logo}</span></div>` : ''}
     <div class="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3 flex-1 justify-end [overflow-wrap:anywhere]">${navLinks.slice(mid).join('\n')}
       ${ctaText ? renderLink(ctaText, ctaUrl, 'px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold hover:bg-green-dim transition-colors ml-2') : ''}
@@ -177,7 +178,7 @@ function renderNavbar(block: BlockConfig): string {
       <span class="min-w-0 font-semibold text-[15px] text-text-0 tracking-tight">${logo}</span>
     </div>` : ''}
     <div class="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3 [overflow-wrap:anywhere]">
-${destinationLinks.join('\n')}
+${destinationLinks}
 ${navLinks.join('\n')}
     </div>
     <div class="flex items-center gap-3">

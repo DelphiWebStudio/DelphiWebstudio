@@ -1,4 +1,5 @@
 @import "tailwindcss" source(none);
+@import "../blocks/navbar/navbar-submenu.css";
 @source "../lib/export-html.ts";
 @source "../blocks";
 

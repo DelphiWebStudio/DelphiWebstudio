@@ -298,6 +298,7 @@ export function Canvas() {
             const href = link.getAttribute('href') ?? ''
             if (link.hasAttribute('download') && href.startsWith('blob:')) return
             e.preventDefault()
+            link.closest<HTMLElement>('[data-ws-navbar-submenu]')?.hidePopover?.()
             if (href.startsWith('#')) {
               const destination = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('[id]')).find(element => element.id === href.slice(1))
               if (destination) destination.scrollIntoView({ behavior: 'smooth', block: 'start' })

@@ -264,7 +264,7 @@ export function CanvasToolbar({ settingsOpen = false, onOpenSettings }: { settin
       const path = match[2].split(/[?#]/, 1)[0].replace(/\/$/, '') || '/'
       return path === pageToDelete.path || path === encodeURI(pageToDelete.path)
     })) return true
-    if ((block.type === 'navbar' || block.type === 'footer') && Array.isArray(block.props.navItems) && block.props.navItems.some(item => {
+    if ((block.type === 'navbar' || block.type === 'footer') && Array.isArray(block.props.navItems) && block.props.navItems.flatMap(item => [item, ...(block.type === 'navbar' && Array.isArray(item?.children) ? item.children : [])]).some(item => {
       if (!item || typeof item.url !== 'string') return false
       const path = item.url.trim().split(/[?#]/, 1)[0].replace(/\/$/, '') || '/'
       return path === pageToDelete.path || path === encodeURI(pageToDelete.path)
