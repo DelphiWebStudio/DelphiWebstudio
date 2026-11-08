@@ -12,6 +12,26 @@ const pages = [
 const config: SiteConfig = { name: 'Example', pages, blocks: pages[0].blocks }
 
 describe('multi-page export', () => {
+  it('saves editable calendar events and exports valid dates in chronological order', async () => {
+    const site = structuredClone(config)
+    const events = [
+      { id: 'later', title: 'Parish gathering', date: '2026-11-20', location: 'Parish Hall' },
+      { id: 'first', title: 'Choir rehearsal', date: '2026-11-10', time: '18:30', details: 'Bring your music.' },
+      { id: 'draft', title: 'Incomplete event', date: '' },
+      { id: 'invalid', title: 'Invalid event', date: '2026-02-30' },
+    ]
+    site.pages![2].blocks.push({ id: 'calendar', type: 'calendar', variant: 'default', props: { title: 'Parish Calendar', events } })
+    const reopened = parseProjectFile(serializeProjectFile(createProjectFile(site, 'calendar-project'))).project.config
+    expect(reopened.pages![2].blocks[0].props.events).toEqual(events)
+    const zip = await JSZip.loadAsync(await (await exportSiteZip(reopened)).arrayBuffer())
+    const page = await zip.file('about.html')!.async('string')
+    expect(page).toContain('data-ws-calendar-script')
+    expect(page).toMatch(/datetime="2026-11-10T18:30"/i)
+    expect(page.indexOf('Choir rehearsal')).toBeLessThan(page.indexOf('Parish gathering'))
+    expect(page).not.toMatch(/Incomplete event|Invalid event|Manage events/)
+    expect(await zip.file('index.html')!.async('string')).not.toContain('data-ws-calendar-script')
+  })
+
   it('uses only the configured Navbar, including on generated pages, and retains its dimensions', async () => {
     const site = structuredClone(config)
     site.pages![0].blocks.unshift({ id: 'nav', type: 'navbar', variant: 'default', props: { logo: 'My site', layoutWidth: 75, layoutHeight: 56, navItems: [{ label: 'Home', url: '/' }, { label: 'News', url: '/community/news', children: [{ label: 'About', url: '/about' }] }, { label: 'Search', url: '/search.html' }, { label: 'Articles', url: '/articles/index.html' }] } })

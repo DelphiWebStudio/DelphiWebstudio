@@ -7,6 +7,7 @@ import { RichText } from '@/blocks/RichText'
 import { PlacedMedia } from '@/blocks/PlacedMedia'
 import { NavbarLinks } from '@/blocks/navbar/NavbarBlock'
 import navbarSubmenuKeyboard from '@/blocks/navbar/navbar-submenu-keyboard.js?raw'
+import calendarViewScript from '@/blocks/calendar/calendar-view.js?raw'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import JSZip from 'jszip'
@@ -1187,6 +1188,7 @@ function renderBlock(block: BlockConfig): string {
     case 'panel':
     case 'document':
     case 'documentLibrary':
+    case 'calendar':
     case 'audio':
     case 'mediaVideo':
       return renderToStaticMarkup(createElement(RenderBlock, { block }))
@@ -1315,6 +1317,8 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
   const localPdfNoticeScript = config.blocks.some(block => block.type === 'pdfViewer') ? `<script>if(location.protocol==='file:'){document.querySelectorAll('[data-webstudio-pdf-viewer]').forEach(function(frame){frame.hidden=true});document.querySelectorAll('[data-webstudio-pdf-local-notice]').forEach(function(notice){notice.hidden=false})}</script>` : ''
   const navbarKeyboardScript = (pageNavbar + blocksHtml).includes(' data-ws-navbar-submenu="true"')
     ? `<script data-ws-navbar-keyboard>\n${navbarSubmenuKeyboard}</script>` : ''
+  const calendarScript = config.blocks.some(block => block.type === 'calendar')
+    ? `<script type="module" data-ws-calendar-script>\n${calendarViewScript}\ndocument.querySelectorAll('[data-ws-calendar]').forEach(connectCalendar)\n</script>` : ''
 
   const pageTitle = (settings?.seoTitle || settings?.siteName || config.name || 'Website').trim()
   const pageDescription = (settings?.seoDescription || settings?.siteDescription || '').trim()
@@ -1488,6 +1492,7 @@ ${pageNavbar}
 
 ${blocksHtml}
 ${navbarKeyboardScript}
+${calendarScript}
 ${localPdfNoticeScript}
 ${documentLibraryScript}
 ${faqScript}
@@ -1511,7 +1516,7 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
   const allPages = validated.pages!
   const pages = allPages.filter(page => page.webstudioArticle?.status !== 'draft')
   const articles = pages.filter(page => page.webstudioArticle?.status === 'ready')
-  const knownTypes = new Set(['navbar', 'hero', 'features', 'pricing', 'cta', 'footer', 'testimonials', 'stats', 'faq', 'team', 'contact', 'newsletter', 'logocloud', 'divider', 'banner', 'content', 'image', 'video', 'gallery', 'collage', 'panel', 'pdfViewer', 'document', 'documentLibrary', 'audio', 'mediaVideo'])
+  const knownTypes = new Set(['navbar', 'hero', 'features', 'pricing', 'cta', 'footer', 'testimonials', 'stats', 'faq', 'team', 'contact', 'newsletter', 'logocloud', 'divider', 'banner', 'content', 'image', 'video', 'gallery', 'collage', 'panel', 'pdfViewer', 'document', 'documentLibrary', 'calendar', 'audio', 'mediaVideo'])
   for (const page of pages) {
     const unknown = page.blocks.find(block => !knownTypes.has(block.type))
     if (unknown) throw new Error(`Page ${page.name} contains unsupported block ${unknown.type}; it cannot be exported safely.`)

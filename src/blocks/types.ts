@@ -23,6 +23,7 @@ export type BlockType =
   | 'pdfViewer'
   | 'document'
   | 'documentLibrary'
+  | 'calendar'
   | 'audio'
   | 'mediaVideo'
 
@@ -31,6 +32,15 @@ export type BlockVariant = string
 export interface NavigationDestination {
   label: string
   url: string
+}
+
+export interface CalendarEvent {
+  id: string
+  title: string
+  date: string
+  time?: string
+  location?: string
+  details?: string
 }
 
 export interface NavbarDestination extends NavigationDestination {

@@ -13,6 +13,7 @@ export const blockMetadata: BlockMeta[] = [
   { type: 'collage', label: 'Photo collage', description: 'Move and layer photos and other images', category: 'Media', variants: ['default'], defaultProps: { images: [] } },
   { type: 'panel', label: 'Panel', description: 'Movable colored panel with image and text', category: 'Content', variants: ['default'], defaultProps: { title: 'Panel title', body: 'Add your text here.', src: '', alt: '', blockBackgroundColor: '#b9aeb6', layoutWidth: 40 } },
   { type: 'documentLibrary', label: 'Document library', description: 'Searchable list of documents', category: 'Media', variants: ['default'], defaultProps: { title: 'Documents', items: [] } },
+  { type: 'calendar', label: 'Calendar', description: 'Monthly calendar with editable events', category: 'Content', variants: ['default'], defaultProps: { title: 'Calendar', intro: '', events: [] } },
   {
     type: 'navbar',
     label: 'Navbar',
