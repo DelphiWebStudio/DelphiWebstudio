@@ -195,8 +195,10 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
     try { await openProjectFile(file) } finally { input.value = '' }
   }
 
-  async function openProjectFile(file: File) {
+  async function openProjectFile(file: File, reuseDraft = true) {
     if (useEditorStore.getState().mediaImporting) return
+    document.querySelectorAll('[data-rich-editor]').forEach(element => element.dispatchEvent(new Event('webstudio-flush-text')))
+    if (document.activeElement instanceof HTMLElement && document.activeElement.isContentEditable) document.activeElement.blur()
     const originalProjectId = useEditorStore.getState().activeProjectId
     const originalConfig = useConfigStore.getState().config
     const originalProject = useProjectsStore.getState().projects.find(item => item.id === originalProjectId)
@@ -218,15 +220,37 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
       if (zip && !manifest) throw new Error('The project ZIP has no project.webstudio.json file.')
       const contents = manifest ? await readProjectZipManifest(manifest) : decodeProjectFile(new Uint8Array(await file.arrayBuffer()))
       const { project, migrated } = parseProjectFile(contents)
+      if (migrated && reuseDraft) {
+        const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(contents)))
+        project.projectId = `legacy-${Array.from(digest, byte => byte.toString(16).padStart(2, '0')).join('')}`
+      }
       const assetMetadata = project.assets === undefined ? [] : project.assets
       if (!Array.isArray(assetMetadata)) throw new Error('The project media list is invalid.')
       if (assetMetadata.length && !zip) throw new Error('This project references media files; open its ZIP package instead.')
       validateProjectMedia(project.config, assetMetadata)
       const projectName = typeof project.webstudioProjectName === 'string' && project.webstudioProjectName.trim()
         ? project.webstudioProjectName : project.config.name
-      const id = `proj-${crypto.randomUUID()}`
-      if (useProjectsStore.getState().projects.some(item => item.id === id)) throw new Error('Project identity is already in use. Try opening the project again.')
-      stagedProjectId = id
+      // Match a saved version, since Save As and old revisions can share a portable project ID.
+      const { config: savedConfig, ...savedMetadata } = project
+      const configSnapshot = JSON.stringify(savedConfig)
+      const metadataSnapshot = JSON.stringify(savedMetadata)
+      const matchingDrafts = reuseDraft ? useProjectsStore.getState().projects
+        .filter(item => {
+          if (item.projectFile?.projectId !== project.projectId) return false
+          const { config, ...metadata } = item.projectFile
+          return JSON.stringify(config) === configSnapshot && JSON.stringify(metadata) === metadataSnapshot
+        })
+        .sort((left, right) => String(right.modifiedAt ?? '').localeCompare(String(left.modifiedAt ?? ''))) : []
+      const existingDraft = matchingDrafts.find(item => item.id === originalProjectId) ?? matchingDrafts[0]
+      const id = existingDraft?.id ?? `proj-${crypto.randomUUID()}`
+      if (!existingDraft) {
+        if (useProjectsStore.getState().projects.some(item => item.id === id)) throw new Error('Project identity is already in use. Try opening the project again.')
+        stagedProjectId = id
+      }
+      let sameMedia = true
+      const draftAssets = existingDraft && (assetMetadata.length || existingDraft.mediaRevision)
+        ? new Map((await new ProjectMediaLibrary().list(id)).map(asset => [asset.id, asset]))
+        : undefined
       if (zip) {
         const allowedPaths = new Set(['project.webstudio.json'])
         for (const metadata of assetMetadata) {
@@ -243,27 +267,51 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
             throw new Error(`Unsafe or invalid media size: ${metadata.name}.`)
           }
           const bytes = await entry.async('arraybuffer')
-          library ??= new ProjectMediaLibrary()
-          const restored = await library.import(id, new File([bytes], metadata.name, { type: metadata.mime }), metadata)
-          restoredIds.push(restored.asset.id)
-          if (restored.asset.mime !== metadata.mime || restored.asset.size !== metadata.size) throw new Error(`Invalid media type or size: ${metadata.name}.`)
+          if (existingDraft) {
+            const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))
+            const checksum = Array.from(digest, byte => byte.toString(16).padStart(2, '0')).join('')
+            if (checksum !== metadata.sha256 || bytes.byteLength !== metadata.size) throw new Error(`Invalid media content: ${metadata.name}.`)
+            const currentAsset = draftAssets?.get(metadata.id)
+            sameMedia &&= !!currentAsset && currentAsset.sha256 === metadata.sha256 && currentAsset.path === metadata.path &&
+              currentAsset.name === metadata.name && currentAsset.size === metadata.size && currentAsset.mime === metadata.mime &&
+              currentAsset.folder === metadata.folder && currentAsset.content?.size === metadata.size
+          } else {
+            library ??= new ProjectMediaLibrary()
+            const restored = await library.import(id, new File([bytes], metadata.name, { type: metadata.mime }), metadata)
+            restoredIds.push(restored.asset.id)
+            if (restored.asset.mime !== metadata.mime || restored.asset.size !== metadata.size) throw new Error(`Invalid media type or size: ${metadata.name}.`)
+          }
         }
         if (Object.values(zip.files).some(entry => !entry.dir && !allowedPaths.has(entry.name))) throw new Error('The project ZIP contains unexpected files.')
       }
-      if (useEditorStore.getState().activeProjectId !== originalProjectId || useConfigStore.getState().config !== originalConfig || useProjectsStore.getState().projects.find(item => item.id === originalProjectId) !== originalProject) {
+      const projects = useProjectsStore.getState()
+      if (useEditorStore.getState().activeProjectId !== originalProjectId || useConfigStore.getState().config !== originalConfig ||
+        projects.projects.find(item => item.id === originalProjectId) !== originalProject ||
+        (existingDraft && projects.projects.find(item => item.id === id) !== existingDraft)) {
         throw new Error('The current project changed while opening. Your edits remain in the editor; save them and open the other project again.')
       }
-      useProjectsStore.getState().addProject(projectName, project, id)
-      createdProjectId = id
-      if (assetMetadata.length) useProjectsStore.getState().mediaChanged(id)
+      if (!existingDraft) {
+        projects.addProject(projectName, project, id)
+        createdProjectId = id
+        if (assetMetadata.length) projects.mediaChanged(id)
+      }
       useEditorStore.getState().setActiveProject(id)
-      useConfigStore.getState().setConfig(project.config)
+      if (!existingDraft || id !== originalProjectId) useConfigStore.getState().setConfig(existingDraft?.config ?? project.config)
+      const openedConfig = useConfigStore.getState().config
       const opened = useProjectsStore.getState().projects.find(item => item.id === id)
-      if (!migrated && opened) useEditorStore.getState().setSavedProjectSnapshot({ projectId: id, signature: JSON.stringify({ config: project.config, name: opened.name, settings: opened.settings ?? {}, mediaRevision: opened.mediaRevision ?? 0 }) })
+      const hasLocalChanges = !!existingDraft && (
+        JSON.stringify(openedConfig) !== configSnapshot ||
+        existingDraft.name !== projectName || JSON.stringify(existingDraft.settings ?? {}) !== JSON.stringify(project.settings ?? {}) ||
+        !sameMedia || (draftAssets?.size ?? 0) !== assetMetadata.length
+      )
+      useEditorStore.getState().setSavedProjectSnapshot(!migrated && opened && !hasLocalChanges
+        ? { projectId: id, signature: JSON.stringify({ config: openedConfig, name: opened.name, settings: opened.settings ?? {}, mediaRevision: opened.mediaRevision ?? 0 }) }
+        : null)
       const native = (window as unknown as { chrome?: { webview?: { postMessageWithAdditionalObjects?: (message: unknown, files: File[]) => void } } }).chrome?.webview
       if (window.location.origin === 'https://webstudio.local' && native?.postMessageWithAdditionalObjects) native.postMessageWithAdditionalObjects({ version: 1, kind: 'project.opened', projectId: id }, [file])
       navigate('/editor')
-      toast.success(migrated ? 'Legacy project opened. Save a new project file to keep the upgrade.' : 'Project opened as a separate local copy.')
+      toast.success(hasLocalChanges ? 'Project opened with your unsaved local edits.' :
+        migrated ? 'Legacy project opened. Save a new project file to keep the upgrade.' : 'Project opened.')
     } catch (error) {
       if (stagedProjectId) for (const id of restoredIds) await library?.remove(stagedProjectId, id).catch(() => undefined)
       if (createdProjectId) useProjectsStore.getState().deleteProject(createdProjectId)
@@ -286,7 +334,7 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
         throw new Error('The current project changed while checking the revision. Your edits remain; try again.')
       }
       if (useEditorStore.getState().mediaImporting) throw new Error('Wait for the current media or save operation to finish, then open the revision again.')
-      await openProjectFile(new File([revision.contents], revision.filename, { type: revision.contents.type }))
+      await openProjectFile(new File([revision.contents], revision.filename, { type: revision.contents.type }), false)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'The local revision could not be checked.')
     } finally { setCheckingRevision(null) }
