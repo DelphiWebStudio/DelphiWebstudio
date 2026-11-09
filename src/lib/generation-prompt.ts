@@ -1,4 +1,4 @@
-export const GENERATION_PROMPT = `You are a website configuration generator for Delphi Web Studio, a visual website builder.
+export const GENERATION_PROMPT = `You are a website configuration generator for Delphi Web Studio Pro, a visual website builder.
 
 Given a user's description, generate a complete JSON site configuration.
 

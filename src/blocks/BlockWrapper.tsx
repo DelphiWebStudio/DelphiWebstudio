@@ -4,7 +4,6 @@ import { Copy, Trash2, ChevronUp, ChevronDown, Globe } from 'lucide-react'
 import { toast } from 'sonner'
 import { useConfigStore } from '@/store/configStore'
 import { useEditorStore } from '@/store/editorStore'
-import { useScrollReveal } from '@/lib/useScrollReveal'
 import type { BlockConfig } from './types'
 import { BlockColumns } from './BlockColumns'
 import { PlacedMedia } from './PlacedMedia'
@@ -49,7 +48,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
     useConfigStore.getState().updateBlockProps(block.id, updates)
     state.selectBlock(block.id); state.selectSection(section)
   }
-  const { ref: revealRef, isRevealed } = useScrollReveal(!previewMode)
+  const revealRef = useRef<HTMLDivElement>(null)
 
   const imageLayout = block.type === 'image'
   const navbarLayout = block.type === 'navbar'
@@ -178,7 +177,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
       <div
         ref={revealRef}
         id={anchorName}
-        className={isRevealed ? 'scroll-revealed' : ''}
+        className="scroll-revealed"
         style={layoutStyle}
         data-ws-scope={scope}
         data-ws-navbar-block={navbarLayout ? 'true' : undefined}
@@ -477,9 +476,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         }
         e.stopPropagation()
       }}
-      className={`scroll-revealed relative cursor-pointer border-b border-border-subtle group transition-[opacity,transform] duration-500 ${
-        isRevealed ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-      } ${
+      className={`scroll-revealed relative cursor-pointer border-b border-border-subtle group ${
         block.type === 'divider' ? (isSelected ? 'outline outline-2 outline-[#1683e5] -outline-offset-1' : 'outline outline-1 outline-dashed outline-[#aab5c0] -outline-offset-1') : (resizableLayout || block.type === 'collage') ? (isSelected ? 'outline outline-1 outline-white -outline-offset-1' : '') : isSelected
           ? 'bg-green-glow2 outline outline-2 outline-green -outline-offset-2 rounded animate-select-pulse'
           : 'hover:bg-green-glow2'
@@ -516,7 +513,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
           onSelect()
         }
       }}
-      style={{ ...layoutStyle, transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}
+      style={layoutStyle}
     >
       {isSelected && <div role="button" tabIndex={0} draggable data-webstudio-block-drag-handle aria-label={`Move ${block.type} block`} title="Drag the top edge to reorder this block; Alt+Up or Alt+Down also moves it" className="absolute top-0 left-2 right-2 z-10 h-2 cursor-move" onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()} onKeyDown={event => {
         if (!event.altKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return

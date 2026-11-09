@@ -1,6 +1,6 @@
-# Delphi Web Studio (experimental)
+# Delphi Web Studio Pro (experimental)
 
-Delphi Web Studio is an offline-first visual website editor for Windows. The desktop application hosts a React and TypeScript editor in an IDE-editable Delphi WebView2 form. It extends [OpenPage](https://github.com/buildingopen/openpage); the original license and attribution remain in the repository.
+Delphi Web Studio Pro is an offline-first visual website editor for Windows. The desktop application hosts a React and TypeScript editor in an IDE-editable Delphi WebView2 form. It extends [OpenPage](https://github.com/buildingopen/openpage). The original license and attribution remain in the repository.
 
 Project repository: [DelphiWebStudio/DelphiWebstudio](https://github.com/DelphiWebStudio/DelphiWebstudio).
 

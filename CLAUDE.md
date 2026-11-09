@@ -1,4 +1,4 @@
-# Delphi Web Studio
+# Delphi Web Studio Pro
 
 ## What This Is
 

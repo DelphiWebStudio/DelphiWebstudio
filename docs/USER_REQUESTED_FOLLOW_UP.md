@@ -36,7 +36,7 @@ access method, fidelity, constraints, and scope are not yet established.
 
 ## Export to WordPress
 
-The user's goal is to export a Delphi Web Studio site to WordPress intact and
+The user's goal is to export a Delphi Web Studio Pro site to WordPress intact and
 have it work there, reducing the need to use the WordPress editor. The user does
 not expect this work to import WordPress themes or other WordPress items.
 Investigate the destination format, supported functionality, installation and

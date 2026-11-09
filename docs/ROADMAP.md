@@ -1,4 +1,4 @@
-# WebStudio roadmap
+# Delphi Web Studio Pro roadmap
 
 Last changed: 2026-10-29. Milestones are acceptance gates, not completed-feature claims.
 

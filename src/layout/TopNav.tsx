@@ -19,7 +19,7 @@ export function TopNav() {
       <NavLink to="/" className="flex items-center gap-2 mr-6 select-none">
         <img src={appLogo} alt="" className="h-8 w-8 object-contain" />
         <span className="font-display font-bold text-base text-text-0 tracking-tight">
-          Delphi Web Studio
+          Delphi Web Studio Pro
         </span>
       </NavLink>
 

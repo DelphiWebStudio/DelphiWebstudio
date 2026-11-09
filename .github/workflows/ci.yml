@@ -1,4 +1,4 @@
-name: WebStudio checks
+name: Delphi Web Studio Pro checks
 
 on:
   workflow_dispatch:

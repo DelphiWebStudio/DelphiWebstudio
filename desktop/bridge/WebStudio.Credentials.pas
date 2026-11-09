@@ -71,7 +71,7 @@ begin
     if (Trim(Secret) = '') or (Length(Bytes) > MaximumCredentialBytes) then
       raise EArgumentException.Create('Enter a nonempty API key of at most 2560 UTF-8 bytes.');
     FillChar(Credential, SizeOf(Credential), 0);
-    UserName := 'Delphi Web Studio';
+    UserName := 'Delphi Web Studio Pro';
     Credential.CredentialType := WebStudioCredentialType;
     Credential.TargetName := PWideChar(Target);
     Credential.CredentialBlobSize := Length(Bytes);

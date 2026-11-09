@@ -1,7 +1,7 @@
 object MainForm: TMainForm
   Left = 0
   Top = 0
-  Caption = 'Delphi Web Studio (experimental)'
+  Caption = 'Delphi Web Studio Pro (experimental)'
   ClientHeight = 800
   ClientWidth = 1200
   Constraints.MinHeight = 480
@@ -75,21 +75,21 @@ object MainForm: TMainForm
     Top = 48
   end
   object RecoveryOpenDialog: TOpenDialog
-    Filter = 'WebStudio staged files|.webstudio-download-*.tmp'
+    Filter = 'Delphi Web Studio Pro staged files|.webstudio-download-*.tmp'
     Options = [ofHideReadOnly, ofNoChangeDir, ofFileMustExist, ofPathMustExist, ofEnableSizing]
     Title = 'Choose a staged file (it may be incomplete)'
     Left = 360
     Top = 48
   end
   object ProjectSaveDialog: TSaveDialog
-    Filter = 'WebStudio project files|*.json;*.zip'
+    Filter = 'Delphi Web Studio Pro project files|*.json;*.zip'
     Options = [ofHideReadOnly, ofNoChangeDir, ofPathMustExist, ofEnableSizing]
     Title = 'Save project'
     Left = 808
     Top = 48
   end
   object RecoverySaveDialog: TSaveDialog
-    Filter = 'WebStudio projects|*.json;*.zip'
+    Filter = 'Delphi Web Studio Pro projects|*.json;*.zip'
     Options = [ofHideReadOnly, ofNoChangeDir, ofPathMustExist, ofEnableSizing]
     Title = 'Save a recovered file; open it to verify'
     Left = 424
@@ -181,7 +181,7 @@ object MainForm: TMainForm
     Top = 48
   end
   object DiagnosticsDialog: TTaskDialog
-    Caption = 'Delphi Web Studio diagnostics'
+    Caption = 'Delphi Web Studio Pro diagnostics'
     CommonButtons = [tcbOk]
     MainIcon = 0
     Title = 'Local diagnostics'

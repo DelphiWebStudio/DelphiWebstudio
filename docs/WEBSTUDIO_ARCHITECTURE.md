@@ -1,4 +1,4 @@
-# WebStudio architecture map
+# Delphi Web Studio Pro architecture map
 
 Last changed: 2026-10-29. Inspected commit: 9818eb43a88e01b23cb55752e19902d8285a853b.
 
