@@ -92,76 +92,68 @@ function AddPageDialog({ onAdd, onClose }: { onAdd: (name: string, path: string)
   )
 }
 
-function PageTab({ page, isActive, onClick, onRename, onEditPath, onEditSeo, onDuplicate, onDelete, canDelete }: {
+function PageTab({ page, isActive, editing, onClick, onEdit, onRename, onCancel }: {
   page: PageConfig
   isActive: boolean
+  editing: boolean
   onClick: () => void
+  onEdit: () => void
   onRename: (name: string) => void
-  onEditPath: () => void
-  onEditSeo: () => void
-  onDuplicate: () => void
-  onDelete: () => void
-  canDelete: boolean
+  onCancel: () => void
 }) {
-  const [editing, setEditing] = useState(false)
-  const [name, setName] = useState(page.name)
   const inputRef = useRef<HTMLInputElement>(null)
+  const tabRef = useRef<HTMLButtonElement>(null)
 
-  useEffect(() => { if (editing) inputRef.current?.focus() }, [editing])
-
-  function commitRename() {
-    const trimmed = name.trim()
-    if (trimmed && trimmed !== page.name) onRename(trimmed)
-    else setName(page.name)
-    setEditing(false)
-  }
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.select()
+      return
+    }
+    const tab = tabRef.current
+    const tabList = tab?.parentElement
+    if (!isActive || !tab || !tabList) return
+    const tabBounds = tab.getBoundingClientRect()
+    const listBounds = tabList.getBoundingClientRect()
+    if (tabBounds.left < listBounds.left) tabList.scrollLeft += tabBounds.left - listBounds.left
+    else if (tabBounds.right > listBounds.right) tabList.scrollLeft += tabBounds.right - listBounds.right
+  }, [editing, isActive])
 
   if (editing) {
     return (
       <input
         ref={inputRef}
         aria-label={`Rename ${page.name}`}
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        onBlur={commitRename}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') commitRename()
-          if (e.key === 'Escape') { setName(page.name); setEditing(false) }
+        defaultValue={page.name}
+        autoFocus
+        onBlur={event => {
+          const name = event.currentTarget.value.trim()
+          if (name && name !== page.name) onRename(name)
+          onCancel()
         }}
-        className="px-2 py-1 rounded text-xs bg-bg-3 border border-green outline-none w-20"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur()
+          if (e.key === 'Escape') { e.preventDefault(); onCancel() }
+        }}
+        className="w-28 shrink-0 rounded border border-green bg-bg-3 px-2 py-1 text-xs outline-none"
         onClick={(e) => e.stopPropagation()}
       />
     )
   }
 
   return (
-    <div className="flex items-center shrink-0">
-      <button
-        onClick={onClick}
-        onDoubleClick={(e) => { e.stopPropagation(); setName(page.name); setEditing(true) }}
-        className={`px-2 py-1 rounded text-xs transition-all ${
-          isActive ? 'bg-bg-3 text-text-0' : 'text-text-3 hover:text-text-1 hover:bg-bg-2'
-        }`}
-        title={`${page.name} (${page.path})`}
-      >
-        {page.name}
-      </button>
-      {isActive && <button type="button" aria-label={`Rename ${page.name}`} title={`Rename ${page.name}`}
-        onClick={() => { setName(page.name); setEditing(true) }}
-        className="p-1 rounded text-text-3 hover:text-text-0 focus-visible:outline focus-visible:outline-2"><Pencil size={12} /></button>}
-      {isActive && <button type="button" aria-label={`Duplicate ${page.name} page`} title={`Duplicate ${page.name} page`}
-        onClick={onDuplicate} className="p-1 rounded text-text-3 hover:text-text-0 focus-visible:outline focus-visible:outline-2"><Copy size={12} /></button>}
-      {isActive && <button type="button" aria-label={`Search details for ${page.name}`} title={`Search details for ${page.name}`}
-        onClick={onEditSeo} className="p-1 rounded text-text-3 hover:text-text-0 focus-visible:outline focus-visible:outline-2"><Search size={12} /></button>}
-      {isActive && page.path !== '/' && <button type="button" aria-label={`Change address for ${page.name}`} title={`Change address for ${page.name}`}
-        onClick={onEditPath} className="p-1 rounded text-text-3 hover:text-text-0 focus-visible:outline focus-visible:outline-2"><Link size={12} /></button>}
-      {isActive && canDelete && <button type="button" aria-label={`Delete ${page.name}`}
-        title={`Delete ${page.name}`}
-        onClick={onDelete}
-        className="p-1 rounded text-text-3 hover:text-status-red focus-visible:outline focus-visible:outline-2">
-        <Trash2 size={12} />
-      </button>}
-    </div>
+    <button
+      ref={tabRef}
+      type="button"
+      aria-current={isActive ? 'page' : undefined}
+      onClick={onClick}
+      onDoubleClick={onEdit}
+      className={`shrink-0 whitespace-nowrap rounded px-2 py-1 text-xs transition-colors ${
+        isActive ? 'bg-bg-3 text-text-0' : 'text-text-3 hover:text-text-1 hover:bg-bg-2'
+      }`}
+      title={`${page.name} (${page.path})`}
+    >
+      {page.name}
+    </button>
   )
 }
 
@@ -253,10 +245,17 @@ export function CanvasToolbar({ settingsOpen = false, onOpenSettings }: { settin
   const [deletingPage, setDeletingPage] = useState<{ id: string; projectId: string | null } | null>(null)
   const [editingPath, setEditingPath] = useState<{ id: string; projectId: string | null } | null>(null)
   const [editingSeo, setEditingSeo] = useState<{ id: string; projectId: string | null } | null>(null)
+  const [renamingPage, setRenamingPage] = useState<{ id: string; projectId: string | null } | null>(null)
   const [exporting, setExporting] = useState(false)
 
   const activeProject = activeProjectId ? projects.find((p) => p.id === activeProjectId) : null
   const projectName = activeProject?.name || configName
+  const selectedPage = pages.find(page => page.id === activePageId)
+  const selectedTarget = selectedPage ? { id: selectedPage.id, projectId: activeProjectId } : null
+  const selectedName = selectedPage?.name ?? 'selected page'
+  const canChangeAddress = !!selectedPage && selectedPage.path !== '/'
+  const canDelete = canChangeAddress && pages.length > 1
+  const actionClass = 'grid shrink-0 place-items-center rounded text-text-3 hover:text-text-0 focus-visible:outline focus-visible:outline-2 disabled:opacity-40'
   const pageToDelete = pages.find(page => page.id === deletingPage?.id && deletingPage.projectId === activeProjectId)
   const pageToEditPath = pages.find(page => page.id === editingPath?.id && editingPath.projectId === activeProjectId)
   const pageToEditSeo = pages.find(page => page.id === editingSeo?.id && editingSeo.projectId === activeProjectId)
@@ -299,44 +298,60 @@ export function CanvasToolbar({ settingsOpen = false, onOpenSettings }: { settin
     {pageToEditPath && <EditPagePathDialog page={pageToEditPath} onCancel={() => setEditingPath(null)} onSave={(path, updateLinks) => { changePagePath(pageToEditPath.id, path, updateLinks); setEditingPath(null) }} />}
     {pageToEditSeo && <EditPageSeoDialog page={pageToEditSeo} onCancel={() => setEditingSeo(null)} onSave={(title, description) => { updatePageSeo(pageToEditSeo.id, title, description); setEditingSeo(null) }} />}
     {portableProjectsEnabled && <div className="bg-bg-1 border-b border-border-default px-3 py-1"><div className="flex flex-wrap items-center justify-between gap-2"><EditorMenus /><ProjectFileCommands /></div></div>}
-    <div className="studio-toolbar min-h-10 bg-bg-1 border-b border-border-default flex flex-wrap items-center px-3 py-1 gap-1">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-1.5 text-xs text-text-3 shrink-0">
-        <span
-          className="cursor-pointer hover:text-text-1 transition-colors"
-          onClick={() => navigate('/')}
-        >
-          Projects
-        </span>
-        <span>/</span>
-        <span className="text-text-0 font-medium max-w-[120px] truncate">{projectName}</span>
-      </div>
+    <div className="studio-toolbar min-h-10 border-b border-border-default bg-bg-1 px-3 py-1">
+      <div className="flex flex-wrap items-center gap-1">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-1.5 text-xs text-text-3 shrink-0">
+          <span
+            className="cursor-pointer hover:text-text-1 transition-colors"
+            onClick={() => navigate('/')}
+          >
+            Projects
+          </span>
+          <span>/</span>
+          <span className="text-text-0 font-medium max-w-[120px] truncate">{projectName}</span>
+        </div>
 
-      <div className="w-px h-5 bg-border-default mx-1.5 shrink-0" />
+        <div className="w-px h-5 bg-border-default mx-1.5 shrink-0" />
 
-      {/* Page tabs */}
-      <div className="flex items-center gap-0.5 min-w-0 overflow-x-auto">
-        {pages.map((page) => (
-          <PageTab
-            key={page.id}
-            page={page}
-            isActive={activePageId === page.id}
-            onClick={() => setActivePage(page.id)}
-            onRename={(name) => renamePage(page.id, name)}
-            onEditPath={() => setEditingPath({ id: page.id, projectId: activeProjectId })}
-            onEditSeo={() => setEditingSeo({ id: page.id, projectId: activeProjectId })}
-            onDuplicate={() => { try { duplicatePage(page.id); toast(page.webstudioArticle ? 'Page duplicated as a draft' : 'Page duplicated') } catch (error) { toast.error(error instanceof Error ? error.message : 'Page could not be duplicated') } }}
-            onDelete={() => setDeletingPage({ id: page.id, projectId: activeProjectId })}
-            canDelete={pages.length > 1 && page.path !== '/'}
-          />
-        ))}
+        {/* Page tabs */}
+        <div role="group" aria-label="Pages" className="flex min-w-20 flex-1 items-center gap-0.5 overflow-x-auto">
+          {pages.map((page) => (
+            <PageTab
+              key={page.id}
+              page={page}
+              isActive={activePageId === page.id}
+              editing={page.id === renamingPage?.id && renamingPage.projectId === activeProjectId}
+              onClick={() => setActivePage(page.id)}
+              onEdit={() => setRenamingPage({ id: page.id, projectId: activeProjectId })}
+              onRename={(name) => renamePage(page.id, name)}
+              onCancel={() => setRenamingPage(null)}
+            />
+          ))}
+        </div>
+        <div role="group" aria-label="Page controls" className="ml-auto flex shrink-0 items-center gap-0.5 self-start">
+          <button type="button" disabled={!selectedPage} aria-label={`Rename ${selectedName}`} title={`Rename ${selectedName}`}
+            onClick={() => setRenamingPage(selectedTarget)} className={actionClass}><Pencil size={12} /></button>
+          <button type="button" disabled={!selectedPage} aria-label={`Duplicate ${selectedName} page`} title={`Duplicate ${selectedName} page`}
+            onClick={() => {
+              if (!selectedPage) return
+              try { duplicatePage(selectedPage.id); toast(selectedPage.webstudioArticle ? 'Page duplicated as a draft' : 'Page duplicated') }
+              catch (error) { toast.error(error instanceof Error ? error.message : 'Page could not be duplicated') }
+            }} className={actionClass}><Copy size={12} /></button>
+          <button type="button" disabled={!selectedPage} aria-label={`Search details for ${selectedName}`} title={`Search details for ${selectedName}`}
+            onClick={() => setEditingSeo(selectedTarget)} className={actionClass}><Search size={12} /></button>
+          <button type="button" disabled={!canChangeAddress} aria-label={`Change address for ${selectedName}`} title={canChangeAddress ? `Change address for ${selectedName}` : 'Home address is fixed'}
+            onClick={() => setEditingPath(selectedTarget)} className={actionClass}><Link size={12} /></button>
+          <button type="button" disabled={!canDelete} aria-label={`Delete ${selectedName}`} title={canDelete ? `Delete ${selectedName}` : 'Home cannot be deleted'}
+            onClick={() => setDeletingPage(selectedTarget)} className={`${actionClass} hover:text-status-red`}><Trash2 size={12} /></button>
+          <button type="button" aria-haspopup="dialog" onClick={() => setShowAddPage(true)} className="ml-1 inline-flex shrink-0 items-center gap-1.5 rounded border border-border-default bg-bg-2 px-2.5 text-xs font-medium text-text-0 hover:bg-bg-3">
+            <Plus size={14} aria-hidden="true" /> Add page
+          </button>
+        </div>
       </div>
-      <button type="button" aria-haspopup="dialog" onClick={() => setShowAddPage(true)} className="inline-flex shrink-0 items-center gap-1.5 rounded border border-border-default bg-bg-2 px-2.5 text-xs font-medium text-text-0 hover:bg-bg-3">
-        <Plus size={14} aria-hidden="true" /> Add page
-      </button>
 
       {/* Right side */}
-      <div className="flex flex-wrap justify-start items-center gap-1 min-w-0">
+      <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1">
         {portableProjectsEnabled && <details className="studio-page-tools relative text-xs">
           <summary className="cursor-pointer rounded px-2 py-2">Page tools</summary>
           <div className="absolute top-full z-50 w-36 rounded border border-border-default bg-bg-1 p-1 shadow-xl">
