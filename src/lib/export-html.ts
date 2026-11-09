@@ -9,6 +9,7 @@ import { NavbarLinks } from '@/blocks/navbar/NavbarBlock'
 import navbarSubmenuKeyboard from '@/blocks/navbar/navbar-submenu-keyboard.js?raw'
 import calendarViewScript from '@/blocks/calendar/calendar-view.js?raw'
 import galleryViewerScript from '@/blocks/gallery/gallery-viewer.js?raw'
+import staffBiographiesScript from '@/blocks/team/staff-biographies.js?raw'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import JSZip from 'jszip'
@@ -1322,6 +1323,8 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
     ? `<script type="module" data-ws-calendar-script>\n${calendarViewScript}\ndocument.querySelectorAll('[data-ws-calendar]').forEach(connectCalendar)\n</script>` : ''
   const galleryScript = config.blocks.some(block => block.type === 'gallery' && block.props.enablePhotoViewer === true)
     ? `<script type="module" data-ws-gallery-script>\n${galleryViewerScript}\ndocument.querySelectorAll('[data-ws-gallery-viewer]').forEach(connectGalleryViewer)\n</script>` : ''
+  const staffScript = blocksHtml.includes(' data-ws-staff-directory="true"')
+    ? `<script type="module" data-ws-staff-script>\n${staffBiographiesScript}\ndocument.querySelectorAll('[data-ws-staff-directory]').forEach(connectStaffBiographies)\n</script>` : ''
 
   const pageTitle = (settings?.seoTitle || settings?.siteName || config.name || 'Website').trim()
   const pageDescription = (settings?.seoDescription || settings?.siteDescription || '').trim()
@@ -1497,6 +1500,7 @@ ${blocksHtml}
 ${navbarKeyboardScript}
 ${calendarScript}
 ${galleryScript}
+${staffScript}
 ${localPdfNoticeScript}
 ${documentLibraryScript}
 ${faqScript}

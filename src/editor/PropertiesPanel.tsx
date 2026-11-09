@@ -889,8 +889,8 @@ function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: Fie
 
                 </div>
               ))}</div>
-              {staffDirectory && <label className="mt-2 block text-[10px] text-text-3">Short bio
-                <textarea aria-label={`Portrait ${i + 1} short bio`} rows={3} value={item.bio ?? ''}
+              {staffDirectory && <label className="mt-2 block text-[10px] text-text-3">Biography or comments
+                <textarea aria-label={`Portrait ${i + 1} biography or comments`} rows={3} value={item.bio ?? ''}
                   onChange={event => onChange(items.map((entry, index) => index === i ? { ...entry, bio: event.target.value } : entry))}
                   className="mt-0.5 block w-full rounded border border-border-subtle bg-bg-3 px-1.5 py-1 text-[11px] text-text-0" />
               </label>}
