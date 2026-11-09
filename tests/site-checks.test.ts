@@ -6,10 +6,25 @@ import { exportSiteToHTML } from '../src/lib/export-html'
 const hero: BlockConfig = { id: 'hero', type: 'hero', variant: 'minimal', props: { headline: 'Welcome', primaryCta: 'News', primaryCtaUrl: '/news?source=home#top' } }
 const config: SiteConfig = { name: 'Community', pages: [
   { id: 'home', name: 'Home', path: '/', blocks: [hero] },
-  { id: 'news', name: 'News', path: '/news', blocks: [] },
+  { id: 'news', name: 'News', path: '/news', blocks: [{ id: 'news-section', type: 'content', variant: 'prose', props: { anchorName: 'headlines' } }] },
 ], blocks: [hero] }
 
 describe('local site checks', () => {
+  it('reports duplicate anchors, missing placed-image descriptions, and heading gaps', () => {
+    const copy = structuredClone(config)
+    const content: BlockConfig = { id: 'content', type: 'content', variant: 'prose', props: {
+      body: '### Skipped heading', anchorName: 'repeat',
+      section1Objects: [{ id: 'photo', type: 'image', anchorName: 'repeat', src: 'assets/photo.png' }],
+    } }
+    copy.pages![0].blocks.push(content)
+    copy.blocks = copy.pages![0].blocks
+    const messages = checkSite(copy, undefined, true).filter(issue => issue.pageId === 'home').map(issue => issue.message)
+    expect(messages).toEqual(expect.arrayContaining([
+      expect.stringContaining('Duplicate anchor #repeat'),
+      expect.stringContaining('image without alternative text'),
+      expect.stringContaining('Heading order skips from H1 to H3'),
+    ]))
+  })
   it('recognizes generated Search and Articles destinations when enabled', () => {
     const copy = structuredClone(config)
     copy.pages![1].webstudioArticle = { status: 'ready', author: '', summary: '', createdAt: '', modifiedAt: '' }
@@ -140,13 +155,17 @@ describe('local site checks', () => {
     expect(checkSite(copy).some(issue => issue.blockId === 'video')).toBe(false)
   })
 
-  it('does not claim to verify external links or anchors', () => {
+  it('checks local anchors without contacting external links', () => {
     const copy = structuredClone(config)
     copy.pages![0].blocks[0].props.primaryCtaUrl = 'https://example.test/'
     copy.blocks = copy.pages![0].blocks
     expect(checkSite(copy)).toEqual([])
     copy.pages![0].blocks[0].props.primaryCtaUrl = '#section'
+    expect(checkSite(copy)[0].message).toContain('anchor #section was not found on Home')
+    copy.pages![0].blocks[0].props.primaryCtaUrl = '/news?from=home#headlines'
     expect(checkSite(copy)).toEqual([])
+    copy.pages![0].blocks[0].props.section1Objects = [{ id: 'photo', type: 'image', url: '/news#missing' }]
+    expect(checkSite(copy)[0].message).toContain('anchor #missing was not found on News')
   })
 
   it('reports missing or draft destinations and unsafe protocols in content links', () => {

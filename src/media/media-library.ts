@@ -59,6 +59,45 @@ export class ProjectMediaLibrary {
     })
   }
 
+  async storageUsage(): Promise<Map<string, { count: number; bytes: number }>> {
+    const database = await this.database
+    return new Promise((resolve, reject) => {
+      const transaction = database.transaction('assetsV2', 'readonly')
+      const request = transaction.objectStore('assetsV2').openCursor()
+      const usage = new Map<string, { count: number; bytes: number }>()
+      request.onsuccess = () => {
+        const cursor = request.result
+        if (!cursor) return
+        const asset = cursor.value as MediaAsset
+        const current = usage.get(asset.projectId) ?? { count: 0, bytes: 0 }
+        current.count++
+        current.bytes += asset.content.size + (asset.previousVersion?.content.size ?? 0)
+        usage.set(asset.projectId, current)
+        cursor.continue()
+      }
+      transaction.oncomplete = () => resolve(usage)
+      transaction.onabort = () => reject(transaction.error ?? new Error('Media storage could not be read.'))
+    })
+  }
+
+  async removeProjectMedia(projectId: string, isStillOrphan: () => boolean): Promise<void> {
+    const database = await this.database
+    return new Promise((resolve, reject) => {
+      const transaction = database.transaction('assetsV2', 'readwrite')
+      const request = transaction.objectStore('assetsV2').index('projectId').openKeyCursor(IDBKeyRange.only(projectId))
+      const store = transaction.objectStore('assetsV2')
+      request.onsuccess = () => {
+        if (!isStillOrphan()) { transaction.abort(); return }
+        const cursor = request.result
+        if (!cursor) return
+        store.delete(cursor.primaryKey)
+        cursor.continue()
+      }
+      transaction.oncomplete = () => resolve()
+      transaction.onabort = () => reject(transaction.error ?? new Error('Cleanup stopped because this draft may still be in use.'))
+    })
+  }
+
   async copyProject(sourceId: string, destinationId: string): Promise<void> {
     const database = await this.database
     await new Promise<void>((resolve, reject) => {

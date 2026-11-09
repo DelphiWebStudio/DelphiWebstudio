@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useConfigStore } from '@/store/configStore'
 import { useEditorStore } from '@/store/editorStore'
 import { checkSite, type SiteIssue } from '@/project/site-checks'
@@ -14,9 +14,10 @@ export function SiteChecks({ onClose }: { onClose: () => void }) {
   const mediaBusy = useEditorStore(state => state.mediaImporting)
   const revision = useProjectsStore(state => state.projects.find(project => project.id === projectId)?.mediaRevision ?? 0)
   const [media, setMedia] = useState<{ projectId: string; revision: number; assets?: MediaAsset[]; error?: string } | null>(null)
-  let issues: SiteIssue[] = []
-  let error = ''
-  try { issues = checkSite(config, settings ?? {}) } catch (cause) { error = cause instanceof Error ? cause.message : 'The site could not be checked.' }
+  const { issues, error } = useMemo((): { issues: SiteIssue[]; error: string } => {
+    try { return { issues: checkSite(config, settings ?? {}, true), error: '' } }
+    catch (cause) { return { issues: [], error: cause instanceof Error ? cause.message : 'The site could not be checked.' } }
+  }, [config, settings])
   const mediaReady = !mediaBusy && !!projectId && media?.projectId === projectId && media.revision === revision
   let mediaError = mediaReady ? media?.error ?? '' : ''
   if (!error && mediaReady && media?.assets) {
@@ -41,7 +42,7 @@ export function SiteChecks({ onClose }: { onClose: () => void }) {
   return (
     <dialog ref={dialog} onCancel={event => { event.preventDefault(); onClose() }} aria-labelledby="site-checks-title" className="w-[min(92vw,38rem)] max-h-[85vh] rounded-xl border border-border-default bg-bg-1 p-5 text-text-0 shadow-xl backdrop:bg-black/60">
       <h2 id="site-checks-title" className="text-lg font-semibold">Check site</h2>
-      <p className="mt-2 text-sm text-text-2">Checks page titles and descriptions, project media, missing media sources, Content text links, known button links, text-only navigation, image descriptions and form configuration. No website is published or contacted.</p>
+      <p className="mt-2 text-sm text-text-2">Checks page titles, headings, project media, image descriptions, editor-managed links and anchors, and form configuration. External destinations and custom code require separate review.</p>
       {!mediaReady && <p role="status" className="mt-3 text-sm">Checking project media…</p>}
       {mediaError && <p role="alert" className="mt-3 text-sm text-status-red">{mediaError}</p>}
       {error ? <p role="alert" className="mt-4 text-sm text-status-red">{error}</p> : issues.length ? <ul className="mt-4 space-y-2">

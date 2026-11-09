@@ -352,7 +352,7 @@ describe('page history', () => {
 
   it('optionally updates known page links in one undoable change, preserving queries and anchors', () => {
     useConfigStore.getState().addBlock({ id: 'h', type: 'hero', variant: 'centered', props: { primaryCtaUrl: '/news?from=home#top', secondaryCtaUrl: 'https://example.com/news' } })
-    useConfigStore.getState().addBlock({ id: 'text', type: 'content', variant: 'prose', props: { body: '[Latest](/news?x=1#top) [Other](https://example.com/news)' } })
+    useConfigStore.getState().addBlock({ id: 'text', type: 'content', variant: 'prose', props: { body: '[Latest](/news?x=1#top) [Other](https://example.com/news)', section1Objects: [{ id: 'photo', type: 'image', url: '/news#latest' }], sectionObject_photoRich: [{ text: 'Latest', href: '/news?from=rich' }] } })
     useConfigStore.getState().addBlock({ id: 'nav', type: 'navbar', variant: 'default', props: { navItems: [{ label: 'News', url: '/news#latest' }] } })
     useConfigStore.getState().addBlock({ id: 'footer', type: 'footer', variant: 'simple', props: { navItems: [{ label: 'News', url: '/news?footer=1#latest' }] } })
     const id = useConfigStore.getState().addPage('News', '/news')
@@ -362,6 +362,8 @@ describe('page history', () => {
     expect(pages[0].blocks.find(block => block.id === 'h')!.props.primaryCtaUrl).toBe('/updates?from=home#top')
     expect(pages[0].blocks.find(block => block.id === 'h')!.props.secondaryCtaUrl).toBe('https://example.com/news')
     expect(pages[0].blocks.find(block => block.id === 'text')!.props.body).toBe('[Latest](/updates?x=1#top) [Other](https://example.com/news)')
+    expect(pages[0].blocks.find(block => block.id === 'text')!.props.section1Objects).toEqual([{ id: 'photo', type: 'image', url: '/updates#latest' }])
+    expect(pages[0].blocks.find(block => block.id === 'text')!.props.sectionObject_photoRich).toEqual([{ text: 'Latest', href: '/updates?from=rich' }])
     expect(pages[0].blocks.find(block => block.id === 'nav')!.props.navItems).toEqual([{ label: 'News', url: '/updates#latest' }])
     expect(pages[0].blocks.find(block => block.id === 'footer')!.props.navItems).toEqual([{ label: 'News', url: '/updates?footer=1#latest' }])
     expect(pages[1].blocks[0].props.buttonUrl).toBe('/updates')

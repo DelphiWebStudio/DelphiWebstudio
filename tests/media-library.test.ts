@@ -3,6 +3,19 @@ import { describe, expect, it, vi } from 'vitest'
 import { ProjectMediaLibrary } from '../src/media/media-library'
 
 describe('project media library', () => {
+  it('measures local media and only removes a project when the orphan check permits it', async () => {
+    const library = new ProjectMediaLibrary()
+    const removed = crypto.randomUUID()
+    const active = crypto.randomUUID()
+    await library.import(removed, new File(['abc'], 'removed.txt'))
+    await library.import(active, new File(['keep'], 'active.txt'))
+    expect((await library.storageUsage()).get(removed)).toEqual({ count: 1, bytes: 3 })
+    await expect(library.removeProjectMedia(removed, () => false)).rejects.toThrow('still be in use')
+    expect(await library.list(removed)).toHaveLength(1)
+    await library.removeProjectMedia(removed, () => true)
+    expect((await library.storageUsage()).has(removed)).toBe(false)
+    expect(await library.list(active)).toHaveLength(1)
+  })
   it('lets users reuse, keep, or skip files with matching contents', async () => {
     const library = new ProjectMediaLibrary()
     const projectId = crypto.randomUUID()

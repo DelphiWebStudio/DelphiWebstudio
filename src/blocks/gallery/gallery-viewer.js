@@ -21,7 +21,7 @@ export function connectGalleryViewer(gallery) {
     caption.hidden = !text
     caption.parentElement.dataset.caption = String(!!text)
     photo.alt = thumbnail.alt
-    photo.src = thumbnail.currentSrc || thumbnail.src
+    photo.src = thumbnail.dataset.wsGalleryOriginal || thumbnail.currentSrc || thumbnail.src
     thumbnail.focus({ preventScroll: true })
     dialog.showModal()
   }

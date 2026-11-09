@@ -6,7 +6,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, Winapi.WebView2, System.SysUtils, System.Classes,
   Vcl.Controls, Vcl.Forms, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Edge, Vcl.Dialogs, Vcl.Menus,
-  WebStudio.Bridge, System.Generics.Collections;
+  WebStudio.Bridge, WebStudio.WebsitePreview, System.Generics.Collections;
 
 type
   TMainForm = class(TForm)
@@ -73,13 +73,17 @@ type
     FProjectVersions: TDictionary<string, TByHandleFileInformation>;
     FSaveProjectId: string;
     FSaveAsNext: Boolean;
+    FWebsitePreview: TWebsitePreview;
+    FPreviewArmToken: string;
+    FPreviewStagePath: string;
+    procedure CompleteWebsitePreview(const Token: string; Completed: Boolean);
   end;
 
 var MainForm: TMainForm;
 
 implementation
 
-uses Winapi.ActiveX, System.IOUtils, System.Zip, System.JSON, System.UITypes, System.RegularExpressions,
+uses Winapi.ActiveX, Winapi.ShellAPI, System.IOUtils, System.Zip, System.JSON, System.UITypes, System.RegularExpressions,
   Vcl.Graphics,
   WebStudio.ProjectSave, WebStudio.LocalAIForm, WebStudio.LocalAIHost, WebStudio.SftpForm,
   WebStudio.Credentials;
@@ -149,14 +153,15 @@ type
     FReplaceExisting: Boolean;
     FConfirmedOriginal: TByHandleFileInformation;
     FFinished: Boolean;
+    FPreviewToken: string;
   public
     constructor Create(AOwner: TMainForm; AOwnerWindow: HWND; const AFileName, AStagedPath, ATargetPath, ASaveToken, AProjectId: string;
-      AReplaceExisting: Boolean; const AConfirmedOriginal: TByHandleFileInformation);
+      AReplaceExisting: Boolean; const AConfirmedOriginal: TByHandleFileInformation; const APreviewToken: string = '');
     function Invoke(const sender: ICoreWebView2DownloadOperation; const args: IUnknown): HResult; stdcall;
   end;
 
 constructor TDownloadStateHandler.Create(AOwner: TMainForm; AOwnerWindow: HWND; const AFileName, AStagedPath, ATargetPath, ASaveToken, AProjectId: string;
-  AReplaceExisting: Boolean; const AConfirmedOriginal: TByHandleFileInformation);
+  AReplaceExisting: Boolean; const AConfirmedOriginal: TByHandleFileInformation; const APreviewToken: string);
 begin
   inherited Create;
   FOwner := AOwner;
@@ -168,6 +173,7 @@ begin
   FProjectId := AProjectId;
   FReplaceExisting := AReplaceExisting;
   FConfirmedOriginal := AConfirmedOriginal;
+  FPreviewToken := APreviewToken;
 end;
 
 function TDownloadStateHandler.Invoke(const sender: ICoreWebView2DownloadOperation; const args: IUnknown): HResult;
@@ -183,6 +189,13 @@ begin
     (csDestroying in FOwner.ComponentState) or not Assigned(FOwner.StatusLabel) or
     Winapi.Windows.Failed(sender.Get_State(State)) then Exit;
   if (State <> COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED) and (State <> COREWEBVIEW2_DOWNLOAD_STATE_INTERRUPTED) then Exit;
+  if FPreviewToken <> '' then begin
+    if not FFinished then begin
+      FFinished := True;
+      FOwner.CompleteWebsitePreview(FPreviewToken, State = COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED);
+    end;
+    Exit;
+  end;
   if FStagedPath <> '' then begin
     if FFinished then Exit;
     FFinished := True;
@@ -346,10 +359,46 @@ end;
 
 procedure TMainForm.FormDestroy(Sender: TObject);
 begin
+  FreeAndNil(FWebsitePreview);
+  if FPreviewStagePath <> '' then DeleteFile(PChar(FPreviewStagePath));
   FreeAndNil(FProjectVersions);
   FreeAndNil(FProjectPaths);
   if Assigned(FBridgeSession) then FBridgeSession.Revoke;
   FreeAndNil(FBridgeSession);
+end;
+
+procedure TMainForm.CompleteWebsitePreview(const Token: string; Completed: Boolean);
+var Reply: TJSONObject; PreviewAddress: string;
+begin
+  try
+    try
+      if not Completed then raise EInvalidOpException.Create('The reviewed website could not be prepared.');
+      FreeAndNil(FWebsitePreview);
+      FWebsitePreview := TWebsitePreview.Create(FPreviewStagePath, Token);
+      PreviewAddress := FWebsitePreview.Address;
+      if NativeInt(ShellExecute(Handle, 'open', PChar(PreviewAddress), nil, nil, SW_SHOWNORMAL)) <= 32 then
+        raise EInvalidOpException.Create('Windows could not open the browser.');
+      StatusLabel.Caption := 'Local website preview opened.';
+    except on E: Exception do begin
+      FreeAndNil(FWebsitePreview);
+      Completed := False;
+      StatusLabel.Caption := E.Message;
+    end end;
+    if EditorBrowser.DefaultInterface <> nil then begin
+      Reply := TJSONObject.Create;
+      try
+        Reply.AddPair('version', TJSONNumber.Create(1));
+        Reply.AddPair('kind', 'site.preview.result');
+        Reply.AddPair('token', Token);
+        Reply.AddPair('ok', TJSONBool.Create(Completed));
+        Reply.AddPair('message', StatusLabel.Caption);
+        EditorBrowser.DefaultInterface.PostWebMessageAsJson(PWideChar(Reply.ToJSON));
+      finally Reply.Free end;
+    end;
+  finally
+    if not Completed and (FPreviewStagePath <> '') then DeleteFile(PChar(FPreviewStagePath));
+    FPreviewStagePath := '';
+  end;
 end;
 
 procedure TMainForm.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
@@ -524,6 +573,24 @@ begin
         if ((SourceText = 'https://webstudio.local/index.html') or SourceText.StartsWith('https://webstudio.local/index.html#/')) and
           (Obj.GetValue('version') is TJSONNumber) and (Obj.GetValue('version').Value = '1') then begin
           if (Kind = 'project.saveAs') and (Obj.Count = 2) then begin FSaveAsNext := True; Exit end;
+          if (Kind = 'site.preview.prepare') and (Obj.Count = 3) and
+            Obj.TryGetValue<string>('token', RequestId) and TRegEx.IsMatch(RequestId, '^[0-9a-f-]{36}$') then begin
+            if FPreviewStagePath <> '' then Exit;
+            FPreviewArmToken := RequestId;
+            Reply := TJSONObject.Create;
+            try
+              Reply.AddPair('version', TJSONNumber.Create(1));
+              Reply.AddPair('kind', 'site.preview.ready');
+              Reply.AddPair('token', RequestId);
+              Sender.DefaultInterface.PostWebMessageAsJson(PWideChar(Reply.ToJSON));
+            finally Reply.Free end;
+            Exit;
+          end;
+          if (Kind = 'site.preview.stop') and (Obj.Count = 2) then begin
+            FPreviewArmToken := '';
+            if FPreviewStagePath = '' then FreeAndNil(FWebsitePreview);
+            Exit;
+          end;
           if (Kind = 'project.opened') and (Obj.Count = 3) and Obj.TryGetValue<string>('projectId', ProjectId) and
             TRegEx.IsMatch(ProjectId, '^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$') and
             Supports(Args.ArgsInterface, ICoreWebView2WebMessageReceivedEventArgs2, FileArgs) and
@@ -870,7 +937,7 @@ var
   StateHandler: ICoreWebView2StateChangedEventHandler;
   StateToken: EventRegistrationToken;
   Address, Suggested: PWideChar;
-  SuggestedName, SelectedPath, StagedPath, ProjectSuffix, SaveToken: string;
+  SuggestedName, SelectedPath, StagedPath, ProjectSuffix, SaveToken, PreviewToken: string;
   SaveMatch: TMatch;
   StageId: TGUID;
   OwnerWindow: HWND;
@@ -898,6 +965,28 @@ begin
   if not Allowed or (SuggestedName = '') or FDownloadPending or
     Winapi.Windows.Failed(Args.ArgsInterface.GetDeferral(Deferral)) or (Deferral = nil) then begin
     Args.ArgsInterface.Set_Cancel(1);
+    Exit;
+  end;
+  SaveMatch := TRegEx.Match(SuggestedName, '^webstudio-preview-([0-9a-f-]{36})\.zip$');
+  if SaveMatch.Success and (SaveMatch.Groups[1].Value = FPreviewArmToken) then begin
+    PreviewToken := SaveMatch.Groups[1].Value;
+    FPreviewArmToken := '';
+    try
+      if (FPreviewStagePath <> '') or (CreateGUID(StageId) <> 0) then begin
+        DownloadArgs := Args.ArgsInterface;
+        DownloadArgs.Set_Cancel(1);
+        Exit;
+      end;
+      FPreviewStagePath := TPath.Combine(TPath.GetTempPath, 'webstudio-preview-' + GUIDToString(StageId) + '.zip');
+      FillChar(ConfirmedOriginal, SizeOf(ConfirmedOriginal), 0);
+      StateHandler := TDownloadStateHandler.Create(Self, Handle, SuggestedName, '', '', '', '', False, ConfirmedOriginal, PreviewToken);
+      DownloadArgs := Args.ArgsInterface;
+      if Failed(DownloadArgs.Set_ResultFilePath(PWideChar(FPreviewStagePath))) or Failed(DownloadArgs.Set_Handled(1)) or
+        Failed(Operation.add_StateChanged(StateHandler, StateToken)) then begin
+        DownloadArgs.Set_Cancel(1);
+        CompleteWebsitePreview(PreviewToken, False);
+      end;
+    finally Deferral.Complete end;
     Exit;
   end;
   SaveToken := '';

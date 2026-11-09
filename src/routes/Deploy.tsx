@@ -47,7 +47,43 @@ export function Deploy() {
   const [restorePlan, setRestorePlan] = useState<ReturnType<typeof compareWebsiteManifests> | null>(null)
   const [deploymentPlan, setDeploymentPlan] = useState<{ signature: string; result: ReturnType<typeof compareWebsiteManifests> } | null>(null)
   const [restoreWorking, setRestoreWorking] = useState(false)
+  const [openingPreview, setOpeningPreview] = useState(false)
+  const desktop = window.location.hostname === 'webstudio.local'
   const signature = JSON.stringify({ projectId: activeProjectId, config, settings: project?.settings, mediaRevision: project?.mediaRevision })
+
+  async function previewReviewedWebsite() {
+    if (!review || review.signature !== signature || openingPreview) return
+    const webview = (window as Window & { chrome?: { webview?: EventTarget & { postMessage: (message: object) => void } } }).chrome?.webview
+    if (!desktop || !webview) return
+    const zip = review.zip
+    const token = crypto.randomUUID()
+    setOpeningPreview(true)
+    try {
+      await new Promise<void>((resolve, reject) => {
+        function finish(error?: Error) {
+          window.clearTimeout(timeout)
+          webview!.removeEventListener('message', receive)
+          if (error) reject(error)
+          else resolve()
+        }
+        function receive(event: Event) {
+          const reply = (event as MessageEvent).data
+          if (reply?.version !== 1 || reply.token !== token) return
+          if (reply.kind === 'site.preview.ready') {
+            try { downloadHTML(zip, `webstudio-preview-${token}.zip`) }
+            catch { finish(new Error('Could not prepare the reviewed website.')) }
+          }
+          if (reply.kind === 'site.preview.result') finish(reply.ok === true ? undefined : new Error(reply.message || 'Could not open the reviewed website.'))
+        }
+        const timeout = window.setTimeout(() => finish(new Error('The local preview did not respond.')), 120000)
+        webview.addEventListener('message', receive)
+        try { webview.postMessage({ version: 1, kind: 'site.preview.prepare', token }) }
+        catch { finish(new Error('Could not prepare the reviewed website.')) }
+      })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not open the reviewed website.')
+    } finally { setOpeningPreview(false) }
+  }
 
   async function reviewWebsiteFiles() {
     if (!activeProjectId) { toast.error('Open a project first'); return }
@@ -61,7 +97,7 @@ export function Deploy() {
       const current = JSON.stringify({ projectId: currentProjectId, config: useConfigStore.getState().config, settings: currentProject?.settings, mediaRevision: currentProject?.mediaRevision })
       if (current !== signature) throw new Error('The project changed during the review. Review the files again.')
       const files = Object.values(archive.files).filter(item => !item.dir).map(item => item.name).sort()
-      const warnings = checkSite(config, project?.settings ?? {}).filter(issue => !config.pages?.some(page => page.id === issue.pageId && page.webstudioArticle?.status === 'draft'))
+      const warnings = checkSite(config, project?.settings ?? {}, true).filter(issue => !config.pages?.some(page => page.id === issue.pageId && page.webstudioArticle?.status === 'draft'))
       const filename = `${(project?.name || config.name || 'site').toLowerCase().replace(/[^a-z0-9-]+/g, '-')}.zip`
       setReview({ signature, files, warnings, zip, filename })
     } catch (error) {
@@ -144,6 +180,10 @@ export function Deploy() {
         toast('Website ZIP exported')
         return
       }
+      if (action === 'preview' && desktop) {
+        await reviewWebsiteFiles()
+        return
+      }
       const html = await exportToHTML(config, { settings: project?.settings })
 
       if (action === 'html') {
@@ -194,8 +234,8 @@ export function Deploy() {
                 <opt.icon size={16} />
               </div>
               <div className="flex-1">
-                <span className="text-sm font-semibold">{opt.label}</span>
-                <p className="text-[11.5px] text-text-2 mt-0.5">{opt.description}</p>
+                <span className="text-sm font-semibold">{desktop && opt.action === 'preview' ? 'Prepare browser preview' : opt.label}</span>
+                <p className="text-[11.5px] text-text-2 mt-0.5">{desktop && opt.action === 'preview' ? 'Review the full website before opening a local preview' : opt.description}</p>
               </div>
               <ExternalLink size={14} className="text-text-3 mt-1 shrink-0" />
             </div>
@@ -217,6 +257,7 @@ export function Deploy() {
             <p className="text-xs text-text-1">{review.files.length} files in the prepared website ZIP.</p>
             <ul aria-label="Website files" className="mt-2 max-h-48 overflow-auto rounded border border-border-subtle p-2 font-mono text-xs">{review.files.map(file => <li key={file} className="break-all">{file}</li>)}</ul>
             <button type="button" onClick={() => downloadHTML(review.zip, review.filename)} className="mt-3 rounded border border-border-default px-3 py-2 text-xs">Download reviewed ZIP</button>
+            {desktop && <button type="button" disabled={openingPreview} onClick={() => void previewReviewedWebsite()} className="ml-2 mt-3 rounded border border-border-default px-3 py-2 text-xs disabled:opacity-50">{openingPreview ? 'Opening local preview…' : 'Open reviewed site in browser'}</button>}
             <div className="mt-4 border-t border-border-subtle pt-3">
               <p className="text-xs text-text-2">Compare this website with a saved file manifest or a destination scan from the SFTP connection menu. The selected file reflects its capture time; scan again if the destination changes.</p>
               <button type="button" onClick={prepareManifest} disabled={exporting} className="mt-2 rounded border border-border-default px-3 py-2 text-xs disabled:opacity-50">{exporting ? 'Preparing…' : 'Prepare file manifest'}</button>
@@ -227,6 +268,10 @@ export function Deploy() {
               {comparison?.signature === signature && <div className="mt-3 text-xs">{(['added', 'changed', 'removed'] as const).map(kind => <div key={kind} className="mt-2"><p className="font-semibold capitalize">{kind}: {comparison.result[kind].length}</p><ul aria-label={`${kind} files`} className="max-h-32 overflow-auto font-mono">{comparison.result[kind].map(path => <li key={path} className="break-all">{path}</li>)}</ul></div>)}</div>}
             </div>
           </div> : <p className="mt-3 text-xs text-text-2">The project changed. Review the files again before downloading this version.</p>)}
+          {desktop && <button type="button" disabled={openingPreview} onClick={() => {
+            const webview = (window as Window & { chrome?: { webview?: { postMessage: (message: object) => void } } }).chrome?.webview
+            webview?.postMessage({ version: 1, kind: 'site.preview.stop' })
+          }} className="mt-3 block text-xs text-text-2 underline disabled:opacity-50">Stop local preview</button>}
         </div>
       </div>}
 

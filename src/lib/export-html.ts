@@ -1640,6 +1640,10 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
   const serialized = JSON.stringify(pages)
   const textMediaPaths = pages.flatMap(page => page.blocks.filter(block => block.type === 'content' && typeof block.props.body === 'string').flatMap(block => [...(block.props.body as string).matchAll(/\]\((assets\/[a-zA-Z0-9._-]+)(?:[?#][^)\s]*)?\)/g)].map(match => match[1])))
   const referencedPaths = [...new Set([...serialized.matchAll(/"(assets\/[a-zA-Z0-9._-]+)"/g)].map(match => match[1]).concat(textMediaPaths))]
+  const galleryPaths = new Set(pages.flatMap(page => page.blocks
+    .filter(block => block.type === 'gallery' && Array.isArray(block.props.images))
+    .flatMap(block => (block.props.images as { src?: string }[]).map(image => image?.src))))
+  const galleryThumbnails = new Map<string, { src: string; width: number; height: number }>()
   for (const path of referencedPaths) {
     const asset = media.find(item => item.path === path)
     if (!asset) throw new Error(`Missing media file: ${path}.`)
@@ -1649,6 +1653,27 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     const checksum = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
     if (checksum !== asset.sha256.toLowerCase()) throw new Error(`Media integrity check failed for ${asset.name}. Restore or replace the file before exporting.`)
     zip.file(path, bytes, { date: new Date('1980-01-01T00:00:00Z') })
+    if (!galleryPaths.has(path) || asset.size < 96 * 1024 || !/^image\/(jpeg|png|webp)$/.test(asset.mime) ||
+      typeof createImageBitmap !== 'function' || typeof document === 'undefined') continue
+    try {
+      const bitmap = await createImageBitmap(asset.content)
+      try {
+        const scale = Math.min(1, 640 / Math.max(bitmap.width, bitmap.height))
+        if (scale === 1) continue
+        const canvas = document.createElement('canvas')
+        canvas.width = Math.max(1, Math.round(bitmap.width * scale))
+        canvas.height = Math.max(1, Math.round(bitmap.height * scale))
+        const context = canvas.getContext('2d')
+        if (!context) continue
+        context.imageSmoothingQuality = 'high'
+        context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+        const thumbnail = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/webp', 0.82))
+        if (!thumbnail || thumbnail.type !== 'image/webp' || thumbnail.size >= asset.size) continue
+        const src = `assets/gallery-thumbnails/${checksum}.webp`
+        if (!zip.file(src)) zip.file(src, await thumbnail.arrayBuffer())
+        galleryThumbnails.set(path, { src, width: canvas.width, height: canvas.height })
+      } finally { bitmap.close() }
+    } catch { /* The verified original remains available if thumbnail creation fails. */ }
   }
   for (let index = 0; index < pages.length; index++) {
     const page = pages[index]
@@ -1662,10 +1687,20 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     const article = page.webstudioArticle
     const articleHeader = article && (article.author || article.summary || article.tags?.length) ? `<header class="px-6 py-3 text-text-1">${article.author ? `<p class="text-sm">By ${escapeHtml(article.author)}</p>` : ''}${article.summary ? `<p class="text-sm">${escapeHtml(article.summary)}</p>` : ''}${article.tags?.length ? `<p class="text-sm">Tags: ${article.tags.map(escapeHtml).join(', ')}</p>` : ''}</header>` : ''
     const pageSettings = { ...options?.settings, ...(page.webstudioSeo?.title?.trim() ? { seoTitle: page.webstudioSeo.title } : {}), ...(page.webstudioSeo?.description?.trim() ? { seoDescription: page.webstudioSeo.description } : {}) }
-    let html = exportSiteToHTML({ ...validated, name: page.name, blocks: page.blocks }, { settings: pageSettings })
+    const blocks = page.blocks.map(block => {
+      if (block.type !== 'gallery' || !Array.isArray(block.props.images)) return block
+      const images = block.props.images.map(image => {
+        if (!image || typeof image !== 'object') return image
+        const thumbnail = galleryThumbnails.get(image.src)
+        return { ...image, exportThumbnail: thumbnail }
+      })
+      return { ...block, props: { ...block.props, images } }
+    })
+    let html = exportSiteToHTML({ ...validated, name: page.name, blocks }, { settings: pageSettings })
       .replace('</head>', canonicalBase ? `  <link rel="canonical" href="${escapeHtml(new URL(encodeURI(paths[index]), canonicalBase).href)}" />\n  <meta property="og:url" content="${escapeHtml(new URL(encodeURI(paths[index]), canonicalBase).href)}" />\n</head>` : '</head>')
       .replace('<main id="main-content" tabindex="-1" class="@container">', `<main id="main-content" tabindex="-1" class="@container">${articleHeader}`)
       .replace(/\b(src|href|data)="assets\//g, `$1="${prefix}assets/`)
+      .replace(/\b(data-ws-gallery-original)="assets\//g, `$1="${prefix}assets/`)
       .replace(/(<a\s[^>]*?\bhref=")([^"]*)(")/gi, (match, start: string, href: string, end: string) => {
         const separator = href.search(/[?#]/)
         const path = separator < 0 ? href : href.slice(0, separator)

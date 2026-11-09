@@ -7,6 +7,7 @@ interface GalleryImage {
   src?: string
   alt?: string
   caption?: string
+  exportThumbnail?: { src: string; width: number; height: number }
 }
 
 const defaultImages: GalleryImage[] = [
@@ -16,18 +17,24 @@ const defaultImages: GalleryImage[] = [
 
 function ImageCard({ image, tall, responsive, viewer }: { image: GalleryImage; tall?: boolean; responsive: boolean; viewer: boolean }) {
   const canEnlarge = viewer && !!image.src
+  const thumbnail = image.exportThumbnail
   return (
     <div className={`relative rounded-lg overflow-hidden border border-border-default group ${tall ? 'row-span-2' : ''}`}>
       {image.src ? (
-        <img src={image.src} alt={image.alt || ''}
+        <img src={thumbnail?.src || image.src} alt={image.alt || ''}
           className={`${responsive ? 'block h-auto w-auto max-h-[clamp(150px,26cqw,220px)] max-w-full object-contain' : 'w-full h-full object-cover'}${canEnlarge ? ' cursor-zoom-in touch-manipulation focus-visible:outline-2 focus-visible:-outline-offset-2' : ''}`}
-          decoding={responsive ? 'async' : undefined}
+          width={thumbnail?.width}
+          height={thumbnail?.height}
+          style={responsive && thumbnail ? { width: `calc(clamp(150px,26cqw,220px) * ${thumbnail.width / thumbnail.height})`, aspectRatio: `${thumbnail.width} / ${thumbnail.height}` } : undefined}
+          loading={thumbnail ? 'lazy' : undefined}
+          decoding={responsive || thumbnail ? 'async' : undefined}
           draggable={responsive || canEnlarge ? false : undefined}
           role={canEnlarge ? 'button' : undefined}
           tabIndex={canEnlarge ? 0 : undefined}
           aria-haspopup={canEnlarge ? 'dialog' : undefined}
           aria-label={canEnlarge ? (image.alt ? `Enlarge ${image.alt}` : 'Enlarge photo') : undefined}
           data-ws-gallery-thumbnail={canEnlarge ? true : undefined}
+          data-ws-gallery-original={canEnlarge && thumbnail ? image.src : undefined}
           data-ws-gallery-caption={canEnlarge ? image.caption : undefined}
         />
       ) : (

@@ -4,6 +4,7 @@ import { produce } from 'immer'
 import { toast } from 'sonner'
 import type { BlockConfig, SiteConfig, ThemeConfig, PageConfig } from '@/blocks/types'
 import { validateProjectConfig } from '@/project/project-file'
+import { pageLinkPath, visitBlockLinks } from '@/project/page-links'
 
 export let configDraftReadFailed = false
 
@@ -506,30 +507,15 @@ export const useConfigStore = create<ConfigState>()(
         if (page.path === path) return state
         const changed = produce(withPages(state.config), draft => {
           draft.pages!.find(item => item.id === id)!.path = path
-          if (updateLinks) for (const item of draft.pages!) for (const block of item.blocks) {
-            if (block.type === 'content' && typeof block.props.body === 'string') {
-              block.props.body = block.props.body.replace(/\[([^\]\n]+)\]\(([^)\s]+)\)/g, (match, label: string, destination: string) => {
-                const split = destination.search(/[?#]/)
-                const originalPath = (split < 0 ? destination : destination.slice(0, split)).replace(/\/$/, '') || '/'
-                return originalPath === page.path || originalPath === encodeURI(page.path) ? `[${label}](${path}${split < 0 ? '' : destination.slice(split)})` : match
-              })
+          if (updateLinks) {
+            const oldPaths = new Set([page.path, encodeURI(page.path)])
+            const rewrite = (destination: string) => {
+              if (!/^\/(?!\/)/.test(destination) || !oldPaths.has(pageLinkPath(destination))) return
+              const suffix = destination.search(/[?#]/)
+              return path + (suffix < 0 ? '' : destination.slice(suffix))
             }
-            if ((block.type === 'navbar' || block.type === 'footer') && Array.isArray(block.props.navItems)) for (const navItem of block.props.navItems.flatMap(item => [item, ...(block.type === 'navbar' && Array.isArray(item?.children) ? item.children : [])])) {
-              if (!navItem || typeof navItem.url !== 'string') continue
-              const trimmed = navItem.url.trim()
-              const split = trimmed.search(/[?#]/)
-              const originalPath = (split < 0 ? trimmed : trimmed.slice(0, split)).replace(/\/$/, '') || '/'
-              if (originalPath === page.path || originalPath === encodeURI(page.path)) navItem.url = path + (split < 0 ? '' : trimmed.slice(split))
-            }
-            const keys = block.type === 'hero' ? ['primaryCtaUrl', 'secondaryCtaUrl'] : block.type === 'cta' ? ['buttonUrl'] : block.type === 'banner' ? ['linkUrl'] : block.type === 'navbar' ? ['ctaUrl'] : []
-            for (const key of keys) {
-              const value = block.props[key]
-              if (typeof value !== 'string') continue
-              const trimmed = value.trim()
-              const split = trimmed.search(/[?#]/)
-              const originalPath = (split < 0 ? trimmed : trimmed.slice(0, split)).replace(/\/$/, '') || '/'
-              if (originalPath === page.path || originalPath === encodeURI(page.path)) block.props[key] = path + (split < 0 ? '' : trimmed.slice(split))
-            }
+            for (const item of draft.pages!) for (const block of item.blocks) visitBlockLinks(block, rewrite)
+            for (const section of draft.webstudioReusableSections ?? []) visitBlockLinks(section.block, rewrite)
           }
           draft.blocks = draft.pages!.find(item => item.path === '/')!.blocks
         })
