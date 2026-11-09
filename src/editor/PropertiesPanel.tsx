@@ -287,7 +287,7 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
       {
         title: 'Style',
         fields: [
-          { key: 'variant', label: 'Variant', type: 'select', options: ['prose', 'columns', 'highlight'] },
+          { key: 'variant', label: 'Variant', type: 'select', options: ['prose', 'wide-prose', 'columns', 'highlight'] },
         ],
       },
     ],
