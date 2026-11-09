@@ -38,9 +38,11 @@ export function ContentBlock({ block, editable = false }: { block: BlockConfig; 
     )
   }
 
-  // prose (default)
+  const proseLayout = variant === 'wide-prose'
+    ? 'max-w-6xl @min-[940px]:px-12 @min-[600px]:[&_p]:text-justify @min-[600px]:[&_p]:hyphens-auto'
+    : 'max-w-3xl @lg:px-16'
   return (
-    <div className="reveal-fade-up reveal-d1 px-6 py-12 @lg:px-16 @lg:py-16 max-w-3xl mx-auto" style={Number(props.layoutHeight) > 0 ? { paddingBlock: 8 } : undefined}>
+    <div className={`reveal-fade-up reveal-d1 mx-auto px-6 py-12 @lg:py-16 ${proseLayout}`} style={Number(props.layoutHeight) > 0 ? { paddingBlock: 8 } : undefined}>
       <RichText blockId={block.id} field="body" text={body} value={props.bodyRich} alignment={props.bodyAlign} editable={editable} multiline markdown />
     </div>
   )

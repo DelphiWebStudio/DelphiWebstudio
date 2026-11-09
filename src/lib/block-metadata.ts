@@ -123,7 +123,7 @@ export const blockMetadata: BlockMeta[] = [
     label: 'Content',
     description: 'Rich text content section',
     category: 'Content',
-    variants: ['prose', 'columns', 'highlight'],
+    variants: ['prose', 'wide-prose', 'columns', 'highlight'],
     defaultProps: { body: '## Getting Started\n\nWrite your content here. Supports **bold**, *italic*, and lists.\n\n- First item\n- Second item\n- Third item' },
   },
   {
