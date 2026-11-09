@@ -112,7 +112,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
   }, [isSelected, revealRef])
 
   useLayoutEffect(() => {
-    revealRef.current?.querySelectorAll('[data-ws-content] img').forEach((image, imageIndex) => {
+    revealRef.current?.querySelectorAll('[data-ws-content] img:not([data-ws-gallery-expanded])').forEach((image, imageIndex) => {
       image.setAttribute('data-ws-image-index', String(imageIndex))
     })
     if (!previewMode) revealRef.current?.querySelectorAll<HTMLElement>('[data-ws-item-field][data-ws-item-index]').forEach(element => {
@@ -373,6 +373,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         useConfigStore.getState().updateBlockProps(block.id, { navItems: items, links: [] })
       }}
       onContextMenu={event => {
+        if (event.target instanceof Element && event.target.closest('[data-ws-gallery-dialog]')) return
         event.preventDefault()
         event.stopPropagation()
         useEditorStore.getState().selectSectionObject(null)
@@ -387,7 +388,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         setContextMenu({ x: event.clientX, y: event.clientY, item, section, objectX: bounds?.width ? (event.clientX - bounds.left) / bounds.width * 100 : 0, objectY: bounds ? event.clientY - bounds.top : 0 })
       }}
       onPointerDown={event => {
-        if (block.type === 'gallery' && block.variant === 'responsive' && event.target instanceof Element && event.target.closest('[data-ws-item-field="images"][draggable="true"]')) return
+        if (block.type === 'gallery' && (block.variant === 'responsive' || block.props.enablePhotoViewer === true) && event.target instanceof Element && event.target.closest('[data-ws-item-field="images"][draggable="true"], [data-ws-gallery-dialog]')) return
         if (!imageLayout && block.type !== 'collage' && event.button === 0 && event.target instanceof HTMLImageElement && event.target.closest('[data-ws-content]')) {
           const image = event.target
           const imageIndex = image.getAttribute('data-ws-image-index')

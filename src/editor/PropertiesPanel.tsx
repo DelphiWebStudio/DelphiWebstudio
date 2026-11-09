@@ -348,6 +348,7 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
         title: 'Content',
         fields: [
           { key: 'title', label: 'Title', type: 'text' },
+          { key: 'enablePhotoViewer', label: 'Open enlarged photos on double-click', type: 'checkbox' },
           { key: 'images', label: 'Images', type: 'array-items' },
         ],
       },
@@ -471,7 +472,7 @@ function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: Fie
 
   switch (field.type) {
     case 'checkbox':
-      return <label className="mb-2 flex items-center gap-2 text-xs text-text-1"><input type="checkbox" checked={field.key === 'showThumbnails' ? value === true : value !== false} onChange={event => onChange(event.target.checked)} /> {field.label}</label>
+      return <label className="mb-2 flex items-center gap-2 text-xs text-text-1"><input type="checkbox" checked={field.key === 'showThumbnails' || field.key === 'enablePhotoViewer' ? value === true : value !== false} onChange={event => onChange(event.target.checked)} /> {field.label}</label>
     case 'image': {
       const current = String(value || '')
       return (
@@ -842,7 +843,7 @@ function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: Fie
                   onChange(updated)
                 }}>Remove</button></div>)}
               </div>}
-              <div className={onlyItemId ? 'grid grid-cols-2 gap-x-2' : undefined}>{Object.entries(onlyItemId ? { ...({ text: ['text', 'fontSize', 'textColor'], image: ['src', 'alt'], button: ['text', 'textColor', 'fontSize'], panel: ['text', 'src', 'alt', 'color', 'textColor', 'fontSize'], collage: [], divider: ['lineOrientation', 'lineStyle', 'lineThickness', 'textColor'] } as Record<string, string[]>)[item.type || '']?.reduce<Record<string, string>>((values, key) => ({ ...values, [key]: item[key] ?? (key === 'lineOrientation' ? 'horizontal' : key === 'lineStyle' ? 'solid' : key === 'lineThickness' ? '1' : '') }), {}), x: item.x ?? '0', y: item.y ?? '0', width: item.width ?? '30', height: item.height ?? '80', layer: item.layer ?? '1' } : mediaItems && !(imageKey in item) ? { ...item, [imageKey]: '' } : item).filter(([key]) => !(mediaItems && key === 'assetId') && !(/^section[1-4]Objects$/.test(field.key) && (key === 'id' || key === 'type' || key === 'parentId' || key === 'images' || key === 'sourceCollageProps'))).map(([key, val]) => (
+              <div className={onlyItemId ? 'grid grid-cols-2 gap-x-2' : undefined}>{Object.entries(onlyItemId ? { ...({ text: ['text', 'fontSize', 'textColor'], image: ['src', 'alt'], button: ['text', 'textColor', 'fontSize'], panel: ['text', 'src', 'alt', 'color', 'textColor', 'fontSize'], collage: [], divider: ['lineOrientation', 'lineStyle', 'lineThickness', 'textColor'] } as Record<string, string[]>)[item.type || '']?.reduce<Record<string, string>>((values, key) => ({ ...values, [key]: item[key] ?? (key === 'lineOrientation' ? 'horizontal' : key === 'lineStyle' ? 'solid' : key === 'lineThickness' ? '1' : '') }), {}), x: item.x ?? '0', y: item.y ?? '0', width: item.width ?? '30', height: item.height ?? '80', layer: item.layer ?? '1' } : mediaItems && !(imageKey in item) ? { ...item, [imageKey]: '' } : item).filter(([key]) => !(mediaItems && key === 'assetId') && !(block.type === 'gallery' && key === 'caption') && !(/^section[1-4]Objects$/.test(field.key) && (key === 'id' || key === 'type' || key === 'parentId' || key === 'images' || key === 'sourceCollageProps'))).map(([key, val]) => (
                 <div key={key} className={`mb-1 min-w-0 ${onlyItemId && !['x', 'y', 'width', 'height', 'layer', 'fontSize'].includes(key) ? 'col-span-2' : ''}`}>
                   <label className="block text-[10px] text-text-3 mb-0.5">{block.type === 'collage' || /^section[1-4]Objects$/.test(field.key) ? ({ src: 'Image', alt: 'Image description', text: 'Text', url: 'Link', anchorName: 'Anchor name (jump destination)', color: 'Panel background color', textColor: item.type === 'divider' ? 'Line color' : 'Text color', lineOrientation: 'Direction', lineStyle: 'Line style', lineThickness: 'Thickness (px)', fontSize: 'Font size (px)', x: 'Left (%)', y: 'Top (px)', width: 'Width (%)', height: 'Height (px)', layer: 'Layer order' } as Record<string, string>)[key] ?? key : key}</label>
                   {item.type === 'divider' && (key === 'lineOrientation' || key === 'lineStyle') ? <select aria-label={key === 'lineOrientation' ? 'Line direction' : 'Line style'} value={String(val)} onChange={event => { const updated = [...items]; updated[i] = { ...updated[i], [key]: event.target.value }; onChange(updated) }} className="w-full rounded border border-border-default bg-bg-3 px-1.5 py-1 text-xs">{(key === 'lineOrientation' ? ['horizontal', 'vertical'] : ['solid', 'dashed', 'dotted', 'double']).map(option => <option key={option} value={option}>{option.charAt(0).toUpperCase() + option.slice(1)}</option>)}</select> : <input
@@ -886,6 +887,11 @@ function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: Fie
 
                 </div>
               ))}</div>
+              {block.type === 'gallery' && field.key === 'images' && <label className="mt-2 block text-[10px] text-text-3">Photo caption
+                <textarea aria-label={`Photo ${i + 1} caption`} rows={3} value={typeof item.caption === 'string' ? item.caption : ''}
+                  onChange={event => onChange(items.map((entry, index) => index === i ? { ...entry, caption: event.target.value } : entry))}
+                  className="mt-0.5 block w-full rounded border border-border-subtle bg-bg-3 px-1.5 py-1 text-[11px] text-text-0" />
+              </label>}
             </div>
           ))}
           {itemMenu && createPortal(<div data-property-item-menu role="menu" aria-label={`${field.label} item actions`} className="fixed z-[10001] w-40 rounded border border-gray-400 bg-white p-1 text-sm text-black shadow-lg" style={{ left: itemMenu.x, top: itemMenu.y }}>
