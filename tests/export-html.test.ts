@@ -33,6 +33,9 @@ describe('exportSiteToHTML', () => {
     expect(html).toContain('alt="Portrait of Test &amp; Sample"')
     expect(html).toContain('First line\nSecond line &lt;detail&gt;')
     expect(html).toContain('Staff member 6')
+    expect(html).toContain('Read the complete biography')
+    expect(html).toContain('data-ws-staff-bio-dialog')
+    expect(html).toContain('<script type="module" data-ws-staff-script>')
   })
 
   it('exports the current and four previous weekly bulletin PDFs without editor controls', () => {
