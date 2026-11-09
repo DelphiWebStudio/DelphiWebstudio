@@ -1,5 +1,7 @@
 import type { SiteConfig } from '@/blocks/types'
 import { validateProjectConfig } from './project-file'
+import { buttonLinks, pageLinkPath, visitBlockLinks } from './page-links'
+import { exportSiteToHTML } from '@/lib/export-html'
 
 export interface SiteIssue {
   pageId: string
@@ -9,7 +11,7 @@ export interface SiteIssue {
 }
 
 /** Local, limited checks. External URLs and arbitrary extension content are not inspected. */
-export function checkSite(config: SiteConfig, settings?: { seoTitle?: string; seoDescription?: string; siteName?: string; siteDescription?: string; webmasterEmail?: string; siteSearch?: string }): SiteIssue[] {
+export function checkSite(config: SiteConfig, settings?: { seoTitle?: string; seoDescription?: string; siteName?: string; siteDescription?: string; webmasterEmail?: string; siteSearch?: string }, checkHeadings = false): SiteIssue[] {
   const pages = validateProjectConfig(config).pages!
   const generatedPaths = new Set<string>([...(settings?.siteSearch === 'on' ? ['/search.html'] : []), ...(pages.some(page => page.webstudioArticle?.status === 'ready') ? ['/articles/index.html'] : [])])
   const issues: SiteIssue[] = []
@@ -24,7 +26,37 @@ export function checkSite(config: SiteConfig, settings?: { seoTitle?: string; se
       if (!description) issues.push({ pageId: page.id, pageName: page.name, blockId: '', message: 'Page has no meta description. Add one in page settings or site settings.' })
     }
   }
+  const pageAnchors = new Map(pages.map(page => {
+    const anchors = new Set<string>()
+    for (const block of page.blocks) {
+      const count = Math.min(4, Math.max(1, Math.floor(Number(block.props.sectionCount) || 1)))
+      const names = [block.props.anchorName]
+      for (let section = 1; section <= count; section++) {
+        const items = block.props['section' + section + 'Objects']
+        if (Array.isArray(items)) for (const item of items) names.push(item?.anchorName)
+      }
+      for (const name of names) {
+        if (typeof name !== 'string' || !/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(name)) continue
+        if (name === 'main-content' || anchors.has(name)) issues.push({ pageId: page.id, pageName: page.name, blockId: block.id, message: 'Duplicate anchor #' + name + '. Give each destination a unique name.' })
+        anchors.add(name)
+      }
+    }
+    return [page.id, anchors] as const
+  }))
   for (const page of pages) {
+    if (checkHeadings && page.blocks.length && page.webstudioArticle?.status !== 'draft') {
+      try {
+        const html = exportSiteToHTML({ name: page.name, blocks: page.blocks, theme: config.theme }, { settings })
+        const main = html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/)?.[1] ?? ''
+        const headings = [...main.matchAll(/<h([1-6])(?:\s[^>]*)?>/gi)].map(match => Number(match[1]))
+        const report = (message: string) => issues.push({ pageId: page.id, pageName: page.name, blockId: '', message })
+        const mainHeadings = headings.filter(level => level === 1).length
+        if (!mainHeadings) report('No H1 heading was found in the generated page. Use a main heading to introduce the page.')
+        if (mainHeadings > 1) report('The generated page contains more than one H1 heading. Review its heading structure.')
+        const gap = headings.findIndex((level, index) => index > 0 && level > headings[index - 1] + 1)
+        if (gap >= 0) report(`Heading order skips from H${headings[gap - 1]} to H${headings[gap]}. Review the heading levels.`)
+      } catch { /* Other checks still run for pages with export errors. */ }
+    }
     for (const block of page.blocks) {
       const add = (message: string) => issues.push({ pageId: page.id, pageName: page.name, blockId: block.id, message })
       if (settings) {
@@ -54,50 +86,53 @@ export function checkSite(config: SiteConfig, settings?: { seoTitle?: string; se
           const label = typeof item.label === 'string' ? item.label.trim() : ''
           const url = typeof item.url === 'string' ? item.url.trim() : ''
           if (!label || !url) { add('A navigation destination needs both a label and a URL.'); continue }
-          if (/[\\\p{Cc}]/u.test(url) || url.startsWith('//') || (/^[a-z][a-z\d+.-]*:/i.test(url) && !/^(https?:|mailto:|tel:)/i.test(url))) { add(`${label}: unsupported link address; it will be shown as text in the export.`); continue }
-          if (url.startsWith('/')) {
-            const path = url.split(/[?#]/, 1)[0].replace(/\/$/, '') || '/'
-            const target = pages.find(page => page.path === path || encodeURI(page.path) === path)
-            if (!target && !generatedPaths.has(path)) add(`${url}: does not match a site page; it may point to a separate file or host resource.`)
-            else if (target?.webstudioArticle?.status === 'draft') add(`${url}: points to a draft article that is omitted from export.`)
+        }
+      }
+      for (const [labelKey, urlKey] of buttonLinks[block.type] ?? []) {
+        const label = typeof block.props[labelKey] === 'string' ? String(block.props[labelKey]).trim() : ''
+        const url = typeof block.props[urlKey] === 'string' ? String(block.props[urlKey]).trim() : ''
+        if (label && !url) add(label + ': no link destination is set.')
+        if (!label && url) add(urlKey + ': the link has no visible label.')
+      }
+      visitBlockLinks(block, (url, label) => {
+        if (/[\\\p{Cc}]/u.test(url) || url.startsWith('//') || (/^[a-z][a-z\d+.-]*:/i.test(url) && !/^(https?:|mailto:|tel:)/i.test(url))) {
+          add(label + ': unsupported link address; it will be shown as text in the export.')
+          return
+        }
+        let target = page
+        if (url.startsWith('/')) {
+          const path = pageLinkPath(url)
+          const destination = pages.find(item => item.path === path || encodeURI(item.path) === path)
+          if (!destination) {
+            if (!generatedPaths.has(path)) add(url + ': does not match a site page; it may point to a separate file or host resource.')
+            return
           }
+          target = destination
+        } else if (!url.startsWith('#') && !url.startsWith('?')) return
+        if (target.webstudioArticle?.status === 'draft') {
+          add(url + ': points to a draft article that is omitted from export.')
+          return
         }
-      }
-      const links = block.type === 'hero' ? [['primaryCta', 'primaryCtaUrl'], ['secondaryCta', 'secondaryCtaUrl']]
-        : block.type === 'cta' ? [['buttonText', 'buttonUrl']]
-        : block.type === 'navbar' ? [['ctaText', 'ctaUrl']]
-        : block.type === 'banner' ? [['linkText', 'linkUrl']] : []
-      for (const [labelKey, urlKey] of links) {
-        const label = typeof block.props[labelKey] === 'string' ? (block.props[labelKey] as string).trim() : ''
-        const url = typeof block.props[urlKey] === 'string' ? (block.props[urlKey] as string).trim() : ''
-        if (label && !url) add(`${label}: no link destination is set.`)
-        if (!label && url) add(`${urlKey}: the link has no visible label.`)
-        if (url && (/[\\\p{Cc}]/u.test(url) || url.startsWith('//') || (/^[a-z][a-z\d+.-]*:/i.test(url) && !/^(https?:|mailto:|tel:)/i.test(url)))) {
-          add(`${label || urlKey}: unsupported link address; it will be shown as text in the export.`)
-          continue
+        const hash = url.indexOf('#')
+        if (hash < 0 || target.webstudioCustomCode?.html) return
+        let anchor = url.slice(hash + 1).split(':~:', 1)[0]
+        try { anchor = decodeURIComponent(anchor) } catch { /* report the literal anchor */ }
+        if (anchor && !/^top$/i.test(anchor) && anchor !== 'main-content' && !pageAnchors.get(target.id)?.has(anchor)) {
+          add(url + ': anchor #' + anchor + ' was not found on ' + target.name + '.')
         }
-        if (!url.startsWith('/') || url.startsWith('//')) continue
-        const path = url.split(/[?#]/, 1)[0].replace(/\/$/, '') || '/'
-        const target = pages.find(item => item.path === path || encodeURI(item.path) === path)
-        if (!target && !generatedPaths.has(path)) add(`${url}: does not match a site page; it may point to a separate file or host resource.`)
-        else if (target?.webstudioArticle?.status === 'draft') add(`${url}: points to a draft article that is omitted from export.`)
-      }
-      if (block.type === 'content' && typeof block.props.body === 'string') {
-        for (const match of block.props.body.matchAll(/\[([^\]\n]+)\]\(([^)\s]+)\)/g)) {
-          const url = match[2]
-          if (/[\\\p{Cc}]/u.test(url) || url.startsWith('//') || (/^[a-z][a-z\d+.-]*:/i.test(url) && !/^(https?:|mailto:|tel:)/i.test(url))) {
-            add(`${match[1]}: unsupported link address; it will be shown as text.`)
-          } else if (url.startsWith('/')) {
-            const path = url.split(/[?#]/, 1)[0].replace(/\/$/, '') || '/'
-            const target = pages.find(item => item.path === path || encodeURI(item.path) === path)
-            if (!target && !generatedPaths.has(path)) add(`${url}: does not match a site page; it may point to a separate file or host resource.`)
-            else if (target?.webstudioArticle?.status === 'draft') add(`${url}: points to a draft article that is omitted from export.`)
-          }
-        }
-      }
+      })
       if (block.type === 'image' && block.variant !== 'grid' && !(typeof block.props.src === 'string' && block.props.src.trim())) add('Image has no source and will show a placeholder. Choose an image from Media or enter an image URL.')
       if (block.type === 'image' && block.variant !== 'grid' && typeof block.props.src === 'string' && block.props.src && !String(block.props.alt ?? '').trim()) {
         add('Image has no alternative text. Add a description or confirm that it is decorative.')
+      }
+      const sectionCount = Math.min(4, Math.max(1, Math.floor(Number(block.props.sectionCount) || 1)))
+      for (let section = 1; section <= sectionCount; section++) {
+        const items = block.props[`section${section}Objects`]
+        if (Array.isArray(items)) for (const [index, item] of items.entries()) {
+          if ((item?.type === 'image' || item?.type === 'panel') && typeof item.src === 'string' && item.src && !String(item.alt ?? '').trim()) {
+            add(`Section ${section}, item ${index + 1} has an image without alternative text. Add an image description if it conveys information.`)
+          }
+        }
       }
       if (block.type === 'gallery' || (block.type === 'image' && block.variant === 'grid')) {
         const images = Array.isArray(block.props.images) ? block.props.images : []

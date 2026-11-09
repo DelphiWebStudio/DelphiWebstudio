@@ -2,15 +2,19 @@
 
 The Inno Setup script builds a per-user Windows x64 installer from an already built and verified desktop stage. It installs the executable, WebView2 loader, local editor assets, MIT license, third-party notices, collected dependency and WebView2 SDK license texts, and offline privacy and recovery documents. It does not install Node.js, download anything, configure hosting, or publish a website. Uninstall removes installed program files but does not remove the separate WebView profile, project files or optional AI files.
 
-The Microsoft Edge WebView2 Runtime must be installed separately; see [Microsoft's runtime distribution guidance](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution). Setup checks the per-machine and per-user runtime registry entries and stops with an explanation when neither contains a usable version. It does not download or install the runtime. Optional local AI files are not included. The installer and application are experimental; an independent license audit and a clean Windows installation and end-to-end workflow are still required before release.
+The Microsoft Edge WebView2 Runtime must be installed separately; see [Microsoft's runtime distribution guidance](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution). Setup checks the per-machine and per-user runtime registry entries. If neither contains a usable version, interactive setup offers to open the Microsoft download page and stops. Silent setup logs the missing prerequisite and stops. Optional local AI files are separate. An independent license audit and a clean Windows installation and end-to-end workflow are still required before release.
 
 For the initial local build, Inno Setup 6.7.4 was obtained from the [official download page](https://jrsoftware.org/isdl.php), verified with a valid Pyrsys B.V. Authenticode signature, and installed in portable mode under `test-results`. Its installer SHA-256 was `a549929319f9120716677c685535ca4671e4b937b5fdc87e2585f32d8eb30e8c`. The compiler reported non-commercial use; confirm the applicable Inno Setup license before any commercial use.
 
 To rebuild Delphi Web Studio Pro with an installed or portable `ISCC.exe`, use a freshly built stage containing `DelphiWebStudioPro.exe`, the x64 `WebView2Loader.dll` and the `editor` directory.
 
 ```powershell
-& 'C:\path\to\ISCC.exe' '/DStageDir=C:\path\to\verified-stage' '/OC:\path\to\output' 'desktop\installer\DelphiWebStudioPro.iss'
+& 'C:\path\to\ISCC.exe' '/DStageDir=C:\path\to\verified-stage' '/DAppBuildVersion=0.1.1' '/OC:\path\to\output' 'desktop\installer\DelphiWebStudioPro.iss'
 ```
+
+## Clean Windows acceptance
+
+Use a disposable Windows 10 or 11 x64 machine or VM and a fictional project. Start on a profile with no Web Studio data. Confirm the missing-runtime prompt on a machine without WebView2, then install Microsoft's Evergreen Runtime and run Setup again. Verify startup, creation, save, close, reopen, website ZIP export, and local browser preview with a PDF and gallery. Install the next version over the first, verify the same project and local data still open, then uninstall and verify the saved project file and local profile remain. Record the installer version, Windows version, WebView2 version, and results. The package uses the Win64 build and matching x64 loader.
 
 The experimental installer built on 2026-11-01 from `bin/DelphiWebStudio-Preview-M7-20261101-1908` is in `bin/DelphiWebStudio-Installer-M7-20261101-1918`. Its SHA-256 is `0ed66fabdddc3b0203e5817c343038607a829412134ab44a8e4f57554bca7800`. On the existing Windows machine, the exact installer installed nine files matching the preview, the installed executable remained running during a brief isolated-profile startup check, and uninstall preserved a synthetic user file. It has not yet been tested on a clean Windows machine or through the full workflow as the installed executable.
 

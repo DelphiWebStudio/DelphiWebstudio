@@ -9,6 +9,7 @@ import { useEditorStore } from '@/store/editorStore'
 import { hexToRgb } from '@/lib/theme-presets'
 import { templateMeta, buildTemplate, getTemplateForPrompt } from '@/lib/templates'
 import { ProjectFileCommands } from '@/project/ProjectFileCommands'
+import { LocalStorageDialog } from '@/project/LocalStorageDialog'
 import { portableProjectsEnabled } from '@/project/project-file'
 
 const templateIcons: Record<string, typeof Briefcase> = {
@@ -193,7 +194,7 @@ function PromptSection() {
   )
 }
 
-function ProjectCard({ project }: { project: Project }) {
+function ProjectCard({ project, onRemove }: { project: Project; onRemove: (id: string) => void }) {
   const navigate = useNavigate()
   const renameProject = useProjectsStore((s) => s.renameProject)
   const deleteProject = useProjectsStore((s) => s.deleteProject)
@@ -236,6 +237,7 @@ function ProjectCard({ project }: { project: Project }) {
   function handleDelete(e: React.MouseEvent) {
     e.stopPropagation()
     if (confirming) {
+      onRemove(project.id)
       deleteProject(project.id)
       toast('Project removed.', { duration: 15000, action: { label: 'Undo', onClick: () => restoreProject(project) } })
     } else {
@@ -328,6 +330,8 @@ export function Dashboard() {
   const projects = useProjectsStore((s) => s.projects)
   const [filter, setFilter] = useState<Filter>('All')
   const [search, setSearch] = useState('')
+  const [storageOpen, setStorageOpen] = useState(false)
+  const undoExpires = useRef(new Map<string, number>())
 
   const filtered = projects.filter((p) => {
     if (filter === 'Published' && p.status !== 'published') return false
@@ -338,7 +342,15 @@ export function Dashboard() {
 
   return (
     <div className="h-full overflow-y-auto">
-      {portableProjectsEnabled && <div className="px-4 md:px-12 pt-4"><ProjectFileCommands allRevisions /></div>}
+      {portableProjectsEnabled && <div className="flex flex-wrap items-start gap-2 px-4 md:px-12 pt-4">
+        <ProjectFileCommands allRevisions />
+        <button type="button" onClick={() => setStorageOpen(true)} className="rounded border border-border-default px-3 py-1.5 text-xs">Local Storage…</button>
+      </div>}
+      {storageOpen && <LocalStorageDialog onClose={() => setStorageOpen(false)} recentlyRemoved={id => {
+        if ((undoExpires.current.get(id) ?? 0) > Date.now()) return true
+        undoExpires.current.delete(id)
+        return false
+      }} />}
       <PromptSection />
 
       {/* Projects section */}
@@ -389,7 +401,7 @@ export function Dashboard() {
             <div className="px-4 md:px-12 pt-4 pb-12 grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3.5">
               {filtered.map((p, i) => (
                 <div key={p.id} className="animate-fade-in-up" style={{ animationDelay: `${i * 50}ms` }}>
-                  <ProjectCard project={p} />
+                  <ProjectCard project={p} onRemove={id => undoExpires.current.set(id, Date.now() + 15000)} />
                 </div>
               ))}
             </div>

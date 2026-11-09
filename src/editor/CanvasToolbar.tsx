@@ -30,6 +30,7 @@ import { ProjectMediaLibrary } from '@/media/media-library'
 import { requestDesktopAction } from '@/desktop/native-bridge'
 import { PlanPages } from './PlanPages'
 import { SiteChecks } from './SiteChecks'
+import { pageLinkPath, visitBlockLinks } from '@/project/page-links'
 
 const viewports: { value: Viewport; icon: typeof Monitor; label: string }[] = [
   { value: 'desktop', icon: Monitor, label: 'Desktop' },
@@ -260,22 +261,13 @@ export function CanvasToolbar({ settingsOpen = false, onOpenSettings }: { settin
   const pageToEditPath = pages.find(page => page.id === editingPath?.id && editingPath.projectId === activeProjectId)
   const pageToEditSeo = pages.find(page => page.id === editingSeo?.id && editingSeo.projectId === activeProjectId)
   const linkedPages = pageToDelete ? pages.filter(page => page.id !== pageToDelete.id && page.blocks.some(block => {
-    if (block.type === 'content' && typeof block.props.body === 'string' && [...block.props.body.matchAll(/\[([^\]\n]+)\]\(([^)\s]+)\)/g)].some(match => {
-      const path = match[2].split(/[?#]/, 1)[0].replace(/\/$/, '') || '/'
-      return path === pageToDelete.path || path === encodeURI(pageToDelete.path)
-    })) return true
-    if ((block.type === 'navbar' || block.type === 'footer') && Array.isArray(block.props.navItems) && block.props.navItems.flatMap(item => [item, ...(block.type === 'navbar' && Array.isArray(item?.children) ? item.children : [])]).some(item => {
-      if (!item || typeof item.url !== 'string') return false
-      const path = item.url.trim().split(/[?#]/, 1)[0].replace(/\/$/, '') || '/'
-      return path === pageToDelete.path || path === encodeURI(pageToDelete.path)
-    })) return true
-    const keys = block.type === 'hero' ? ['primaryCtaUrl', 'secondaryCtaUrl'] : block.type === 'cta' ? ['buttonUrl'] : block.type === 'banner' ? ['linkUrl'] : block.type === 'navbar' ? ['ctaUrl'] : []
-    return keys.some(key => {
-      const value = block.props[key]
-      if (typeof value !== 'string') return false
-      const path = value.trim().split(/[?#]/, 1)[0].replace(/\/$/, '') || '/'
-      return path === pageToDelete.path || path === encodeURI(pageToDelete.path)
+    let matches = false
+    visitBlockLinks(block, destination => {
+      if (!/^\/(?!\/)/.test(destination)) return
+      const path = pageLinkPath(destination)
+      if (path === pageToDelete.path || path === encodeURI(pageToDelete.path)) matches = true
     })
+    return matches
   })) : []
 
   async function handleExport() {
