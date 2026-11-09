@@ -226,7 +226,10 @@ export function LeftSidebar({ collapsed = false }: { collapsed?: boolean }) {
         <button onClick={() => setTab('media')} className={`flex-1 py-2 text-[11px] font-medium transition-all ${tab === 'media' ? 'text-text-0 border-b border-green' : 'text-text-3 hover:text-text-1'}`}>Media</button>
         <button onClick={() => setTab('articles')} className={`flex-1 py-2 text-[11px] font-medium transition-all ${tab === 'articles' ? 'text-text-0 border-b border-green' : 'text-text-3 hover:text-text-1'}`}>Articles</button>
       </div>
-      {tab === 'layers' ? <LayersPanel /> : tab === 'components' ? <ComponentsPanel /> : tab === 'media' ? <div className="p-4"><button type="button" className="w-full rounded bg-blue-600 px-3 py-3 font-semibold text-white" onClick={() => window.dispatchEvent(new Event('webstudio.media'))}>Open media library</button><p className="mt-3 text-sm text-text-2">Browse images, videos, audio and documents in a searchable thumbnail grid. Import folders to keep collections together.</p></div> : <ArticlesPanel />}
+      {tab === 'layers' ? <LayersPanel /> : tab === 'components' ? <ComponentsPanel /> : tab === 'media' ? <div className="space-y-2 p-4">
+        <button type="button" className="w-full rounded bg-blue-600 px-3 py-2 font-semibold text-white" onClick={() => window.dispatchEvent(new Event('webstudio.media'))}>Open media library</button>
+        <button type="button" className="w-full rounded border border-border-default px-3 py-2 font-semibold" onClick={() => window.dispatchEvent(new CustomEvent('webstudio.media', { detail: { manage: true } }))}>Manage Media</button>
+      </div> : <ArticlesPanel />}
     </div>
   )
 }

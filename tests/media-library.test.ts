@@ -3,6 +3,37 @@ import { describe, expect, it, vi } from 'vitest'
 import { ProjectMediaLibrary } from '../src/media/media-library'
 
 describe('project media library', () => {
+  it('moves a batch without changing media identities or bytes and rolls back a partial move', async () => {
+    const library = new ProjectMediaLibrary()
+    const projectId = crypto.randomUUID()
+    const first = (await library.import(projectId, new File(['first'], 'first.txt'))).asset
+    const second = (await library.import(projectId, new File(['second'], 'second.txt'))).asset
+    await expect(library.moveToFolder(projectId, [first.id, 'missing'], 'Photos')).rejects.toThrow('No files were moved')
+    expect((await library.list(projectId)).every(asset => !asset.folder)).toBe(true)
+    await library.moveToFolder(projectId, [first.id, second.id], 'Photos/Historical')
+    const moved = await library.list(projectId)
+    expect(moved).toHaveLength(2)
+    for (const original of [first, second]) {
+      const asset = moved.find(item => item.id === original.id)!
+      expect(asset.path).toBe(original.path)
+      expect(asset.sha256).toBe(original.sha256)
+      expect(await asset.content.text()).toBe(await original.content.text())
+      expect(asset.folder).toBe('Photos/Historical')
+    }
+    await library.moveToFolder(projectId, [first.id], '')
+    expect((await library.list(projectId)).find(asset => asset.id === first.id)?.folder).toBeUndefined()
+  })
+
+  it('imports files and relative subfolders into a selected media folder', async () => {
+    const library = new ProjectMediaLibrary()
+    const projectId = crypto.randomUUID()
+    const file = new File(['photo notes'], 'note.txt')
+    Object.defineProperty(file, 'webkitRelativePath', { value: '2026/April/note.txt' })
+    const { asset } = await library.import(projectId, file, undefined, false, false, 'reuse', 'Bulletins')
+    expect(asset.folder).toBe('Bulletins/2026/April')
+    expect(asset.path).toMatch(/^assets\/[\w-]+-note\.txt$/)
+  })
+
   it('measures local media and only removes a project when the orphan check permits it', async () => {
     const library = new ProjectMediaLibrary()
     const removed = crypto.randomUUID()

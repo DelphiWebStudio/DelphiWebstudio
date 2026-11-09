@@ -13,6 +13,11 @@ const fivePages = {
 }
 
 describe('portable project files', () => {
+  it('round-trips empty and nested media folders', () => {
+    const project = { ...createProjectFile(validateProjectConfig(fivePages), 'project'), mediaFolders: ['Historical Photos', 'Historical Photos/1920s', 'Empty'] }
+    expect(parseProjectFile(serializeProjectFile(project)).project.mediaFolders).toEqual(project.mediaFolders)
+    expect(() => parseProjectFile(JSON.stringify({ ...project, mediaFolders: ['Photos/../Invalid'] }))).toThrow('invalid media folders')
+  })
   it('preserves Hero dimensions and section count when saving and reopening', () => {
     const props = { headline: 'Welcome', sectionCount: 2, layoutWidth: 75, layoutHeight: 260, layoutLeft: 10 }
     const config = validateProjectConfig({ name: 'Site', blocks: [{ id: 'hero', type: 'hero', variant: 'centered', props }] })

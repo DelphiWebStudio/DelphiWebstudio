@@ -116,7 +116,26 @@ export class ProjectMediaLibrary {
     })
   }
 
-  async import(projectId: string, file: File, restored?: { id: string; path: string; sha256: string; importedAt?: number; folder?: string }, replacing = false, allowZip = false, duplicateMode: 'reuse' | 'keep' | 'skip' = 'reuse'): Promise<{ asset: MediaAsset; duplicate: boolean; skipped: boolean }> {
+  async moveToFolder(projectId: string, ids: string[], folder: string): Promise<void> {
+    if (!projectId || !ids.length || folder.includes('\\') || (folder && folder.split('/').some(part => !part.trim() || part === '.' || part === '..'))) throw new Error('Choose media and a valid destination folder.')
+    const database = await this.database
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction('assetsV2', 'readwrite')
+      const store = transaction.objectStore('assetsV2')
+      for (const id of new Set(ids)) {
+        const request = store.get([projectId, id])
+        request.onsuccess = () => {
+          const asset = request.result as MediaAsset | undefined
+          if (!asset) { transaction.abort(); return }
+          if ((asset.folder ?? '') !== folder) store.put({ ...asset, folder: folder || undefined })
+        }
+      }
+      transaction.oncomplete = () => resolve()
+      transaction.onabort = () => reject(transaction.error ?? new Error('A selected file is no longer in this project. No files were moved.'))
+    })
+  }
+
+  async import(projectId: string, file: File, restored?: { id: string; path: string; sha256: string; importedAt?: number; folder?: string }, replacing = false, allowZip = false, duplicateMode: 'reuse' | 'keep' | 'skip' = 'reuse', destinationFolder?: string): Promise<{ asset: MediaAsset; duplicate: boolean; skipped: boolean }> {
     if (!projectId) throw new Error('Open a project before importing media.')
     const extension = file.name.split('.').pop()?.toLowerCase() ?? ''
     const mime = fileTypes[extension]
@@ -196,7 +215,8 @@ export class ProjectMediaLibrary {
     }
     const id = restored?.id ?? crypto.randomUUID()
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-') || `file.${extension}`
-    const folder = restored?.folder ?? (file.webkitRelativePath ?? '').split('/').slice(0, -1).join('/')
+    const relativeFolder = (file.webkitRelativePath ?? '').split('/').slice(0, -1).join('/')
+    const folder = restored?.folder ?? [destinationFolder, relativeFolder].filter(Boolean).join('/')
     if (folder && (folder.includes('\\') || folder.split('/').some(part => part === '..' || part === '.'))) throw new Error(`${file.name}: invalid folder path.`)
     const asset: MediaAsset = { id, projectId, name: previous?.name ?? file.name, path: restored?.path ?? `assets/${id}-${safeName}`, mime, size: file.size, sha256: hash, importedAt: previous?.importedAt ?? restored?.importedAt ?? Date.now(), ...((previous?.folder ?? folder) ? { folder: previous?.folder ?? folder } : {}), ...(previous?.previousName ? { previousName: previous.previousName } : {}), ...(width && height ? { width, height } : {}), content: new Blob([bytes], { type: mime }), ...(previous ? { previousVersion: { content: previous.content, sha256: previous.sha256, size: previous.size, width: previous.width, height: previous.height } } : {}) }
     let duplicate: MediaAsset | undefined
