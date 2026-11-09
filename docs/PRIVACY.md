@@ -1,8 +1,8 @@
-# Delphi Web Studio privacy notice (experimental)
+# Delphi Web Studio Pro privacy notice (experimental)
 
 Last changed: 2026-11-01
 
-Delphi Web Studio is experimental. This notice describes the current local desktop build; it is not a guarantee for third-party websites, services, browser builds, or future versions.
+Delphi Web Studio Pro is experimental. This notice describes the current local desktop build. Third-party services, browser builds, and future versions fall outside its scope.
 
 ## Information kept on this computer
 

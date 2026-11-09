@@ -234,7 +234,7 @@ begin
                 (TJSONObject(Document).GetValue('schemaVersion').Value <> '2') or
                 not (TJSONObject(Document).GetValue('projectId') is TJSONString) or
                 (TJSONObject(Document).GetValue('projectId').Value = '') then
-                raise EArgumentException.Create('The staged file is not a supported WebStudio project.');
+                raise EArgumentException.Create('The staged file is not a supported Delphi Web Studio Pro project.');
               Config := TJSONObject(Document).GetValue('config');
               if not (Config is TJSONObject) or not (TJSONObject(Config).GetValue('name') is TJSONString) then
                 raise EArgumentException.Create('The staged project configuration is invalid.');

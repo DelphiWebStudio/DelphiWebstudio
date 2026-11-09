@@ -1,4 +1,4 @@
-program DelphiWebStudio;
+program DelphiWebStudioPro;
 
 uses
   Vcl.Forms,
@@ -11,6 +11,7 @@ uses
 
 begin
   Application.Initialize;
+  Application.Title := 'Delphi Web Studio Pro';
   Application.MainFormOnTaskbar := True;
   Application.CreateForm(TMainForm, MainForm);
   Application.Run;

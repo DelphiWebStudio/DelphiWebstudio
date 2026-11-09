@@ -6,10 +6,10 @@ The Microsoft Edge WebView2 Runtime must be installed separately; see [Microsoft
 
 For the initial local build, Inno Setup 6.7.4 was obtained from the [official download page](https://jrsoftware.org/isdl.php), verified with a valid Pyrsys B.V. Authenticode signature, and installed in portable mode under `test-results`. Its installer SHA-256 was `a549929319f9120716677c685535ca4671e4b937b5fdc87e2585f32d8eb30e8c`. The compiler reported non-commercial use; confirm the applicable Inno Setup license before any commercial use.
 
-To rebuild with an installed or portable `ISCC.exe`, use a freshly built stage containing `DelphiWebStudio.exe`, the x64 `WebView2Loader.dll` and the `editor` directory:
+To rebuild Delphi Web Studio Pro with an installed or portable `ISCC.exe`, use a freshly built stage containing `DelphiWebStudioPro.exe`, the x64 `WebView2Loader.dll` and the `editor` directory.
 
 ```powershell
-& 'C:\path\to\ISCC.exe' '/DStageDir=C:\path\to\verified-stage' '/OC:\path\to\output' 'desktop\installer\DelphiWebStudio.iss'
+& 'C:\path\to\ISCC.exe' '/DStageDir=C:\path\to\verified-stage' '/OC:\path\to\output' 'desktop\installer\DelphiWebStudioPro.iss'
 ```
 
 The experimental installer built on 2026-11-01 from `bin/DelphiWebStudio-Preview-M7-20261101-1908` is in `bin/DelphiWebStudio-Installer-M7-20261101-1918`. Its SHA-256 is `0ed66fabdddc3b0203e5817c343038607a829412134ab44a8e4f57554bca7800`. On the existing Windows machine, the exact installer installed nine files matching the preview, the installed executable remained running during a brief isolated-profile startup check, and uninstall preserved a synthetic user file. It has not yet been tested on a clean Windows machine or through the full workflow as the installed executable.

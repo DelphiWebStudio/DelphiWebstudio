@@ -263,7 +263,7 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
       const native = (window as unknown as { chrome?: { webview?: { postMessageWithAdditionalObjects?: (message: unknown, files: File[]) => void } } }).chrome?.webview
       if (window.location.origin === 'https://webstudio.local' && native?.postMessageWithAdditionalObjects) native.postMessageWithAdditionalObjects({ version: 1, kind: 'project.opened', projectId: id }, [file])
       navigate('/editor')
-      toast.success(migrated ? 'Legacy project opened. Save a new WebStudio file to keep the upgrade.' : 'Project opened as a separate local copy.')
+      toast.success(migrated ? 'Legacy project opened. Save a new project file to keep the upgrade.' : 'Project opened as a separate local copy.')
     } catch (error) {
       if (stagedProjectId) for (const id of restoredIds) await library?.remove(stagedProjectId, id).catch(() => undefined)
       if (createdProjectId) useProjectsStore.getState().deleteProject(createdProjectId)
@@ -297,7 +297,7 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
     setCheckingRevision(revision.id)
     try {
       const verified = await ProjectRevisions.verify(revision)
-      if (!/\.webstudio\.(json|zip)$/i.test(revision.filename)) throw new Error('The revision filename is not a WebStudio project filename.')
+      if (!/\.webstudio\.(json|zip)$/i.test(revision.filename)) throw new Error('The revision filename must end in .webstudio.json or .webstudio.zip.')
       const url = URL.createObjectURL(revision.contents)
       try {
         const link = window.document.createElement('a')

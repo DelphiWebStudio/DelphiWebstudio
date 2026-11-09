@@ -1,4 +1,4 @@
-Delphi Web Studio is experimental software, not a finished release.
+Delphi Web Studio Pro is experimental software.
 
 Windows 10 or 11 x64 and the Microsoft Edge WebView2 Runtime are required. The installer checks for the runtime but does not include or download it. If it is missing, obtain it separately from Microsoft before running the installer again.
 

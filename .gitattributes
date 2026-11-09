@@ -1,2 +1,6 @@
 # Preserve the official WebView2 SDK license file exactly as distributed.
 docs/WEBVIEW2_SDK_LICENSE.txt -text
+
+# Keep document packages and PDF offsets byte-for-byte on checkout.
+*.docx binary
+*.pdf binary

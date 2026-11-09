@@ -6,14 +6,14 @@
 **Owner / target GitHub account:** `tmartindub`  
 **Upstream:** https://github.com/buildingopen/openpage  
 **Required fork destination:** `https://github.com/tmartindub/openpage` (or confirm existing fork/name before proceeding)  
-**Working product name:** WebStudio (retain original attribution; final naming subject to owner decision)  
+**Product name:** Delphi Web Studio Pro. Retain original attribution.
 **Audience:** Codex engineering agent taking over full-stack and Delphi development
 
 > **STATUS:** This is an implementation handoff, not a statement that a GitHub fork or code changes have occurred. The fork is a task for Codex after confirming the authenticated account and permissions. Preserve the upstream MIT license and copyright notices.
 
 ## 1. Directive to Codex — read first
 
-You are responsible for turning the MIT-licensed OpenPage website builder into **WebStudio**, a professional, **completely free**, offline-first website designer. The product must combine familiar FrontPage-style direct visual editing, Wix-like ease and AI-assisted website generation, and WordPress-like site management, while producing independently hostable sites. Support personal and professional informational sites. **Exclude payments, ecommerce, shopping carts, paid memberships, financial billing, donation collection, and store-management functionality.**
+You are responsible for turning the MIT-licensed OpenPage website builder into **Delphi Web Studio Pro**, a professional, **completely free**, offline-first website designer. The product must combine familiar FrontPage-style direct visual editing, Wix-like ease and AI-assisted website generation, and WordPress-like site management, while producing independently hostable sites. Support personal and professional informational sites. **Exclude payments, ecommerce, shopping carts, paid memberships, financial billing, donation collection, and store-management functionality.**
 
 **Non-negotiable behavior:** No forced account, subscription, ads, branding injected into published pages, surprise content, automatic publication, or hosting lock-in. Opening an existing project must not mutate or publish it. Save, Preview, and Publish are separate commands. Do not silently replace content or bypass review. User owns source project and output. Offline operation is the default; online integrations are explicitly optional.
 
@@ -307,7 +307,7 @@ Static HTML importer, WordPress content import, accessible code view, security/q
 
 ## 21. Open issues requiring deliberate decisions
 
-- Final branding: WebStudio vs other name; trademark/name search before public release.
+- The owner selected Delphi Web Studio Pro. Trademark and name review remains a pre-release task.
 - Delphi RAD Studio version and WebView2 wrapper feasibility.
 - Whether first public beta ships browser editor only or desktop app; desktop requirement is non-negotiable for complete product.
 - Exact AI model/version/quantization and redistribution review.
