@@ -387,6 +387,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         setContextMenu({ x: event.clientX, y: event.clientY, item, section, objectX: bounds?.width ? (event.clientX - bounds.left) / bounds.width * 100 : 0, objectY: bounds ? event.clientY - bounds.top : 0 })
       }}
       onPointerDown={event => {
+        if (block.type === 'gallery' && block.variant === 'responsive' && event.target instanceof Element && event.target.closest('[data-ws-item-field="images"][draggable="true"]')) return
         if (!imageLayout && block.type !== 'collage' && event.button === 0 && event.target instanceof HTMLImageElement && event.target.closest('[data-ws-content]')) {
           const image = event.target
           const imageIndex = image.getAttribute('data-ws-image-index')

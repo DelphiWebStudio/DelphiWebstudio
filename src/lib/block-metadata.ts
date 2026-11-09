@@ -145,9 +145,9 @@ export const blockMetadata: BlockMeta[] = [
   {
     type: 'gallery',
     label: 'Gallery',
-    description: 'Image gallery in grid or masonry layout',
+    description: 'Image gallery in grid, masonry, or responsive layout',
     category: 'Media',
-    variants: ['grid', 'masonry'],
+    variants: ['grid', 'masonry', 'responsive'],
     defaultProps: { title: 'Gallery' },
   },
   {
