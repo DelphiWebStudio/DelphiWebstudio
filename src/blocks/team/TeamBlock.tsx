@@ -1,9 +1,11 @@
+import { UserRound } from 'lucide-react'
 import type { BlockConfig } from '../types'
 
 interface TeamMember {
   name: string
   role: string
   avatar?: string
+  bio?: string
 }
 
 interface TeamProps {
@@ -15,6 +17,32 @@ interface TeamProps {
 export function TeamBlock({ block }: { block: BlockConfig }) {
   const props = block.props as unknown as TeamProps
   const members = props.members || []
+
+  if (block.variant === 'directory') {
+    const title = props.title || 'Staff Directory'
+    return <section aria-label={title} className="px-5 py-12 @md:px-8 @md:py-16">
+      <header className="mx-auto mb-9 max-w-2xl text-center">
+        <span aria-hidden="true" className="mx-auto mb-4 block h-1 w-12 rounded-full bg-green" />
+        <h2 className="font-serif text-3xl font-semibold tracking-tight text-text-0 @md:text-4xl">{title}</h2>
+        {props.subtitle && <p className="mt-3 text-base leading-relaxed text-text-3">{props.subtitle}</p>}
+      </header>
+      <ul className="mx-auto grid max-w-6xl list-none grid-cols-1 gap-5 p-0 @md:grid-cols-2 @4xl:grid-cols-3">
+        {members.map((member, i) => (
+          <li key={i} data-ws-item-field="members" data-ws-item-index={i}
+            className="min-w-0 rounded-xl border border-border-default bg-bg-2 p-5 text-center">
+            <div className="mx-auto mb-4 flex aspect-[4/5] w-full max-w-[11rem] items-center justify-center overflow-hidden rounded-lg border border-green/40 bg-green/10">
+              {member.avatar
+                ? <img src={member.avatar} alt={member.name?.trim() ? `Portrait of ${member.name.trim()}` : 'Staff portrait'} loading="lazy" decoding="async" className="h-full w-full object-cover object-top" />
+                : <UserRound size={52} strokeWidth={1.2} aria-hidden="true" className="text-text-3" />}
+            </div>
+            <h3 className="text-lg font-semibold text-text-0">{member.name?.trim() || `Staff member ${i + 1}`}</h3>
+            {member.role && <p className="mt-1 text-sm font-medium text-text-3">{member.role}</p>}
+            {member.bio && <p className="mt-3 whitespace-pre-wrap text-left text-sm leading-relaxed text-text-0">{member.bio}</p>}
+          </li>
+        ))}
+      </ul>
+    </section>
+  }
 
   return (
     <section className="px-6 @md:px-10 py-16 @md:py-20">

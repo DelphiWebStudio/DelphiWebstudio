@@ -655,9 +655,11 @@ function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: Fie
 
     case 'array-items': {
       const items = (Array.isArray(value) ? value : []) as Array<Record<string, string>>
+      const staffDirectory = block.type === 'team' && block.variant === 'directory' && field.key === 'members'
 
       // Infer new item shape from existing items, or use sensible defaults per field key
       function createEmptyItem(): Record<string, string> {
+        if (staffDirectory) return { name: '', role: '', avatar: '', bio: '' }
         if (items.length > 0) {
           const template: Record<string, string> = {}
           for (const key of Object.keys(items[0])) if (key !== 'assetId') template[key] = ''
@@ -782,7 +784,7 @@ function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: Fie
 
       return (
         <div className="mb-2.5">
-          {!onlyItemId && <label className="block text-[11.5px] text-text-2 mb-1 font-medium">{field.label}</label>}
+          {!onlyItemId && <label className="block text-[11.5px] text-text-2 mb-1 font-medium">{staffDirectory ? 'Staff portraits' : field.label}</label>}
           {block.type === 'collage' && <p className="mb-1 text-[10px] text-text-3">Select an image on the collage and drag it to move; drag its white corner to resize. Set layer order here; larger numbers appear in front. Positions and sizes are percentages.</p>}
           {block.type === 'navbar' && field.key === 'navItems' && <p className="mb-1 text-[10px] text-text-3">Drag links on the Navbar to change their order.</p>}
           {imageItems && block.type === 'features' && <p className="mb-1 text-[10px] text-text-3">Feature images appear in the alternating layout.</p>}
@@ -805,7 +807,7 @@ function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: Fie
               {!onlyItemId && <div className="flex items-center justify-between mb-1.5">
                 <button type="button" draggable aria-label={`Drag ${field.label} item ${i + 1}`} title="Drag to reorder" className="cursor-grab rounded border border-border-default px-1.5 py-0.5 text-[10px] text-text-1 active:cursor-grabbing" onDragStart={event => {
                   event.dataTransfer.setData('application/x-webstudio-property-item', JSON.stringify({ block: block.id, field: field.key, index: i })); event.dataTransfer.effectAllowed = 'move'
-                }}>Item {i + 1} ↕</button>
+                }}>{staffDirectory ? item.name?.trim() || `Portrait ${i + 1}` : `Item ${i + 1}`} ↕</button>
                 <div className="flex gap-1">
                 {([-1, 1] as const).map(delta => <button key={delta} type="button" aria-label={`Move ${field.label} item ${i + 1} ${delta < 0 ? 'up' : 'down'}`} disabled={i + delta < 0 || i + delta >= items.length} className="rounded border border-border-default px-1 text-[10px] disabled:opacity-40" onClick={() => {
                   try { useConfigStore.getState().editBlockItems(block.id, field.key, i, i + delta) } catch (error) { toast.error(error instanceof Error ? error.message : 'The item could not be moved.') }
@@ -816,7 +818,7 @@ function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: Fie
                   }}
                   className="text-[10px] text-text-3 hover:text-status-red transition-colors"
                 >
-                  Remove
+                  {staffDirectory ? 'Remove portrait' : 'Remove'}
                 </button>
                 </div>
               </div>}
@@ -843,9 +845,9 @@ function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: Fie
                   onChange(updated)
                 }}>Remove</button></div>)}
               </div>}
-              <div className={onlyItemId ? 'grid grid-cols-2 gap-x-2' : undefined}>{Object.entries(onlyItemId ? { ...({ text: ['text', 'fontSize', 'textColor'], image: ['src', 'alt'], button: ['text', 'textColor', 'fontSize'], panel: ['text', 'src', 'alt', 'color', 'textColor', 'fontSize'], collage: [], divider: ['lineOrientation', 'lineStyle', 'lineThickness', 'textColor'] } as Record<string, string[]>)[item.type || '']?.reduce<Record<string, string>>((values, key) => ({ ...values, [key]: item[key] ?? (key === 'lineOrientation' ? 'horizontal' : key === 'lineStyle' ? 'solid' : key === 'lineThickness' ? '1' : '') }), {}), x: item.x ?? '0', y: item.y ?? '0', width: item.width ?? '30', height: item.height ?? '80', layer: item.layer ?? '1' } : mediaItems && !(imageKey in item) ? { ...item, [imageKey]: '' } : item).filter(([key]) => !(mediaItems && key === 'assetId') && !(block.type === 'gallery' && key === 'caption') && !(/^section[1-4]Objects$/.test(field.key) && (key === 'id' || key === 'type' || key === 'parentId' || key === 'images' || key === 'sourceCollageProps'))).map(([key, val]) => (
+              <div className={onlyItemId ? 'grid grid-cols-2 gap-x-2' : undefined}>{Object.entries(staffDirectory ? { name: item.name ?? '', role: item.role ?? '', avatar: item.avatar ?? '' } : onlyItemId ? { ...({ text: ['text', 'fontSize', 'textColor'], image: ['src', 'alt'], button: ['text', 'textColor', 'fontSize'], panel: ['text', 'src', 'alt', 'color', 'textColor', 'fontSize'], collage: [], divider: ['lineOrientation', 'lineStyle', 'lineThickness', 'textColor'] } as Record<string, string[]>)[item.type || '']?.reduce<Record<string, string>>((values, key) => ({ ...values, [key]: item[key] ?? (key === 'lineOrientation' ? 'horizontal' : key === 'lineStyle' ? 'solid' : key === 'lineThickness' ? '1' : '') }), {}), x: item.x ?? '0', y: item.y ?? '0', width: item.width ?? '30', height: item.height ?? '80', layer: item.layer ?? '1' } : mediaItems && !(imageKey in item) ? { ...item, [imageKey]: '' } : item).filter(([key]) => !(mediaItems && key === 'assetId') && !(block.type === 'gallery' && key === 'caption') && !(/^section[1-4]Objects$/.test(field.key) && (key === 'id' || key === 'type' || key === 'parentId' || key === 'images' || key === 'sourceCollageProps'))).map(([key, val]) => (
                 <div key={key} className={`mb-1 min-w-0 ${onlyItemId && !['x', 'y', 'width', 'height', 'layer', 'fontSize'].includes(key) ? 'col-span-2' : ''}`}>
-                  <label className="block text-[10px] text-text-3 mb-0.5">{block.type === 'collage' || /^section[1-4]Objects$/.test(field.key) ? ({ src: 'Image', alt: 'Image description', text: 'Text', url: 'Link', anchorName: 'Anchor name (jump destination)', color: 'Panel background color', textColor: item.type === 'divider' ? 'Line color' : 'Text color', lineOrientation: 'Direction', lineStyle: 'Line style', lineThickness: 'Thickness (px)', fontSize: 'Font size (px)', x: 'Left (%)', y: 'Top (px)', width: 'Width (%)', height: 'Height (px)', layer: 'Layer order' } as Record<string, string>)[key] ?? key : key}</label>
+                  <label className="block text-[10px] text-text-3 mb-0.5">{staffDirectory ? ({ name: 'Name', role: 'Role', avatar: 'Photo path or URL' } as Record<string, string>)[key] : block.type === 'collage' || /^section[1-4]Objects$/.test(field.key) ? ({ src: 'Image', alt: 'Image description', text: 'Text', url: 'Link', anchorName: 'Anchor name (jump destination)', color: 'Panel background color', textColor: item.type === 'divider' ? 'Line color' : 'Text color', lineOrientation: 'Direction', lineStyle: 'Line style', lineThickness: 'Thickness (px)', fontSize: 'Font size (px)', x: 'Left (%)', y: 'Top (px)', width: 'Width (%)', height: 'Height (px)', layer: 'Layer order' } as Record<string, string>)[key] ?? key : key}</label>
                   {item.type === 'divider' && (key === 'lineOrientation' || key === 'lineStyle') ? <select aria-label={key === 'lineOrientation' ? 'Line direction' : 'Line style'} value={String(val)} onChange={event => { const updated = [...items]; updated[i] = { ...updated[i], [key]: event.target.value }; onChange(updated) }} className="w-full rounded border border-border-default bg-bg-3 px-1.5 py-1 text-xs">{(key === 'lineOrientation' ? ['horizontal', 'vertical'] : ['solid', 'dashed', 'dotted', 'double']).map(option => <option key={option} value={option}>{option.charAt(0).toUpperCase() + option.slice(1)}</option>)}</select> : <input
                     type="text"
                     aria-label={`${field.label} item ${i + 1} ${key}`}
@@ -883,10 +885,15 @@ function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: Fie
                     const updated = [...items]
                     updated[i] = { ...updated[i], [imageKey]: image.path, assetId: image.id, ...(documentItems && !updated[i].title ? { title: image.name } : {}) }
                     onChange(updated)
-                  } } }))}>Browse {documentItems ? 'files' : 'images'}...</button>}
+                  } } }))}>{staffDirectory ? 'Choose photo…' : `Browse ${documentItems ? 'files' : 'images'}...`}</button>}
 
                 </div>
               ))}</div>
+              {staffDirectory && <label className="mt-2 block text-[10px] text-text-3">Short bio
+                <textarea aria-label={`Portrait ${i + 1} short bio`} rows={3} value={item.bio ?? ''}
+                  onChange={event => onChange(items.map((entry, index) => index === i ? { ...entry, bio: event.target.value } : entry))}
+                  className="mt-0.5 block w-full rounded border border-border-subtle bg-bg-3 px-1.5 py-1 text-[11px] text-text-0" />
+              </label>}
               {block.type === 'gallery' && field.key === 'images' && <label className="mt-2 block text-[10px] text-text-3">Photo caption
                 <textarea aria-label={`Photo ${i + 1} caption`} rows={3} value={typeof item.caption === 'string' ? item.caption : ''}
                   onChange={event => onChange(items.map((entry, index) => index === i ? { ...entry, caption: event.target.value } : entry))}
@@ -916,7 +923,7 @@ function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: Fie
             }}
             className="text-[10px] text-green hover:text-green-dim transition-colors"
           >
-            + Add item
+            {staffDirectory ? '+ Add portrait' : '+ Add item'}
           </button>}
         </div>
       )
