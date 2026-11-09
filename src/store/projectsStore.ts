@@ -21,6 +21,7 @@ export interface Project {
   lastDeployedAt?: string
   projectFile?: SiteProjectFile
   mediaRevision?: number
+  mediaFolders?: string[]
 }
 
 export interface ProjectSettings {
@@ -45,6 +46,7 @@ interface ProjectsState {
   addProject: (name: string, projectFile?: SiteProjectFile, stagedId?: string) => string
   saveProjectFile: (id: string, projectFile: SiteProjectFile) => void
   mediaChanged: (id: string) => void
+  addMediaFolder: (id: string, folder: string) => void
   duplicateProject: (id: string) => Promise<string | null>
   deleteProject: (id: string) => void
   restoreProject: (project: Project) => void
@@ -72,6 +74,7 @@ export const useProjectsStore = create<ProjectsState>()(
               ...(projectFile ? {
                 config: structuredClone(projectFile.config),
                 projectFile: structuredClone(projectFile),
+                ...(projectFile.mediaFolders ? { mediaFolders: [...projectFile.mediaFolders] } : {}),
                 ...(projectFile.settings ? { settings: structuredClone(projectFile.settings) as ProjectSettings } : {}),
                 blockCount: projectFile.config.pages?.reduce((sum, page) => sum + page.blocks.length, 0) ?? projectFile.config.blocks.length,
               } : {}),
@@ -89,6 +92,12 @@ export const useProjectsStore = create<ProjectsState>()(
       })),
       mediaChanged: (id) => set(state => ({
         projects: state.projects.map(project => project.id === id ? { ...project, modifiedAt: new Date().toISOString(), mediaRevision: (project.mediaRevision ?? 0) + 1 } : project),
+      })),
+      addMediaFolder: (id, folder) => set(state => ({
+        projects: state.projects.map(project => project.id === id && !project.mediaFolders?.includes(folder) ? {
+          ...project, mediaFolders: [...(project.mediaFolders ?? []), folder],
+          modifiedAt: new Date().toISOString(), mediaRevision: (project.mediaRevision ?? 0) + 1,
+        } : project),
       })),
       duplicateProject: async (id) => {
         const state = useProjectsStore.getState()
@@ -186,6 +195,7 @@ export const useProjectsStore = create<ProjectsState>()(
                   if (typeof entry.id !== 'string' || !entry.id || typeof entry.name !== 'string' || ids.has(entry.id)) throw new Error('Invalid project identity.')
                   ids.add(entry.id)
                   if (entry.settings !== undefined && (!entry.settings || typeof entry.settings !== 'object' || Array.isArray(entry.settings))) throw new Error('Invalid project settings.')
+                  if (entry.mediaFolders !== undefined && (!Array.isArray(entry.mediaFolders) || entry.mediaFolders.some(folder => typeof folder !== 'string'))) throw new Error('Invalid stored media folders.')
                   if (entry.projectFile !== undefined && (!entry.projectFile || typeof entry.projectFile !== 'object' || Array.isArray(entry.projectFile))) throw new Error('Invalid stored project file.')
                   const file = entry.projectFile as Record<string, unknown> | undefined
                   if (file?.settings !== undefined && (!file.settings || typeof file.settings !== 'object' || Array.isArray(file.settings))) throw new Error('Invalid stored project settings.')

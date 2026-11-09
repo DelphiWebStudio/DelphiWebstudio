@@ -302,6 +302,7 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
       const hasLocalChanges = !!existingDraft && (
         JSON.stringify(openedConfig) !== configSnapshot ||
         existingDraft.name !== projectName || JSON.stringify(existingDraft.settings ?? {}) !== JSON.stringify(project.settings ?? {}) ||
+        JSON.stringify(existingDraft.mediaFolders ?? []) !== JSON.stringify(project.mediaFolders ?? []) ||
         !sameMedia || (draftAssets?.size ?? 0) !== assetMetadata.length
       )
       useEditorStore.getState().setSavedProjectSnapshot(!migrated && opened && !hasLocalChanges
@@ -423,6 +424,7 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
         ...createProjectFile(config, project.projectFile?.projectId ?? project.id),
         webstudioProjectName: project.name,
         settings: portableSettings,
+        mediaFolders: project.mediaFolders,
         assets: assets.map(({ id, name, path, mime, size, sha256, importedAt, folder, width, height }) => ({
           ...previousAssets.find(item => item && typeof item === 'object' && item.id === id),
           id, name, path, mime, size, sha256, importedAt, folder, width, height,

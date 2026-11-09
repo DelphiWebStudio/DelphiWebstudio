@@ -2,7 +2,7 @@ import { create } from 'zustand'
 
 export type Viewport = 'desktop' | 'tablet' | 'mobile'
 export type EditorMode = 'beginner' | 'designer' | 'professional'
-export type PendingMediaImport = { projectId: string; files: File[]; allowZip: boolean; duplicateMode: 'reuse' | 'keep' | 'skip' }
+export type PendingMediaImport = { projectId: string; files: File[]; allowZip: boolean; duplicateMode: 'reuse' | 'keep' | 'skip'; folder?: string }
 
 interface EditorState {
   selectedBlockId: string | null

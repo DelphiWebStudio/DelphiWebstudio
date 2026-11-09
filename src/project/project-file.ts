@@ -9,6 +9,7 @@ export interface SiteProjectFile {
   schemaVersion: 2
   projectId: string
   config: SiteConfig
+  mediaFolders?: string[]
   settings?: Record<string, unknown>
   [key: string]: unknown
 }
@@ -251,6 +252,9 @@ export function parseProjectFile(contents: string): { project: SiteProjectFile; 
       throw new Error('Unsupported project format or schema version. The original file has not been changed.')
     }
     const projectId = text(source.projectId, 'Project ID')
+    if (source.mediaFolders !== undefined && (!Array.isArray(source.mediaFolders) || source.mediaFolders.some(folder =>
+      typeof folder !== 'string' || /[\\\p{Cc}]/u.test(folder) || folder.split('/').some(part => !part.trim() || part === '.' || part === '..')
+    ))) throw new Error('The project contains invalid media folders.')
     if (source.settings !== undefined) {
       const settings = record(source.settings, 'Project settings')
       if ('deployAccessKey' in settings) throw new Error('Remove the deployment credential from the project file before opening it.')
