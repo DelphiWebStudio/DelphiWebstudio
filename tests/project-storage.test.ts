@@ -236,6 +236,22 @@ describe('portable project storage', () => {
     expect(JSON.parse(storedValues.get('openpage-projects')!).state.projects).toHaveLength(2)
   })
 
+  it('stores a shared config once and preserves the saved baseline after draft edits', async () => {
+    const id = useProjectsStore.getState().addProject(document.config.name, document)
+    const stored = JSON.parse(storedValues.get('openpage-projects')!).state.projects[0]
+    expect(stored.config).toEqual(document.config)
+    expect(stored.projectFile.config).toBeUndefined()
+
+    await useProjectsStore.persist.rehydrate()
+    expect(useProjectsStore.getState().projects[0].projectFile).toEqual(document)
+    const editedConfig = { ...document.config, name: 'Unsaved change' }
+    useProjectsStore.getState().updateProjectConfig(id, editedConfig)
+
+    await useProjectsStore.persist.rehydrate()
+    expect(useProjectsStore.getState().projects[0].config).toEqual(editedConfig)
+    expect(useProjectsStore.getState().projects[0].projectFile).toEqual(document)
+  })
+
   it('does not replace newer draft changes when an older save finishes', () => {
     const id = useProjectsStore.getState().addProject('Original', document)
     const olderSnapshot = structuredClone(document)

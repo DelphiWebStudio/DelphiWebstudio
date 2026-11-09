@@ -156,11 +156,21 @@ export const useProjectsStore = create<ProjectsState>()(
     }),
     {
       name: 'openpage-projects',
+      partialize: state => ({
+        projects: state.projects.map(project => {
+          if (!project.config || !project.projectFile) return project
+          const { config, ...file } = project.projectFile
+          return JSON.stringify(project.config) === JSON.stringify(config)
+            ? { ...project, projectFile: file }
+            : project
+        }),
+      }),
       storage: createJSONStorage(() => {
         return {
           getItem: key => {
             try {
               const value = window.localStorage.getItem(key)
+              let restoredValue = value
               if (value !== null) {
                 const stored: unknown = JSON.parse(value)
                 if (!stored || typeof stored !== 'object' || Array.isArray(stored)) throw new Error('Invalid project storage.')
@@ -169,6 +179,7 @@ export const useProjectsStore = create<ProjectsState>()(
                 if (envelope.version !== undefined && envelope.version !== 0) throw new Error('Unsupported project storage version.')
                 const projects = (envelope.state as { projects: unknown[] }).projects
                 const ids = new Set<string>()
+                let restoredConfig = false
                 for (const project of projects) {
                   if (!project || typeof project !== 'object' || Array.isArray(project)) throw new Error('Invalid project entry.')
                   const entry = project as Record<string, unknown>
@@ -197,10 +208,16 @@ export const useProjectsStore = create<ProjectsState>()(
                     if (Array.isArray(draft.blocks) && Array.isArray(draft.pages) && draft.pages.length > 0 &&
                       !draft.pages.some(page => JSON.stringify(page.blocks) === JSON.stringify(draft.blocks))) throw new Error('Conflicting project blocks.')
                   }
+                  // The saved baseline can share the draft config only when their serialized contents match.
+                  if (file && file.config === undefined && entry.config !== undefined) {
+                    file.config = structuredClone(entry.config)
+                    restoredConfig = true
+                  }
                 }
+                if (restoredConfig) restoredValue = JSON.stringify(stored)
               }
               projectDraftReadFailed = false
-              return value
+              return restoredValue
             } catch {
               projectDraftReadFailed = true
               toast.error('Local drafts could not be read. Existing drafts are protected from overwrite; save any new work to a separate project file and restart to retry.', { id: 'draft-storage-read-failed', duration: Infinity, closeButton: true })
