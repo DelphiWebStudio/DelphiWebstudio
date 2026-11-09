@@ -49,10 +49,10 @@ function FooterMultiColumn({ props }: { props: FooterProps }) {
   const navItems = Array.isArray(props.navItems) ? props.navItems.filter(item => item && typeof item.label === 'string' && typeof item.url === 'string') : []
 
   return (
-    <footer className="px-6 @md:px-10 py-12 border-t border-border-subtle">
-      <div className="grid grid-cols-2 @2xl:grid-cols-5 gap-8 mb-10">
+    <footer className="border-t border-border-subtle px-5 py-6 @md:px-8 @md:py-10 [overflow-wrap:anywhere]">
+      <div className="mx-auto mb-5 grid max-w-6xl grid-cols-1 gap-x-6 gap-y-4 @md:mb-6 @md:gap-y-5 @min-[28rem]:grid-cols-2 @min-[45rem]:grid-cols-[repeat(auto-fit,minmax(10rem,1fr))]">
         {/* Brand column */}
-        {(props.logo || props.logoImage || props.description) && <div className="col-span-2 @2xl:col-span-1">
+        {(props.logo || props.logoImage || props.description) && <div className="min-w-0 @min-[28rem]:col-span-2 @min-[45rem]:col-span-1">
           {(props.logo || props.logoImage) && <div className="flex min-w-0 items-center gap-2 mb-3">
             {props.logoImage && (
               <img src={props.logoImage} alt={props.logo} className="h-7 w-auto max-w-[96px] shrink-0 object-contain" />
@@ -64,11 +64,11 @@ function FooterMultiColumn({ props }: { props: FooterProps }) {
 
         {/* Link columns */}
         {columns.map((col, i) => (
-          <div key={i}>
-            <h4 className="text-[11px] font-semibold uppercase tracking-wider text-text-2 mb-3">
+          <div key={i} className="min-w-0">
+            <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-text-2 @md:mb-3">
               {col.title}
             </h4>
-            <ul className="space-y-2">
+            <ul className="space-y-1.5 @md:space-y-2">
               {col.links.map((link, j) => (
                 <li key={j}>
                   <span className="text-[12.5px] text-text-3 hover:text-text-1 transition-colors cursor-pointer">
@@ -82,9 +82,9 @@ function FooterMultiColumn({ props }: { props: FooterProps }) {
       </div>
 
       {/* Bottom bar */}
-      <div className="pt-6 border-t border-border-subtle flex flex-col @lg:flex-row items-center justify-between gap-3">
+      <div className="mx-auto flex max-w-6xl flex-col gap-3 border-t border-border-subtle pt-4 @min-[52rem]:flex-row @min-[52rem]:items-center @min-[52rem]:justify-between">
         <span className="text-[11px] text-text-3">{props.copyright}</span>
-        <div className="flex flex-wrap gap-4">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
           {links.map((link, i) => (
             <span
               key={i}

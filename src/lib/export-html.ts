@@ -731,9 +731,9 @@ function renderFooterMultiColumn(block: BlockConfig): string {
             `            <li><span class="text-[12.5px] text-text-3 hover:text-text-1 transition-colors cursor-pointer">${escapeHtml(l)}</span></li>`
         )
         .join('\n')
-      return `        <div>
-          <h4 class="text-[11px] font-semibold uppercase tracking-wider text-text-2 mb-3">${escapeHtml(col.title)}</h4>
-          <ul class="space-y-2">
+      return `        <div class="min-w-0">
+          <h4 class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-text-2 @md:mb-3">${escapeHtml(col.title)}</h4>
+          <ul class="space-y-1.5 @md:space-y-2">
 ${colLinks}
           </ul>
         </div>`
@@ -752,9 +752,9 @@ ${colLinks}
     ? `<img src="${escapeHtml(logoImage)}" alt="${logo}" class="h-7 w-auto max-w-[96px] shrink-0 object-contain" />`
     : ''
 
-  return `  <footer class="px-6 @md:px-10 py-12 border-t border-border-subtle">
-      <div class="grid grid-cols-2 @2xl:grid-cols-5 gap-8 mb-10">
-        ${logo || mcLogoHtml || description ? `<div class="col-span-2 @2xl:col-span-1">
+  return `  <footer class="border-t border-border-subtle px-5 py-6 @md:px-8 @md:py-10 [overflow-wrap:anywhere]">
+      <div class="mx-auto mb-5 grid max-w-6xl grid-cols-1 gap-x-6 gap-y-4 @md:mb-6 @md:gap-y-5 @min-[28rem]:grid-cols-2 @min-[45rem]:grid-cols-[repeat(auto-fit,minmax(10rem,1fr))]">
+        ${logo || mcLogoHtml || description ? `<div class="min-w-0 @min-[28rem]:col-span-2 @min-[45rem]:col-span-1">
           ${logo || mcLogoHtml ? `<div class="flex min-w-0 items-center gap-2 mb-3">
             ${mcLogoHtml}
             ${logo ? `<span class="min-w-0 text-sm font-semibold">${logo}</span>` : ''}
@@ -763,9 +763,9 @@ ${colLinks}
         </div>` : ''}
 ${colsHtml}
       </div>
-      <div class="pt-6 border-t border-border-subtle flex flex-col @lg:flex-row items-center justify-between gap-3">
+      <div class="mx-auto flex max-w-6xl flex-col gap-3 border-t border-border-subtle pt-4 @min-[52rem]:flex-row @min-[52rem]:items-center @min-[52rem]:justify-between">
         <span class="text-[11px] text-text-3">${copyright}</span>
-        <div class="flex flex-wrap gap-4">
+        <div class="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
 ${bottomLinks}
         </div>
       </div>
@@ -1038,14 +1038,14 @@ function renderContact(block: BlockConfig): string {
     ? `          <p class="text-text-2 text-sm">${escapeHtml(subtitle)}</p>`
     : ''
 
-  return `  <section class="px-6 @md:px-10 py-16 @md:py-20">
-      <div class="max-w-lg mx-auto">
+  return `  <section class="px-5 py-10 @md:px-8 @md:py-14">
+      <div class="mx-auto max-w-2xl">
         <div class="text-center mb-8">
           <h2 class="text-2xl @md:text-3xl font-bold tracking-tight mb-2">${title}</h2>
 ${subtitleHtml}
         </div>
         <form${configured && endpoint ? ` action="${escapeHtml(endpoint)}" method="post"` : ` onsubmit="return false"${configured ? ` data-contact-email="${escapeHtml(recipient)}"` : ''}`}><fieldset${configured ? '' : ' disabled'} class="space-y-4">
-          <div class="grid grid-cols-1 @sm:grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 gap-4 @min-[32rem]:grid-cols-2">
             <div>
               <label class="block text-[11.5px] text-text-2 mb-1.5 font-medium">Name
               <input type="text" name="name" required maxlength="200" placeholder="Your name" class="w-full px-3 py-2.5 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[13px] outline-none focus:border-green placeholder:text-text-3 transition-colors" /></label>

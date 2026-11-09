@@ -293,7 +293,7 @@ textarea:focus-visible {
   [data-ws-responsive-section] { min-height: 0 !important; container-type: inline-size; }
   [data-section-text-container] { left: auto !important; top: auto !important; width: 100% !important; min-height: 0 !important; overflow-wrap: anywhere; }
   .ws-stack-mobile { position: relative !important; inset: auto !important; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box; padding-inline: clamp(12px, 2cqw, 24px); }
-  .ws-stack-mobile > [data-ws-responsive-row] { display: grid !important; grid-template-columns: var(--ws-row-columns); gap: 20px; align-items: start; }
+  .ws-stack-mobile > [data-ws-responsive-row] { display: grid !important; grid-template-columns: var(--ws-row-columns); gap: clamp(12px, 2cqw, 20px); align-items: start; }
   .ws-stack-mobile [data-ws-responsive-column] { display: grid !important; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 12px; align-items: start; min-width: 0; }
   .ws-stack-mobile [data-section-object] { position: relative !important; left: auto !important; top: auto !important; width: 100% !important; height: auto !important; min-height: 0 !important; margin: 0; overflow-wrap: anywhere; box-sizing: border-box; grid-column: var(--ws-grid-column) / span var(--ws-grid-span); }
   .ws-stack-mobile [data-ws-object-type="image"] { max-width: calc(var(--ws-item-width, 100) * 12px); justify-self: center; }
@@ -309,6 +309,9 @@ textarea:focus-visible {
 @container (max-width: 700px) {
   [data-ws-navbar-block], [data-ws-navbar-block] [data-ws-content], [data-ws-navbar] { height: auto !important; }
   .ws-block-columns { grid-template-columns: 1fr; }
+}
+/* These rows measure the section, which can be narrower than the page. */
+@container (max-width: 640px) {
   .ws-stack-mobile > [data-ws-responsive-row] { grid-template-columns: minmax(0, 1fr); }
   .ws-stack-mobile [data-ws-responsive-column] { display: flex !important; flex-direction: column; gap: 16px; }
   .ws-stack-mobile [data-ws-object-type="image"], .ws-stack-mobile [data-ws-group-panel="true"] { align-self: center; }
