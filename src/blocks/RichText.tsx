@@ -181,7 +181,7 @@ export function RichText({ blockId, field, text, value, editable = false, multil
   const content: ReactNode = groups ? groups.map((group, index) => group.align ? createElement('span', { key: index, style: { display: 'block', textAlign: group.align } }, group.children) : createElement('span', { key: index }, group.children)) : markdown ? renderMarkdown(text) : text
   // React escapes text and renders only the supported formatting above; never store or render pasted HTML directly.
   const markup = renderToStaticMarkup(createElement('div', null, content)).slice(5, -6)
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (editable && root.current && !dirty.current && root.current.innerHTML !== markup) root.current.innerHTML = markup
   }, [editable, markup])
 
