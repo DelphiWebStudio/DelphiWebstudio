@@ -19,6 +19,22 @@ const baseConfig: SiteConfig = {
 }
 
 describe('exportSiteToHTML', () => {
+  it('exports directory portraits and bios with the same cards as the editor', () => {
+    const block = { id: 'staff', type: 'team' as const, variant: 'directory', props: {
+      title: 'Staff Directory', anchorName: 'staff-directory',
+      members: [
+        { name: 'Test & Sample', role: 'Office', avatar: 'assets/staff.jpg', bio: 'First line\nSecond line <detail>' },
+        ...Array.from({ length: 5 }, () => ({ name: '', role: '', avatar: '', bio: '' })),
+      ],
+    } }
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [block] })
+    expect(html).toContain('id="staff-directory"')
+    expect(html.match(/data-ws-item-field="members"/g)).toHaveLength(6)
+    expect(html).toContain('alt="Portrait of Test &amp; Sample"')
+    expect(html).toContain('First line\nSecond line &lt;detail&gt;')
+    expect(html).toContain('Staff member 6')
+  })
+
   it('exports the current and four previous weekly bulletin PDFs without editor controls', () => {
     const block = { id: 'bulletins', type: 'documentLibrary' as const, variant: 'weekly-bulletins', props: {
       items: [{ title: 'Unassigned' }, { title: 'Photo', src: 'assets/photo.png' }, ...Array.from({ length: 6 }, (_, index) => ({ title: `Bulletin ${6 - index}`, src: `assets/bulletin-${6 - index}.pdf` }))],

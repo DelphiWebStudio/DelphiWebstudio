@@ -89,9 +89,9 @@ export const blockMetadata: BlockMeta[] = [
   {
     type: 'team',
     label: 'Team',
-    description: 'Team member grid with photos and roles',
+    description: 'Team grid or staff directory with portraits and bios',
     category: 'Content',
-    variants: ['grid'],
+    variants: ['grid', 'directory'],
     defaultProps: { title: 'Meet the Team', members: [] },
   },
   {

@@ -1170,7 +1170,7 @@ function renderBlock(block: BlockConfig): string {
     case 'faq':
       return renderFaq(block)
     case 'team':
-      return renderTeam(block)
+      return block.variant === 'directory' ? renderToStaticMarkup(createElement(RenderBlock, { block })) : renderTeam(block)
     case 'contact':
       return renderContact(block)
     case 'newsletter':

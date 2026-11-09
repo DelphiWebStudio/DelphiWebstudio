@@ -10,6 +10,12 @@ import { ProjectMediaLibrary, type MediaAsset } from '@/media/media-library'
 import { toast } from 'sonner'
 import { blockMetadata } from '@/lib/block-metadata'
 
+function scrollToPreviewAnchor(canvas: HTMLElement, anchor: string) {
+  const destination = Array.from(canvas.querySelectorAll<HTMLElement>('[id]')).find(element => element.id === anchor)
+  if (destination) destination.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  else toast('That anchor was not found on this page.')
+}
+
 export function Canvas() {
   const blocks = useConfigStore((s) => {
     const pages = s.config.pages
@@ -33,6 +39,8 @@ export function Canvas() {
   const [marquee, setMarquee] = useState<{ x: number; y: number; endX: number; endY: number } | null>(null)
   const groupDrag = useRef<{ x: number; y: number; members: Array<{ node: HTMLElement; blockId: string; section: number; id: string; x: number; y: number; width: number; areaWidth: number }> } | null>(null)
   const suppressCanvasClick = useRef(false)
+  const previewCanvas = useRef<HTMLDivElement>(null)
+  const pendingAnchor = useRef<{ pageId: string; name: string } | null>(null)
   const referencedAssets = JSON.stringify([...new Set([
     ...blocks.map(block => typeof block.props.assetId === 'string' ? block.props.assetId : '').filter(Boolean),
     ...(JSON.stringify(blocks).match(/assets\/[a-zA-Z0-9._-]+/g) ?? []),
@@ -63,6 +71,14 @@ export function Canvas() {
   const previewWidth = customViewportWidth ?? (viewport === 'desktop' ? 1200 : viewport === 'tablet' ? 768 : 375)
 
   useEffect(() => {
+    const destination = pendingAnchor.current
+    pendingAnchor.current = null
+    if (previewMode && destination && destination.pageId === activePageId && previewCanvas.current) {
+      scrollToPreviewAnchor(previewCanvas.current, destination.name)
+    }
+  }, [activePageId, previewMode])
+
+  useEffect(() => {
     if (!textPlacement && !movingCollage && !mediaPlacement) return
     const cancel = (event: KeyboardEvent) => { if (event.key === 'Escape') { useEditorStore.getState().setTextPlacement(null); useEditorStore.getState().setMediaPlacement(null); useEditorStore.getState().setMovingCollage(null) } }
     window.addEventListener('keydown', cancel)
@@ -71,6 +87,7 @@ export function Canvas() {
 
   const canvasContent = (
     <div
+      ref={previewCanvas}
       className={`@container outline outline-1 rounded-xl ${blocks.length === 0 ? 'min-h-[400px]' : ''} relative z-[1] overflow-clip transition-all duration-300 mx-auto shrink-0`}
       style={{ width: `${previewWidth}px`, ...cssVars, color: 'var(--color-text-0)', backgroundColor: 'var(--color-bg-0)', outlineColor: 'var(--color-border-default)', overflowWrap: 'anywhere' } as React.CSSProperties}
       onPointerDownCapture={event => {
@@ -300,14 +317,21 @@ export function Canvas() {
             e.preventDefault()
             link.closest<HTMLElement>('[data-ws-navbar-submenu]')?.hidePopover?.()
             if (href.startsWith('#')) {
-              const destination = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('[id]')).find(element => element.id === href.slice(1))
-              if (destination) destination.scrollIntoView({ behavior: 'smooth', block: 'start' })
-              else toast('That anchor was not found on this page.')
+              scrollToPreviewAnchor(e.currentTarget, href.slice(1))
               return
             }
             const path = href.split(/[?#]/, 1)[0].replace(/\/$/, '') || '/'
             const target = pages?.find(page => page.path === path && page.webstudioArticle?.status !== 'draft')
-            if (target && href.startsWith('/')) { setActivePage(target.id); selectBlock(null) }
+            if (target && href.startsWith('/')) {
+              const fragmentStart = href.indexOf('#')
+              if (fragmentStart >= 0 && fragmentStart < href.length - 1) {
+                const name = href.slice(fragmentStart + 1)
+                if (target.id === activePageId) scrollToPreviewAnchor(e.currentTarget, name)
+                else pendingAnchor.current = { pageId: target.id, name }
+              }
+              setActivePage(target.id)
+              selectBlock(null)
+            }
             else toast('Open the exported website to follow this link.')
             return
           }
