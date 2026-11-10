@@ -92,8 +92,8 @@ export function Canvas() {
       style={{ width: `${previewWidth}px`, ...cssVars, color: 'var(--color-text-0)', backgroundColor: 'var(--color-bg-0)', outlineColor: 'var(--color-border-default)', overflowWrap: 'anywhere' } as React.CSSProperties}
       onPointerDownCapture={event => {
         // React portals bubble through the canvas even though their menus are outside it.
-        if (!(event.target instanceof Node) || !event.currentTarget.contains(event.target)) return
-        if (mediaPlacement && !previewMode && event.button === 0) {
+        if (previewMode || !(event.target instanceof Node) || !event.currentTarget.contains(event.target)) return
+        if (mediaPlacement && event.button === 0) {
           event.preventDefault(); event.stopPropagation()
           const editor = useEditorStore.getState()
           editor.setMediaPlacement(null)
@@ -118,7 +118,7 @@ export function Canvas() {
           }
           return
         }
-        if (!previewMode && event.button === 0 && event.target instanceof Element && !event.target.closest('button,[contenteditable="true"]')) {
+        if (event.button === 0 && event.target instanceof Element && !event.target.closest('button,[contenteditable="true"]')) {
           const object = event.target.closest<HTMLElement>('[data-section-object]')
           const blockId = object?.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id')
           const section = Number(object?.closest<HTMLElement>('[data-editor-section]')?.dataset.editorSection)
@@ -147,7 +147,7 @@ export function Canvas() {
             }
           }
         }
-        if (event.shiftKey && event.button === 0 && !previewMode && !textPlacement && !movingCollage && event.target instanceof Element && !event.target.closest('[data-section-object], [contenteditable], button, a, input')) {
+        if (event.shiftKey && event.button === 0 && !textPlacement && !movingCollage && event.target instanceof Element && !event.target.closest('[data-section-object], [contenteditable], button, a, input')) {
           const sectionElement = event.target.closest<HTMLElement>('[data-editor-section]')
           const section = Number(sectionElement?.dataset.editorSection)
           const blockId = sectionElement?.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id')
@@ -157,7 +157,7 @@ export function Canvas() {
             event.currentTarget.setPointerCapture(event.pointerId); event.preventDefault(); event.stopPropagation(); return
           }
         }
-        if (event.altKey && event.button === 0 && !previewMode) {
+        if (event.altKey && event.button === 0) {
           const layers = Array.from(new Set(document.elementsFromPoint(event.clientX, event.clientY).map(element => element.closest<HTMLElement>('[data-section-object], [data-placed-media], [data-ws-item-field][data-ws-item-index]')).filter((element): element is HTMLElement => !!element && event.currentTarget.contains(element))))
           if (layers.length > 1) {
             const editor = useEditorStore.getState(), current = editor.selectedSectionObject, media = editor.selectedPlacedMedia, composite = editor.selectedCompositeItem
@@ -176,7 +176,7 @@ export function Canvas() {
         if (event.target instanceof Element && !event.target.closest('[data-section-object]')) useEditorStore.getState().selectSectionObject(null)
         if (event.target instanceof Element && !event.target.closest('[data-ws-item-field]')) useEditorStore.getState().selectCompositeItem(null)
         if (event.target instanceof Element && !event.target.closest('[data-placed-media]')) useEditorStore.getState().selectPlacedMedia(null)
-        if (movingCollage && event.button === 0 && !previewMode) {
+        if (movingCollage && event.button === 0) {
           event.preventDefault(); event.stopPropagation()
           const editor = useEditorStore.getState()
           if (movingCollage.projectId !== editor.activeProjectId || movingCollage.pageId !== useConfigStore.getState().activePageId) { editor.setMovingCollage(null); toast.error('The page changed. Select the collage again.'); return }
@@ -192,7 +192,7 @@ export function Canvas() {
           } catch (error) { editor.setMovingCollage(null); toast.error(error instanceof Error ? error.message : 'The collage could not be moved.') }
           return
         }
-        if (!textPlacement || event.button !== 0 || previewMode) return
+        if (!textPlacement || event.button !== 0) return
         event.preventDefault(); event.stopPropagation()
         useEditorStore.getState().setTextPlacement(null)
         const isPanel = textPlacement.kind === 'panel'
@@ -307,7 +307,17 @@ export function Canvas() {
         if (updates.length) useConfigStore.getState().updateMultipleBlockProps(updates)
         if (event.key === 'Delete') editor.setSectionObjects([])
       }}
-      onClickCapture={event => { if (suppressCanvasClick.current || (event.shiftKey && event.target instanceof Element && event.target.closest('[data-section-object]'))) { suppressCanvasClick.current = false; event.stopPropagation(); event.preventDefault() } }}
+      onClickCapture={event => {
+        if (previewMode) {
+          suppressCanvasClick.current = false
+          return
+        }
+        if (suppressCanvasClick.current || (event.shiftKey && event.target instanceof Element && event.target.closest('[data-section-object]'))) {
+          suppressCanvasClick.current = false
+          event.stopPropagation()
+          event.preventDefault()
+        }
+      }}
       onClick={(e) => {
         if (previewMode && !e.defaultPrevented && e.target instanceof Element) {
           const link = e.target.closest('a[href]')
