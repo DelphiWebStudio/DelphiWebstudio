@@ -4,7 +4,17 @@ Delphi Web Studio Pro is an offline-first visual website editor for Windows. The
 
 Project repository: [DelphiWebStudio/DelphiWebstudio](https://github.com/DelphiWebStudio/DelphiWebstudio).
 
-Use the [illustrated editor reference](docs/pdf/Delphi%20Web%20Studio%20Editor%20Reference.pdf) for the current menus, properties windows, Save and Save As, and project media library. The [editable reference](docs/guides/Delphi%20Web%20Studio%20Editor%20Reference.docx) is also available.
+## Illustrated guides
+
+| Guide | Editable | PDF |
+| --- | --- | --- |
+| User Guide | [DOCX](docs/guides/Delphi%20Web%20Studio%20Pro%20User%20Guide.docx) | [PDF](docs/pdf/Delphi%20Web%20Studio%20Pro%20User%20Guide.pdf) |
+| Editor Reference | [DOCX](docs/guides/Delphi%20Web%20Studio%20Pro%20Editor%20Reference.docx) | [PDF](docs/pdf/Delphi%20Web%20Studio%20Pro%20Editor%20Reference.pdf) |
+| Complete Workflow | [DOCX](docs/guides/Delphi%20Web%20Studio%20Pro%20Complete%20Workflow.docx) | [PDF](docs/pdf/Delphi%20Web%20Studio%20Pro%20Complete%20Workflow.pdf) |
+| Runtime Flow | [DOCX](docs/guides/Delphi%20Web%20Studio%20Pro%20Runtime%20Flow.docx) | [PDF](docs/pdf/Delphi%20Web%20Studio%20Pro%20Runtime%20Flow.pdf) |
+| Engineering Guide | [DOCX](docs/guides/Delphi%20Web%20Studio%20Pro%20Engineering%20Guide.docx) | [PDF](docs/pdf/Delphi%20Web%20Studio%20Pro%20Engineering%20Guide.pdf) |
+| Test Guide | [DOCX](docs/guides/Delphi%20Web%20Studio%20Pro%20Test%20Guide.docx) | [PDF](docs/pdf/Delphi%20Web%20Studio%20Pro%20Test%20Guide.pdf) |
+| Capabilities and Publishing Reference | [DOCX](docs/guides/Delphi%20Web%20Studio%20Pro%20Capabilities%20and%20Publishing%20Reference.docx) | [PDF](docs/pdf/Delphi%20Web%20Studio%20Pro%20Capabilities%20and%20Publishing%20Reference.pdf) |
 
 ## Current status
 
@@ -28,7 +38,7 @@ npm run build
 
 Vite starts at http://localhost:5173; build includes TypeScript checking. Vite alone does not run Vercel API functions. Cloud AI/publishing are optional services; do not enter production credentials or publish sites during ordinary checks.
 
-Native development targets RAD Studio 37.0, Windows x64. WebView2 binding remains to be validated. Node is a development tool, not an end-user requirement.
+Native development uses RAD Studio 37.0. The VCL WebView2 host is built for Win32 and Win64. Node is required for editor development and building the web bundle. Running the staged Windows app requires the WebView2 Runtime.
 
 ## Attribution
 
