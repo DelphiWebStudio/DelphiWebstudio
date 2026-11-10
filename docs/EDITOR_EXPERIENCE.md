@@ -2,9 +2,19 @@
 
 ## Current editor controls
 
-The [illustrated Editor Reference](pdf/Delphi%20Web%20Studio%20Editor%20Reference.pdf) describes the current Windows interface. File, Edit, Insert, View, and Advanced collect the editor commands; Page tools holds Plan pages and Check site. The toolbar keeps project status, preview sizes, and common commands visible. Technical imports, JSON, and history live under Advanced.
+The [illustrated Editor Reference](pdf/Delphi%20Web%20Studio%20Pro%20Editor%20Reference.pdf) describes the current Windows interface. File, Edit, Insert, View, and Advanced collect the editor commands; Page tools holds Plan pages and Check site. The toolbar keeps project status, preview sizes, and common commands visible. Technical imports, JSON, and history live under Advanced.
 
 The Elements palette has categories, visual cards, and heading and paragraph presets. Object properties open in a floating window with paired position and size fields, and the selection toolbar exposes alignment, layering, duplicate, and delete. Use Shift+Click for a group or Alt+Click for overlapping objects. Use View > Media library or a Browse button in Properties to select media by thumbnail.
+
+The page strip scrolls separately from the five fixed commands beside **Add page**. Rename, Duplicate, Search details, Change address and Delete act on the active tab. Home keeps its fixed address and cannot be deleted. **View > Manage Media** opens folder organization, while **View > Media library** opens placement.
+
+Select the Navbar block to edit its **Navigation Links**. A parent link remains clickable and a separate arrow opens its submenu in Preview and the generated site. Add and reorder children in Properties. Escape closes the submenu and restores focus to the arrow.
+
+The Calendar block exposes **Manage events** in editing mode. Visitors can change the displayed month and see its events. The Team Directory shows at most two lines of biography on a card and offers a scrollable full biography when the text overflows. The responsive Gallery retains original image proportions and supports an enlarged photo view with captions. Use Preview and the local website review to check these visitor interactions.
+
+Choose **Wide prose** for longer articles such as a history or parish guide. It uses a wider reading area, justifies paragraph text when the content container is at least 600 CSS pixels, and keeps narrow paragraphs left aligned. Saved prose styling is applied before the editing canvas paints.
+
+Check the footer and contact page at all three preset preview widths. A multi-column footer uses one column on narrow phones, two when its container reaches 28 rem, and automatically fits columns from 45 rem. The bottom links wrap in their own group. The wider contact form stacks Name and Email on phones and places them side by side from a 32 rem container. Preview and export use the same breakpoints.
 
 ## Earlier editor validation notes
 

@@ -4,7 +4,13 @@
 
 Open **View > Media library**, **Insert > Image, video or document**, or **Open media library** in the Media tab. Import a file or folder, search by name, and narrow the results by folder or type. Choose a thumbnail and **Add to page**. For images, click a section or panel to place the image; Escape cancels placement. Other supported types become their matching page blocks.
 
-The grid pages through 36 assets at a time. A **Browse images** or **Browse files** button in Properties opens the same library for that field. **Choose file** updates the field instead of creating a new page object. Imported bytes remain in the project media store and travel with its ZIP. See the [illustrated reference](pdf/Delphi%20Web%20Studio%20Editor%20Reference.pdf).
+The grid pages through 36 assets at a time. A **Browse images** or **Browse files** button in Properties opens the same library for that field. **Choose file** updates the field instead of creating a new page object. Imported bytes remain in the project media store and travel with its ZIP. See the [illustrated reference](pdf/Delphi%20Web%20Studio%20Pro%20Editor%20Reference.pdf).
+
+## Organize project files
+
+Choose **View > Manage Media** or **Manage Media** on the Media tab. **New folder** creates a project folder, optionally within another folder. Import into the current folder, drag files onto a folder, or select files and choose **Move to folder**. **All media** displays the whole library. **Unfiled** displays files outside named folders.
+
+Folder membership is project metadata. Moving a file keeps its asset ID, portable path and bytes, so existing images and PDF links keep working. An editable project ZIP preserves both empty folders and the folder assignment of each file. For placement or replacement from an existing field, use the separate Media library picker.
 
 ## PDF controls and earlier media validation notes
 
@@ -31,15 +37,15 @@ Duplicating a project also copies its media into the new project's library. Medi
 
 Undoing an image replacement restores its prior dimensions as well as its bytes and checksum. Older browser records that lack those dimensions are decoded when possible. If the media changes during undo, the operation stops instead of overwriting the newer replacement.
 
-Save downloads a project ZIP with a manifest and the project's media; Open validates it and restores a separate local project. Projects without media can still be saved as JSON. Browser download behavior governs the destination. Previous replacement versions are retained in the browser but are not included in project ZIPs.
+Save downloads a project ZIP with a manifest and the project's media. Open validates the package and reuses a local draft when the same saved version is already present. Projects without media can still be saved as JSON. Browser download behavior governs the destination. Previous replacement versions are retained in the browser but are not included in project ZIPs.
 
 Before creating a project ZIP, Save verifies each stored file's size and SHA-256 checksum. Website export also verifies referenced media. If a file no longer matches its recorded metadata, the operation stops with an error so the file can be restored or replaced. Large media collections can take longer to save or export while they are checked.
 
-Site export includes referenced media and a local PDF.js viewer with page navigation, zoom, text search, password prompting and download. Print opens the PDF in the browser. Exported styling is embedded and uses system font fallbacks. User-supplied remote media and optional analytics can still require network access; complete offline export remains unfinished. Browser IndexedDB is not a substitute for a saved project ZIP, and native atomic file saving remains future desktop work.
+Site export includes referenced media and a local PDF.js viewer with page navigation, zoom, text search, password prompting and download. Print opens the PDF in the browser. Exported styling is embedded and uses system font fallbacks. User-supplied remote media and optional analytics can still require network access; complete offline export remains unfinished. Keep a saved project ZIP in addition to the browser’s local media database. See [project files](PROJECT_FILES.md) for desktop save and recovery behavior.
 
 The PDF preview and exported viewer initially fit pages to the available width without enlarging them. Zoom is expressed relative to that fit; zooming in can intentionally require horizontal scrolling. The exported viewer was checked at 375, 768 and 1440 pixels using the sample bulletin, including phone-width search and zoom. Individual PDFs and devices may still need additional testing.
 
-Browsers commonly block PDF.js modules when a website is opened directly from a `file:` address. In that case, the exported page hides the nonfunctional embedded viewer and explains that a local web server is needed; if the PDF link is enabled, visitors can open or download the PDF directly. Serving the extracted site locally allows the bundled viewer to run without an internet connection. A built-in offline site server is not yet included in the exported ZIP.
+Browsers commonly block PDF.js modules when a website is opened directly from a `file:` address. In that case, the exported page hides the nonfunctional embedded viewer and explains that a local web server is needed; if the PDF link is enabled, visitors can open or download the PDF directly. Serving the extracted site locally allows the bundled viewer to run without an internet connection. The Windows editor can serve a reviewed website ZIP over local HTTP through Export > Open reviewed site in browser.
 
 Validation included a browser import, save and reopen of 1,000 images and 100 PDFs; PDF preview/search and export viewer were exercised locally with external requests blocked. Complex PDF fonts, large files, accessibility, and all supported document variants require further testing before release.
 

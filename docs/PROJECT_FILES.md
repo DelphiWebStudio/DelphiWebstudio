@@ -4,6 +4,16 @@ Last changed: 2026-11-01. Tracking: issue #2. The specified M1 five-page save, r
 
 The code panel can be opened with its toolbar button or `J`, and its close button returns focus to the toolbar. The JSON editor has an accessible label and announces validation errors. Applying a JSON draft is blocked if the active project or configuration changed after editing began; copy the draft before cancelling and reopening. An isolated WebView2 test checked the keyboard shortcut, error, focus and stale-draft behavior. This is not a full accessibility audit.
 
+## Current project commands
+
+The page tabs stay together. The commands beside **Add page** act on the selected page. **Change address** and **Delete** are disabled on Home. **Check site** is under **Page tools**.
+
+The editor matches a reopened file to a draft by portable ID and saved manifest snapshot. Reopening the same saved version reuses its local draft and preserves later unsaved changes. Opening a different saved snapshot can create a separate draft. Save updates the known file path after a successful desktop save. Save As chooses a different target. Successful replacements discard temporary recovery material. Use a separate backup for a retained copy.
+
+Media folders belong to the saved project. Moving a file changes its folder assignment while keeping its asset reference, so existing links still resolve after save and reopen.
+
+Use **Local Storage** on the Dashboard to inspect per-project media and revision sizes. A revision is a profile-local snapshot. Save and verify a separate project file before removing a revision or clearing media belonging to a removed draft.
+
 ## Enable and use
 
 The dashboard offers Personal, Portfolio, Community, Church, School club, Business, Documentation and Blog starters. Each begins with editable prompts suited to its purpose; replace the prompts with your own information. **Start blank** creates an empty site instead.
@@ -12,7 +22,7 @@ For a Content section, select text in the Body field and use **Bold**, **Italic*
 
 The editor's **Mode** menu chooses an initial workspace: Beginner opens Components, Designer opens Layers and the Design panel when no block is selected, and Professional opens Layers and the editable project JSON. All modes work on the same project and you can switch panels yourself. Professional HTML/CSS/JS source editing is not yet implemented.
 
-Use the duplicate icon beside the active page to create a copy with a new address. Its blocks receive new IDs and can be edited independently, except for explicitly shared headers or footers, which remain shared. Links in the copy keep their original destinations. Copied article pages start as drafts. Undo removes the duplicate.
+Use the Duplicate icon beside Add page to create a copy with a new address. Its blocks receive new IDs and can be edited independently, except for explicitly shared headers or footers, which remain shared. Links in the copy keep their original destinations. Copied article pages start as drafts. Undo removes the duplicate.
 
 In the editor's **Components** tab, select a section on the page, enter a name under **Reusable sections**, and choose **Save selected section**. Select another page and click the saved name to insert an independent copy; later edits to a copy do not change the saved section. Saved sections belong to the project and are included when it is saved. Removing a saved section does not remove copies already on pages, and can be undone.
 
@@ -138,11 +148,11 @@ ZIP export assigns fixed timestamps to files and folder entries. A local test co
 
 ## Page addresses
 
-Page addresses can be changed with the link icon beside the active page. Home stays at `/`; other paths are validated and the change can be undone. The dialog offers to update Content text links and known Hero, CTA, Banner, Navbar and Footer destinations in the same undoable change. External bookmarks and links in other content are not rewritten, so check them after changing an address.
+Page addresses can be changed with Change address beside Add page. Home stays at `/`; other paths are validated and the change can be undone. The dialog offers to update Content text links and known Hero, CTA, Banner, Navbar and Footer destinations in the same undoable change. External bookmarks and links in other content are not rewritten, so check them after changing an address.
 
 Page renames require a nonempty name. Invalid or unchanged rename requests leave the project and undo history unchanged; a valid rename can be undone and redone.
 
-Use the magnifying glass beside the active page to set its search title and description. The exported page uses these for HTML and sharing metadata; blank fields fall back to the site-wide settings. These edits are saved with the project and can be undone.
+Use Search details beside Add page to set its search title and description. The exported page uses these for HTML and sharing metadata; blank fields fall back to the site-wide settings. These edits are saved with the project and can be undone.
 
 If a public site URL is configured in Settings, ZIP export also writes canonical and sharing URLs for each page using that address and its subfolder. Enter the final address carefully; the app does not verify or publish the website.
 

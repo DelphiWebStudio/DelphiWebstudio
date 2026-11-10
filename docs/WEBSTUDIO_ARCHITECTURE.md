@@ -1,5 +1,25 @@
 # Delphi Web Studio Pro architecture map
 
+Last reviewed November 9, 2026 against application source revision fe31cb3. See the [Engineering Guide](pdf/Delphi%20Web%20Studio%20Pro%20Engineering%20Guide.pdf) for the detailed implementation and the [Runtime Flow](pdf/Delphi%20Web%20Studio%20Pro%20Runtime%20Flow.pdf) for execution order.
+
+## Current architecture
+
+| Area | Ownership |
+| --- | --- |
+| Windows shell | desktop/DelphiWebStudio/WebStudio.Main.dfm defines the form. WebStudio.Main.pas hosts WebView2, loads the adjacent editor bundle and coordinates native dialogs and downloads. |
+| Bridge | src/desktop/native-bridge.ts and bridge-protocol.ts define editor requests. desktop/bridge/WebStudio.Bridge.pas checks message origin and supported operations. |
+| Site and editing state | src/store/configStore.ts holds page and block content with undo. editorStore.ts tracks the active session. projectsStore.ts owns local drafts and saved manifest metadata. |
+| Page commands | src/editor/CanvasToolbar.tsx separates scrolling tabs from actions derived from the selected page ID. src/project/page-links.ts visits known link fields, including Navbar submenus. |
+| Media | src/media/media-library.ts stores project-scoped bytes and metadata. MediaLibraryDialog.tsx distinguishes picker and manager modes. Moving between folders keeps the asset ID and portable path. |
+| Saved project | src/project/project-file.ts validates the versioned manifest. ProjectFileCommands.tsx matches reopened saved snapshots to existing drafts and packages media. desktop/project/WebStudio.ProjectSave.pas supports native staged replacement. |
+| Site output | src/lib/export-html.ts renders independent HTML pages, rewrites known links and packages media. Calendar, Navbar, gallery and biography interactions use client scripts. src/routes/Deploy.tsx separates file review, local browser preview and optional deployment. |
+
+Responsive rows in src/index.css and src/lib/export.css reflow from 940 px and collapse when the section container is at most 640 px. This is separate from the 700 px page-column rule. The Contact and multi-column Footer blocks use container widths for their internal grids. The native local website preview is implemented in desktop/project/WebStudio.WebsitePreview.pas and uses a temporary loopback server for the reviewed ZIP.
+
+## Original upstream baseline
+
+The remainder records the inspected upstream starting point and the first portable-project increment. Use the map above for current behavior.
+
 Last changed: 2026-10-29. Inspected commit: 9818eb43a88e01b23cb55752e19902d8285a853b.
 
 Entry: src/main.tsx -> src/App.tsx (BrowserRouter) -> Dashboard/Editor/Components/Deploy/Settings. src/layout/AppLayout.tsx and TopNav.tsx provide the web shell.
