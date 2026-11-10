@@ -2,11 +2,12 @@ import { createElement, useEffect, useLayoutEffect, useRef, useState, type React
 import { createPortal } from 'react-dom'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { useConfigStore } from '@/store/configStore'
-import { renderMarkdown } from '@/lib/markdown'
+import { markdownBlockClasses, markdownListClass, renderMarkdown } from '@/lib/markdown'
 import { chooseWindowsFont } from '@/desktop/native-bridge'
 import { WindowsColorInput } from '@/editor/WindowsColorInput'
 
-type Run = { text: string; font?: string; size?: number; color?: string; bold?: boolean; italic?: boolean; underline?: boolean; href?: string; align?: 'left' | 'center' | 'right' | 'justify' }
+type MarkdownTag = keyof typeof markdownBlockClasses
+type Run = { text: string; font?: string; size?: number; color?: string; bold?: boolean; italic?: boolean; underline?: boolean; href?: string; align?: 'left' | 'center' | 'right' | 'justify'; tag?: MarkdownTag; line?: number }
 type Props = { blockId: string; field: string; text: string; value: unknown; editable?: boolean; multiline?: boolean; markdown?: boolean; position?: { x: number; y: number; width?: number; height?: number }; fill?: boolean; alignment?: unknown; onDeleteBox?: () => void }
 let draggedText: { element: HTMLElement; range: Range } | null = null
 
@@ -24,12 +25,15 @@ export function RichText({ blockId, field, text, value, editable = false, multil
   const [guides, setGuides] = useState<{ vertical?: { x: number; top: number; height: number }; horizontal?: { y: number; left: number; width: number } }>({})
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const [clipboardError, setClipboardError] = useState('')
+  const [linkEditor, setLinkEditor] = useState<{ address: string; hasLink: boolean; error?: string } | null>(null)
+  const linkOpen = linkEditor !== null
   const runs = Array.isArray(value) ? value.filter((item): item is Run => !!item && typeof item === 'object' && typeof item.text === 'string') : null
 
   function save() {
     const element = root.current
     if (!element || !editable || !dirty.current) return
     const output: Run[] = []
+    let line = 0
     const collect = (node: Node, style: Omit<Run, 'text'>) => {
       if (node.nodeType === Node.TEXT_NODE) {
         if (node.textContent) output.push({ text: node.textContent, ...style })
@@ -38,7 +42,11 @@ export function RichText({ blockId, field, text, value, editable = false, multil
       if (!(node instanceof HTMLElement)) return
       if (node.tagName === 'BR') { output.push({ text: '\n', ...style }); return }
       const next = { ...style }
-      if (node.tagName === 'LI') {
+      const markdownTag = markdown && Object.hasOwn(markdownBlockClasses, node.localName)
+      if (markdownTag) {
+        next.tag = node.localName as MarkdownTag
+        next.line = ++line
+      } else if (node.tagName === 'LI') {
         if (output.length && !output[output.length - 1].text.endsWith('\n')) output.push({ text: '\n' })
         if (!node.textContent?.trimStart().startsWith('• ')) output.push({ text: '• ', ...style })
       }
@@ -56,12 +64,19 @@ export function RichText({ blockId, field, text, value, editable = false, multil
       if (node.tagName === 'U' || node.style.textDecorationLine.includes('underline')) next.underline = true
       else if (node.style.textDecorationLine === 'none') next.underline = false
       const href = node.tagName === 'A' ? node.getAttribute('href') : null
-      if (href && !/[\\\p{Cc}]/u.test(href) && !href.startsWith('//') && (!/^[a-z][a-z\d+.-]*:/i.test(href) || /^(https?:|mailto:|tel:)/i.test(href))) next.href = href
-      if ((node.tagName === 'P' || node.tagName === 'DIV') && output.length && !output[output.length - 1].text.endsWith('\n')) output.push({ text: '\n' })
+      if (href && !/[\\\p{Cc}]/u.test(href) && !href.startsWith('//') && (!/^[a-z][a-z\d+.-]*:/i.test(href) || /^(https?:|mailto:|tel:)/i.test(href))) {
+        next.href = href
+        next.underline ??= true
+      }
+      if (!markdownTag && (node.tagName === 'P' || node.tagName === 'DIV') && output.length && !output[output.length - 1].text.endsWith('\n')) output.push({ text: '\n' })
       node.childNodes.forEach(child => collect(child, next))
     }
     element.childNodes.forEach(node => collect(node, {}))
-    const plain = output.map(item => item.text).join('')
+    const plain = output.map((item, index) => {
+      const previous = output[index - 1]
+      if (!previous || previous.line === item.line || previous.text.endsWith('\n')) return item.text
+      return '\n' + item.text
+    }).join('')
     const current = useConfigStore.getState().getActivePageBlocks().find(block => block.id === blockId)
     dirty.current = false
     if (!current) return
@@ -136,7 +151,64 @@ export function RichText({ blockId, field, text, value, editable = false, multil
     menuActive.current = false
     savedRange.current = null
     setMenu(null)
+    setLinkEditor(null)
     save()
+  }
+
+  function showLinkEditor() {
+    const range = savedRange.current
+    if (!range || range.collapsed || !root.current?.contains(range.commonAncestorContainer)) return
+    const links = Array.from(root.current.querySelectorAll('a[href]')).filter(link => range.intersectsNode(link))
+    const firstAddress = links[0]?.getAttribute('href') ?? ''
+    const address = links.every(link => link.getAttribute('href') === firstAddress) ? firstAddress : ''
+    setLinkEditor({ address, hasLink: links.length > 0 })
+  }
+
+  function openTextSettings(clientX: number, clientY: number, link?: Element | null, linkOnly = false) {
+    const element = root.current
+    if (!element) return
+    const selection = window.getSelection()
+    let range = selection?.rangeCount ? selection.getRangeAt(0) : null
+    if (!range || range.collapsed || !element.contains(range.commonAncestorContainer)) {
+      const clickedLink = link?.closest('a[href]')
+      if (linkOnly && !clickedLink) return
+      range = document.createRange()
+      range.selectNodeContents(clickedLink && element.contains(clickedLink) ? clickedLink : element)
+      selection?.removeAllRanges()
+      selection?.addRange(range)
+    }
+    savedRange.current = range.cloneRange()
+    menuActive.current = true
+    setClipboardError('')
+    menuMoved.current = false
+    setMenu({ x: Math.max(0, Math.min(clientX, window.innerWidth - 320)), y: Math.max(0, Math.min(clientY, window.innerHeight - 200)) })
+    if (linkOnly) showLinkEditor()
+    else setLinkEditor(null)
+  }
+
+  function updateLink(remove = false) {
+    if (!linkEditor) return
+    const address = linkEditor.address.trim()
+    if (!remove && (/[\s\\\p{Cc}]/u.test(address) || !/^(?:https?:\/\/[^/?#]+|\/(?!\/)|#[^#]|mailto:[^?]+|tel:[^?]+)/i.test(address))) {
+      setLinkEditor({ ...linkEditor, error: 'Choose a page or enter a valid website address, page path, #anchor, email, or phone link.' })
+      return
+    }
+    const element = root.current
+    const range = savedRange.current
+    if (!element || !range || range.collapsed || !element.contains(range.commonAncestorContainer)) {
+      setLinkEditor({ ...linkEditor, error: 'Select the text again before applying a link.' })
+      return
+    }
+    element.focus({ preventScroll: true })
+    const selection = window.getSelection()
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+    if (!document.execCommand(remove ? 'unlink' : 'createLink', false, address)) {
+      setLinkEditor({ ...linkEditor, error: 'The link could not be changed. Select the text and try again.' })
+      return
+    }
+    dirty.current = true
+    close()
   }
   useLayoutEffect(() => {
     const element = menuElement.current
@@ -153,7 +225,7 @@ export function RichText({ blockId, field, text, value, editable = false, multil
     }
     element.style.maxHeight = `${Math.max(0, window.innerHeight - 32)}px`
     element.style.overflowY = 'auto'
-  }, [menu])
+  }, [menu, linkOpen])
   useEffect(() => {
     if (!menu) return
     const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') close() }
@@ -171,14 +243,26 @@ export function RichText({ blockId, field, text, value, editable = false, multil
       ...(typeof run.bold === 'boolean' ? { fontWeight: run.bold ? 'bold' : 'normal' } : {}), ...(typeof run.italic === 'boolean' ? { fontStyle: run.italic ? 'italic' : 'normal' } : {}), ...(typeof run.underline === 'boolean' ? { textDecoration: run.underline ? 'underline' : 'none' } : {}),
     }, ...(typeof run.href === 'string' && !!run.href && !/[\\\p{Cc}]/u.test(run.href) && !run.href.startsWith('//') && (!/^[a-z][a-z\d+.-]*:/i.test(run.href) || /^(https?:|mailto:|tel:)/i.test(run.href)) ? { href: run.href } : {}),
   }, run.text))
-  const groups = runs?.reduce<{ align?: Run['align']; children: ReactNode[] }[]>((result, run, index) => {
+  const groups = runs?.reduce<{ align?: Run['align']; tag?: MarkdownTag; line?: number; children: ReactNode[] }[]>((result, run, index) => {
     const align = run.align === 'left' || run.align === 'center' || run.align === 'right' || run.align === 'justify' ? run.align : undefined
+    const tag = markdown && run.tag && Object.hasOwn(markdownBlockClasses, run.tag) ? run.tag : undefined
     const last = result[result.length - 1]
-    if (last && last.align === align) last.children.push(formattedRuns![index])
-    else result.push({ align, children: [formattedRuns![index]] })
+    if (last && last.align === align && last.tag === tag && last.line === run.line) last.children.push(formattedRuns![index])
+    else result.push({ align, tag, line: run.line, children: [formattedRuns![index]] })
     return result
   }, [])
-  const content: ReactNode = groups ? groups.map((group, index) => group.align ? createElement('span', { key: index, style: { display: 'block', textAlign: group.align } }, group.children) : createElement('span', { key: index }, group.children)) : markdown ? renderMarkdown(text) : text
+  const lines = groups?.reduce<{ list: boolean; children: ReactNode[] }[]>((result, group, index) => {
+    const element = createElement(group.tag ?? 'span', {
+      key: index,
+      className: group.tag ? markdownBlockClasses[group.tag] : undefined,
+      style: group.align ? { display: group.tag === 'li' ? undefined : 'block', textAlign: group.align } : undefined,
+    }, group.children)
+    const last = result[result.length - 1]
+    if (group.tag === 'li' && last?.list) last.children.push(element)
+    else result.push({ list: group.tag === 'li', children: [element] })
+    return result
+  }, [])
+  const content: ReactNode = lines ? lines.map((line, index) => line.list ? createElement('ul', { key: index, className: markdownListClass }, line.children) : line.children[0]) : markdown ? renderMarkdown(text) : text
   // React escapes text and renders only the supported formatting above; never store or render pasted HTML directly.
   const markup = renderToStaticMarkup(createElement('div', null, content)).slice(5, -6)
   useLayoutEffect(() => {
@@ -225,21 +309,22 @@ export function RichText({ blockId, field, text, value, editable = false, multil
         insertPastedHtml(html, event.clipboardData.getData('text/plain'))
         dirty.current = true
       }}
-      onKeyDown={event => { event.stopPropagation(); if (!multiline && event.key === 'Enter') { event.preventDefault(); root.current?.blur() } }}
+      onKeyDown={event => {
+        event.stopPropagation()
+        if (editable && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+          event.preventDefault()
+          const bounds = event.currentTarget.getBoundingClientRect()
+          const node = window.getSelection()?.anchorNode
+          openTextSettings(bounds.right, bounds.top, node instanceof Element ? node : node?.parentElement, true)
+        } else if (!multiline && event.key === 'Enter') {
+          event.preventDefault()
+          root.current?.blur()
+        }
+      }}
       onContextMenu={event => {
         if (!editable) return
         event.preventDefault(); event.stopPropagation()
-        const selection = window.getSelection()
-        let range = selection?.rangeCount ? selection.getRangeAt(0) : null
-        if ((!range || range.collapsed || !root.current?.contains(range.commonAncestorContainer)) && root.current) {
-          range = document.createRange(); range.selectNodeContents(root.current)
-          selection?.removeAllRanges(); selection?.addRange(range)
-        }
-        savedRange.current = range && root.current?.contains(range.commonAncestorContainer) ? range.cloneRange() : null
-        menuActive.current = true
-        setClipboardError('')
-        menuMoved.current = false
-        setMenu({ x: Math.max(0, Math.min(event.clientX, window.innerWidth - 320)), y: Math.max(0, Math.min(event.clientY, window.innerHeight - 200)) })
+        openTextSettings(event.clientX, event.clientY, event.target instanceof Element ? event.target : null)
       }}
       onDragStart={event => {
         if (!editable) return
@@ -336,6 +421,21 @@ export function RichText({ blockId, field, text, value, editable = false, multil
       </div>
       </details>
       {clipboardError && <p role="status" className="mb-2 text-xs">{clipboardError}</p>}
+      {linkEditor && <form aria-label="Text link" className="order-1 mb-3 space-y-2 border-b border-gray-200 pb-3" onSubmit={event => { event.preventDefault(); updateLink() }}>
+        <label className="block text-xs">Link destination
+          <input autoFocus value={linkEditor.address} onChange={event => setLinkEditor({ ...linkEditor, address: event.target.value, error: undefined })} placeholder="https://example.com or #anchor" className="mt-1 w-full rounded border border-gray-400 p-2 text-sm" />
+        </label>
+        <select aria-label="Choose a destination page" value="" onChange={event => setLinkEditor({ ...linkEditor, address: event.target.value, error: undefined })} className="w-full rounded border border-gray-400 p-2 text-sm">
+          <option value="" disabled>Choose a site page…</option>
+          {(useConfigStore.getState().config.pages ?? []).filter(page => page.webstudioArticle?.status !== 'draft').map(page => <option key={page.id} value={page.path}>{page.name}</option>)}
+        </select>
+        {linkEditor.error && <p role="alert" className="text-xs text-red-700">{linkEditor.error}</p>}
+        <div className="flex flex-wrap gap-2">
+          <button type="submit" className="rounded bg-blue-700 px-2 py-1 text-white">Apply link</button>
+          {linkEditor.hasLink && <button type="button" className="rounded border border-gray-400 px-2 py-1" onClick={() => updateLink(true)}>Remove link</button>}
+          <button type="button" className="rounded border border-gray-400 px-2 py-1" onClick={() => setLinkEditor(null)}>Cancel</button>
+        </div>
+      </form>}
       <div className="order-2 mt-4 flex flex-wrap gap-1 border-t border-gray-200 pt-3" aria-label="Paragraph alignment">
         {(['left', 'center', 'right', 'justify'] as const).map(align => <button key={align} type="button" aria-label={`Align ${align}`} disabled={!savedRange.current || savedRange.current.collapsed} className="rounded border border-gray-400 px-2 py-1 capitalize disabled:opacity-40" onMouseDown={event => event.preventDefault()} onClick={() => {
           apply({ textAlign: align, display: 'block' }); setMenu({ ...menu })
@@ -380,6 +480,7 @@ export function RichText({ blockId, field, text, value, editable = false, multil
         <label className="mb-3 block text-xs text-gray-700">Font size (px)<input key={selectedSize} aria-label="Text font size" type="number" min="6" max="200" defaultValue={selectedSize} className="mt-1 w-full rounded border border-gray-400 p-2 text-sm text-black" onChange={event => { const size = Number(event.target.value); if (size >= 6 && size <= 200) apply({ fontSize: `${size}px` }) }} /></label>
         <div className="mb-2 flex items-center justify-between text-xs">Text color<WindowsColorInput label="Text color" value={selectedColor} onChange={value => { apply({ color: value }); setMenu({ ...menu }) }} className="h-7 w-10 rounded border border-gray-400" /></div>
         <div className="flex gap-2"><button type="button" className="rounded border border-gray-400 px-2 py-1 font-bold" onMouseDown={event => event.preventDefault()} onClick={() => { apply({ fontWeight: selectedStyle && (selectedStyle.fontWeight === 'bold' || Number(selectedStyle.fontWeight) >= 600) ? 'normal' : 'bold' }); setMenu({ ...menu }) }}>Bold</button><button type="button" className="rounded border border-gray-400 px-2 py-1 italic" onMouseDown={event => event.preventDefault()} onClick={() => { apply({ fontStyle: selectedStyle?.fontStyle === 'italic' ? 'normal' : 'italic' }); setMenu({ ...menu }) }}>Italic</button><button type="button" className="rounded border border-gray-400 px-2 py-1 underline" onMouseDown={event => event.preventDefault()} onClick={() => { apply({ textDecoration: selectedStyle?.textDecorationLine.includes('underline') ? 'none' : 'underline' }); setMenu({ ...menu }) }}>Underline</button></div>
+        {!linkEditor && <button type="button" className="mt-2 rounded border border-gray-400 px-2 py-1" onMouseDown={event => event.preventDefault()} onClick={showLinkEditor}>Link…</button>}
       </div>}
       <button type="button" className="order-5 mt-3 self-end rounded border border-gray-400 px-3 py-1" onClick={close}>Done</button>
     </div>, document.body)}

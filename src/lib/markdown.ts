@@ -1,5 +1,13 @@
 import { createElement, type ReactNode } from 'react'
 
+export const markdownBlockClasses = {
+  h2: 'text-xl font-semibold font-display mb-3 mt-5',
+  h3: 'text-lg font-semibold font-display mb-2 mt-4',
+  p: 'text-text-1 leading-relaxed mb-3',
+  li: '',
+}
+export const markdownListClass = 'list-disc list-inside space-y-1 mb-4 text-text-1'
+
 /**
  * Simple markdown-to-React renderer. No dangerouslySetInnerHTML, no XSS surface.
  * Supports: ## headers, **bold**, *italic*, links, - lists, line breaks.
@@ -12,7 +20,7 @@ export function renderMarkdown(text: string): ReactNode[] {
 
   function flushList() {
     if (listItems.length > 0) {
-      nodes.push(createElement('ul', { key: key++, className: 'list-disc list-inside space-y-1 mb-4 text-text-1' }, ...listItems))
+      nodes.push(createElement('ul', { key: key++, className: markdownListClass }, ...listItems))
       listItems = []
     }
   }
@@ -29,12 +37,12 @@ export function renderMarkdown(text: string): ReactNode[] {
     // Headers
     if (trimmed.startsWith('### ')) {
       flushList()
-      nodes.push(createElement('h3', { key: key++, className: 'text-lg font-semibold font-display mb-2 mt-4' }, inlineFormat(trimmed.slice(4))))
+      nodes.push(createElement('h3', { key: key++, className: markdownBlockClasses.h3 }, inlineFormat(trimmed.slice(4))))
       continue
     }
     if (trimmed.startsWith('## ')) {
       flushList()
-      nodes.push(createElement('h2', { key: key++, className: 'text-xl font-semibold font-display mb-3 mt-5' }, inlineFormat(trimmed.slice(3))))
+      nodes.push(createElement('h2', { key: key++, className: markdownBlockClasses.h2 }, inlineFormat(trimmed.slice(3))))
       continue
     }
 
@@ -46,7 +54,7 @@ export function renderMarkdown(text: string): ReactNode[] {
 
     // Paragraph
     flushList()
-    nodes.push(createElement('p', { key: key++, className: 'text-text-1 leading-relaxed mb-3' }, inlineFormat(trimmed)))
+    nodes.push(createElement('p', { key: key++, className: markdownBlockClasses.p }, inlineFormat(trimmed)))
   }
 
   flushList()
