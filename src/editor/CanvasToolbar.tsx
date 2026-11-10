@@ -352,6 +352,13 @@ export function CanvasToolbar({ settingsOpen = false, onOpenSettings }: { settin
 
       {/* Right side */}
       <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1">
+        {pages.length > 0 && <label className="flex shrink-0 items-center gap-1 text-xs text-text-1">
+          Go to page
+          <select value={selectedPage?.id ?? ''} onChange={event => setActivePage(event.target.value)} className="max-w-48 rounded border border-border-default bg-bg-2 px-1 py-1 text-text-0">
+            {!selectedPage && <option value="" disabled>Choose a page</option>}
+            {pages.map(page => <option key={page.id} value={page.id}>{page.name}</option>)}
+          </select>
+        </label>}
         {portableProjectsEnabled && <details className="studio-page-tools relative text-xs">
           <summary className="cursor-pointer rounded px-2 py-2">Page tools</summary>
           <div className="absolute top-full z-50 w-36 rounded border border-border-default bg-bg-1 p-1 shadow-xl">
