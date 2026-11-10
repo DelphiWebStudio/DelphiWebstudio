@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useConfigStore } from '@/store/configStore'
 import { useEditorStore } from '@/store/editorStore'
 import { CanvasEmpty } from './CanvasEmpty'
@@ -39,7 +39,9 @@ export function Canvas() {
   const [marquee, setMarquee] = useState<{ x: number; y: number; endX: number; endY: number } | null>(null)
   const groupDrag = useRef<{ x: number; y: number; members: Array<{ node: HTMLElement; blockId: string; section: number; id: string; x: number; y: number; width: number; areaWidth: number }> } | null>(null)
   const suppressCanvasClick = useRef(false)
+  const canvasScroll = useRef<HTMLDivElement>(null)
   const previewCanvas = useRef<HTMLDivElement>(null)
+  const previousPage = useRef(activePageId)
   const pendingAnchor = useRef<{ pageId: string; name: string } | null>(null)
   const referencedAssets = JSON.stringify([...new Set([
     ...blocks.map(block => typeof block.props.assetId === 'string' ? block.props.assetId : '').filter(Boolean),
@@ -70,11 +72,16 @@ export function Canvas() {
 
   const previewWidth = customViewportWidth ?? (viewport === 'desktop' ? 1200 : viewport === 'tablet' ? 768 : 375)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    const pageChanged = previousPage.current !== activePageId
+    previousPage.current = activePageId
     const destination = pendingAnchor.current
     pendingAnchor.current = null
-    if (previewMode && destination && destination.pageId === activePageId && previewCanvas.current) {
+    if (!previewMode) return
+    if (destination?.pageId === activePageId && previewCanvas.current) {
       scrollToPreviewAnchor(previewCanvas.current, destination.name)
+    } else if (pageChanged) {
+      canvasScroll.current?.scrollTo({ top: 0, behavior: 'instant' })
     }
   }, [activePageId, previewMode])
 
@@ -338,6 +345,8 @@ export function Canvas() {
                 const name = href.slice(fragmentStart + 1)
                 if (target.id === activePageId) scrollToPreviewAnchor(e.currentTarget, name)
                 else pendingAnchor.current = { pageId: target.id, name }
+              } else if (target.id === activePageId) {
+                canvasScroll.current?.scrollTo({ top: 0, behavior: 'instant' })
               }
               setActivePage(target.id)
               selectBlock(null)
@@ -388,7 +397,7 @@ export function Canvas() {
   )
 
   return (
-    <div className="flex-1 flex items-start justify-start p-6 overflow-auto relative bg-[#dce8f3]" onDragOver={event => {
+    <div ref={canvasScroll} className="flex-1 flex items-start justify-start p-6 overflow-auto relative bg-[#dce8f3]" onDragOver={event => {
       if (!previewMode && (event.dataTransfer.types.includes('application/x-webstudio-asset') || event.dataTransfer.types.includes('application/x-webstudio-component') || event.dataTransfer.types.includes('application/x-webstudio-block') || event.dataTransfer.types.includes('Files'))) { event.preventDefault(); event.dataTransfer.dropEffect = event.dataTransfer.types.includes('application/x-webstudio-block') ? 'move' : 'copy' }
     }} onDrop={event => {
       if (previewMode) return
