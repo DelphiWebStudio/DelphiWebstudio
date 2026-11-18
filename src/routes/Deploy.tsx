@@ -7,15 +7,17 @@ import {
   Eye,
   Copy,
   Check,
-  Loader2,
-  RefreshCw,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useConfigStore } from '@/store/configStore'
 import { useEditorStore } from '@/store/editorStore'
 import { useProjectsStore } from '@/store/projectsStore'
-import { exportToHTML, downloadHTML, previewHTML } from '@/lib/export-html'
-import { publishSite } from '@/lib/publish-site'
+import { exportToHTML, downloadHTML, previewHTML, exportSiteZip } from '@/lib/export-html'
+import { portableProjectsEnabled } from '@/project/project-file'
+import { ProjectMediaLibrary } from '@/media/media-library'
+import JSZip from 'jszip'
+import { createDeploymentPlan, createRestorePlan, createWebsiteManifest, validateWebsiteManifest, compareWebsiteManifests, type WebsiteManifest } from '@/lib/website-manifest'
+import { checkSite, type SiteIssue } from '@/project/site-checks'
 
 const readyOptions = [
   { icon: Download, label: 'Static HTML', description: 'Download a standalone HTML file', action: 'html' },
@@ -27,17 +29,131 @@ const readyOptions = [
 export function Deploy() {
   const config = useConfigStore((s) => s.config)
   const activeProjectId = useEditorStore((s) => s.activeProjectId)
+  const deploymentKeys = useEditorStore((s) => s.deploymentKeys)
   const projects = useProjectsStore((s) => s.projects)
-  const setDeployInfo = useProjectsStore((s) => s.setDeployInfo)
 
   const project = activeProjectId ? projects.find((p) => p.id === activeProjectId) : null
   const deployUrl = project?.deployUrl
   const lastDeployedAt = project?.lastDeployedAt
-  const hasDeployKey = !!project?.settings?.deployAccessKey?.trim()
+  const hasDeployKey = !!(activeProjectId && Object.hasOwn(deploymentKeys, activeProjectId) ? deploymentKeys[activeProjectId] : project?.settings?.deployAccessKey)?.trim()
 
   const [exporting, setExporting] = useState(false)
-  const [publishing, setPublishing] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [review, setReview] = useState<{ signature: string; files: string[]; warnings: SiteIssue[]; zip: Blob; filename: string } | null>(null)
+  const [manifest, setManifest] = useState<{ signature: string; data: WebsiteManifest } | null>(null)
+  const [comparison, setComparison] = useState<{ signature: string; result: ReturnType<typeof compareWebsiteManifests> } | null>(null)
+  const [restoreBackup, setRestoreBackup] = useState<File | null>(null)
+  const [restoreScan, setRestoreScan] = useState<File | null>(null)
+  const [restorePlan, setRestorePlan] = useState<ReturnType<typeof compareWebsiteManifests> | null>(null)
+  const [deploymentPlan, setDeploymentPlan] = useState<{ signature: string; result: ReturnType<typeof compareWebsiteManifests> } | null>(null)
+  const [restoreWorking, setRestoreWorking] = useState(false)
+  const [openingPreview, setOpeningPreview] = useState(false)
+  const desktop = window.location.hostname === 'webstudio.local'
+  const signature = JSON.stringify({ projectId: activeProjectId, config, settings: project?.settings, mediaRevision: project?.mediaRevision })
+
+  async function previewReviewedWebsite() {
+    if (!review || review.signature !== signature || openingPreview) return
+    const webview = (window as Window & { chrome?: { webview?: EventTarget & { postMessage: (message: object) => void } } }).chrome?.webview
+    if (!desktop || !webview) return
+    const zip = review.zip
+    const token = crypto.randomUUID()
+    setOpeningPreview(true)
+    try {
+      await new Promise<void>((resolve, reject) => {
+        function finish(error?: Error) {
+          window.clearTimeout(timeout)
+          webview!.removeEventListener('message', receive)
+          if (error) reject(error)
+          else resolve()
+        }
+        function receive(event: Event) {
+          const reply = (event as MessageEvent).data
+          if (reply?.version !== 1 || reply.token !== token) return
+          if (reply.kind === 'site.preview.ready') {
+            try { downloadHTML(zip, `webstudio-preview-${token}.zip`) }
+            catch { finish(new Error('Could not prepare the reviewed website.')) }
+          }
+          if (reply.kind === 'site.preview.result') finish(reply.ok === true ? undefined : new Error(reply.message || 'Could not open the reviewed website.'))
+        }
+        const timeout = window.setTimeout(() => finish(new Error('The local preview did not respond.')), 120000)
+        webview.addEventListener('message', receive)
+        try { webview.postMessage({ version: 1, kind: 'site.preview.prepare', token }) }
+        catch { finish(new Error('Could not prepare the reviewed website.')) }
+      })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not open the reviewed website.')
+    } finally { setOpeningPreview(false) }
+  }
+
+  async function reviewWebsiteFiles() {
+    if (!activeProjectId) { toast.error('Open a project first'); return }
+    setExporting(true)
+    try {
+      const media = await new ProjectMediaLibrary().list(activeProjectId)
+      const zip = await exportSiteZip(config, { settings: project?.settings }, media)
+      const archive = await JSZip.loadAsync(await zip.arrayBuffer())
+      const currentProjectId = useEditorStore.getState().activeProjectId
+      const currentProject = useProjectsStore.getState().projects.find(item => item.id === currentProjectId)
+      const current = JSON.stringify({ projectId: currentProjectId, config: useConfigStore.getState().config, settings: currentProject?.settings, mediaRevision: currentProject?.mediaRevision })
+      if (current !== signature) throw new Error('The project changed during the review. Review the files again.')
+      const files = Object.values(archive.files).filter(item => !item.dir).map(item => item.name).sort()
+      const warnings = checkSite(config, project?.settings ?? {}, true).filter(issue => !config.pages?.some(page => page.id === issue.pageId && page.webstudioArticle?.status === 'draft'))
+      const filename = `${(project?.name || config.name || 'site').toLowerCase().replace(/[^a-z0-9-]+/g, '-')}.zip`
+      setReview({ signature, files, warnings, zip, filename })
+    } catch (error) {
+      setReview(null)
+      toast.error(error instanceof Error ? error.message : 'Website files could not be reviewed')
+    } finally { setExporting(false) }
+  }
+
+  async function prepareManifest() {
+    if (!review || review.signature !== signature) return
+    setExporting(true)
+    try {
+      const data = await createWebsiteManifest(review.zip)
+      setManifest({ signature: review.signature, data })
+      setComparison(null)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Website manifest could not be prepared')
+    } finally { setExporting(false) }
+  }
+
+  async function comparePreviousManifest(file: File) {
+    if (!manifest || manifest.signature !== signature) return
+    if (file.size > 2 * 1024 * 1024) { toast.error('The website manifest is too large.'); return }
+    try {
+      const previous = validateWebsiteManifest(JSON.parse(await file.text()))
+      setComparison({ signature: manifest.signature, result: compareWebsiteManifests(previous, manifest.data) })
+    } catch (error) {
+      setComparison(null)
+      toast.error(error instanceof Error ? error.message : 'The previous website manifest is invalid')
+    }
+  }
+
+  async function reviewRestorePlan() {
+    if (!restoreBackup || !restoreScan) return
+    if (restoreScan.size > 2 * 1024 * 1024) { toast.error('The destination scan is too large.'); return }
+    setRestoreWorking(true)
+    setRestorePlan(null)
+    try {
+      setRestorePlan(await createRestorePlan(restoreBackup, JSON.parse(await restoreScan.text())))
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'The restore plan could not be prepared')
+    } finally { setRestoreWorking(false) }
+  }
+
+  async function reviewDeploymentPlan() {
+    if (!restoreBackup || !restoreScan || !review || review.signature !== signature) return
+    if (restoreScan.size > 2 * 1024 * 1024) { toast.error('The destination scan is too large.'); return }
+    setRestoreWorking(true)
+    setDeploymentPlan(null)
+    try {
+      const result = await createDeploymentPlan(review.zip, JSON.parse(await restoreScan.text()), restoreBackup)
+      setDeploymentPlan({ signature: review.signature, result })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'The deployment review could not be prepared')
+    } finally { setRestoreWorking(false) }
+  }
 
   async function handleExport(action: (typeof readyOptions)[number]['action']) {
     if (action === 'json') {
@@ -57,6 +173,17 @@ export function Deploy() {
 
     setExporting(true)
     try {
+      if (action === 'html' && portableProjectsEnabled) {
+        const filename = (project?.name || config.name || 'site').toLowerCase().replace(/[^a-z0-9-]+/g, '-')
+        const media = activeProjectId ? await new ProjectMediaLibrary().list(activeProjectId) : []
+        downloadHTML(await exportSiteZip(config, { settings: project?.settings }, media), `${filename}.zip`)
+        toast('Website ZIP exported')
+        return
+      }
+      if (action === 'preview' && desktop) {
+        await reviewWebsiteFiles()
+        return
+      }
       const html = await exportToHTML(config, { settings: project?.settings })
 
       if (action === 'html') {
@@ -66,32 +193,10 @@ export function Deploy() {
       } else {
         previewHTML(html)
       }
-    } catch {
-      toast.error(action === 'preview' ? 'Preview failed' : 'Export failed')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : action === 'preview' ? 'Preview failed' : 'Export failed')
     } finally {
       setExporting(false)
-    }
-  }
-
-  async function handlePublish() {
-    if (!activeProjectId) {
-      toast.error('Save your project first')
-      return
-    }
-
-    setPublishing(true)
-    try {
-      const { liveUrl, deploymentId } = await publishSite({
-        config,
-        projectName: project?.name || config.name,
-        settings: project?.settings,
-      })
-      setDeployInfo(activeProjectId, liveUrl, deploymentId)
-      toast.success('Published')
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Deploy failed')
-    } finally {
-      setPublishing(false)
     }
   }
 
@@ -113,7 +218,7 @@ export function Deploy() {
     <div className="h-full overflow-y-auto">
       <div className="px-4 md:px-12 pt-8">
         <h1 className="text-[22px] font-display font-semibold tracking-tight animate-fade-in-up stagger-1">Export</h1>
-        <p className="text-text-2 text-[13px] mt-1 animate-fade-in-up stagger-2">Download or publish your site</p>
+        <p className="text-text-2 text-[13px] mt-1 animate-fade-in-up stagger-2">Download website files or manage hosting</p>
       </div>
 
       <div className="px-4 md:px-12 pt-6">
@@ -129,8 +234,8 @@ export function Deploy() {
                 <opt.icon size={16} />
               </div>
               <div className="flex-1">
-                <span className="text-sm font-semibold">{opt.label}</span>
-                <p className="text-[11.5px] text-text-2 mt-0.5">{opt.description}</p>
+                <span className="text-sm font-semibold">{desktop && opt.action === 'preview' ? 'Prepare browser preview' : opt.label}</span>
+                <p className="text-[11.5px] text-text-2 mt-0.5">{desktop && opt.action === 'preview' ? 'Review the full website before opening a local preview' : opt.description}</p>
               </div>
               <ExternalLink size={14} className="text-text-3 mt-1 shrink-0" />
             </div>
@@ -138,7 +243,55 @@ export function Deploy() {
         </div>
       </div>
 
-      {hasDeployKey && (
+      {portableProjectsEnabled && <div className="px-4 md:px-12 pt-6">
+        <div className="rounded-xl border border-border-default bg-bg-1 p-4">
+          <h2 className="text-sm font-semibold">Review website files</h2>
+          <p className="mt-1 text-xs text-text-2">Build a local website ZIP and inspect its file list. This does not compare a destination or publish anything.</p>
+          <button type="button" onClick={reviewWebsiteFiles} disabled={exporting || !activeProjectId} className="mt-3 rounded border border-border-default px-3 py-2 text-xs disabled:opacity-50">{exporting ? 'Preparing…' : 'Review files'}</button>
+          {review && (review.signature === signature ? <div className="mt-3">
+            <div className="mb-3 rounded border border-border-default p-2 text-xs" aria-label="Website validation results">
+              <p className="font-semibold">Local checks: {review.warnings.length} {review.warnings.length === 1 ? 'finding' : 'findings'}</p>
+              {review.warnings.length > 0 && <ul className="mt-1 max-h-36 overflow-auto">{review.warnings.map((warning, index) => <li key={`${warning.pageId}-${warning.blockId}-${index}`}><strong>{warning.pageName}:</strong> {warning.message}</li>)}</ul>}
+              <p className="mt-1 text-text-2">These limited checks do not cover all links or accessibility issues.</p>
+            </div>
+            <p className="text-xs text-text-1">{review.files.length} files in the prepared website ZIP.</p>
+            <ul aria-label="Website files" className="mt-2 max-h-48 overflow-auto rounded border border-border-subtle p-2 font-mono text-xs">{review.files.map(file => <li key={file} className="break-all">{file}</li>)}</ul>
+            <button type="button" onClick={() => downloadHTML(review.zip, review.filename)} className="mt-3 rounded border border-border-default px-3 py-2 text-xs">Download reviewed ZIP</button>
+            {desktop && <button type="button" disabled={openingPreview} onClick={() => void previewReviewedWebsite()} className="ml-2 mt-3 rounded border border-border-default px-3 py-2 text-xs disabled:opacity-50">{openingPreview ? 'Opening local preview…' : 'Open reviewed site in browser'}</button>}
+            <div className="mt-4 border-t border-border-subtle pt-3">
+              <p className="text-xs text-text-2">Compare this website with a saved file manifest or a destination scan from the SFTP connection menu. The selected file reflects its capture time; scan again if the destination changes.</p>
+              <button type="button" onClick={prepareManifest} disabled={exporting} className="mt-2 rounded border border-border-default px-3 py-2 text-xs disabled:opacity-50">{exporting ? 'Preparing…' : 'Prepare file manifest'}</button>
+              {manifest?.signature === signature && <div className="mt-2 flex flex-wrap items-center gap-3">
+                <button type="button" onClick={() => downloadHTML(new Blob([JSON.stringify(manifest.data, null, 2) + '\n'], { type: 'application/json' }), review.filename.replace(/\.zip$/i, '-manifest.json'))} className="rounded border border-border-default px-3 py-2 text-xs">Download file manifest</button>
+                <label className="text-xs">Compare manifest or destination scan <input aria-label="Compare website manifest or destination scan" type="file" accept="application/json,.json" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void comparePreviousManifest(file) }} /></label>
+              </div>}
+              {comparison?.signature === signature && <div className="mt-3 text-xs">{(['added', 'changed', 'removed'] as const).map(kind => <div key={kind} className="mt-2"><p className="font-semibold capitalize">{kind}: {comparison.result[kind].length}</p><ul aria-label={`${kind} files`} className="max-h-32 overflow-auto font-mono">{comparison.result[kind].map(path => <li key={path} className="break-all">{path}</li>)}</ul></div>)}</div>}
+            </div>
+          </div> : <p className="mt-3 text-xs text-text-2">The project changed. Review the files again before downloading this version.</p>)}
+          {desktop && <button type="button" disabled={openingPreview} onClick={() => {
+            const webview = (window as Window & { chrome?: { webview?: { postMessage: (message: object) => void } } }).chrome?.webview
+            webview?.postMessage({ version: 1, kind: 'site.preview.stop' })
+          }} className="mt-3 block text-xs text-text-2 underline disabled:opacity-50">Stop local preview</button>}
+        </div>
+      </div>}
+
+      {portableProjectsEnabled && <div className="px-4 md:px-12 pt-6 text-xs text-text-2">Website ZIP export and local file review are available. SFTP publishing is reviewed separately in the desktop application.</div>}
+      {portableProjectsEnabled && <div className="px-4 md:px-12 pt-6">
+        <div className="rounded-xl border border-border-default bg-bg-1 p-4">
+          <h2 className="text-sm font-semibold">Review a restore plan</h2>
+          <p className="mt-1 text-xs text-text-2">Choose a destination backup ZIP and a recent SFTP destination scan. This comparison lists files only; it does not restore or delete anything. Scan again if the destination has changed.</p>
+          <div className="mt-3 flex flex-wrap gap-4 text-xs">
+            <label>Backup ZIP <input type="file" accept=".zip,application/zip" disabled={restoreWorking} onChange={event => { setRestoreBackup(event.target.files?.[0] ?? null); setRestorePlan(null); setDeploymentPlan(null) }} /></label>
+            <label>Destination scan <input type="file" accept=".json,application/json" disabled={restoreWorking} onChange={event => { setRestoreScan(event.target.files?.[0] ?? null); setRestorePlan(null); setDeploymentPlan(null) }} /></label>
+          </div>
+          <button type="button" onClick={reviewRestorePlan} disabled={!restoreBackup || !restoreScan || restoreWorking} className="mt-3 rounded border border-border-default px-3 py-2 text-xs disabled:opacity-50">{restoreWorking ? 'Checking backup…' : 'Review restore plan'}</button>
+          <button type="button" onClick={reviewDeploymentPlan} disabled={!restoreBackup || !restoreScan || !review || review.signature !== signature || restoreWorking} className="ml-3 mt-3 rounded border border-border-default px-3 py-2 text-xs disabled:opacity-50">Review website changes</button>
+          <p className="mt-2 text-xs text-text-2">To review website changes, first use Review files above. The backup must match the selected scan. A scan can become stale; no files are uploaded or deleted here.</p>
+          {restorePlan && <div className="mt-3 text-xs">{([['added', 'Missing from destination'], ['changed', 'Different contents'], ['removed', 'Only on destination']] as const).map(([kind, label]) => <div key={kind} className="mt-2"><p className="font-semibold">{label}: {restorePlan[kind].length}</p><ul aria-label={label} className="max-h-32 overflow-auto font-mono">{restorePlan[kind].map(path => <li key={path} className="break-all">{path}</li>)}</ul></div>)}</div>}
+          {deploymentPlan?.signature === signature && <div className="mt-3 text-xs"><p className="font-semibold">Website compared with the selected scan; backup matches.</p>{([['added', 'New files'], ['changed', 'Changed files'], ['removed', 'Only on destination']] as const).map(([kind, label]) => <div key={kind} className="mt-2"><p className="font-semibold">{label}: {deploymentPlan.result[kind].length}</p><ul aria-label={label} className="max-h-32 overflow-auto font-mono">{deploymentPlan.result[kind].map(path => <li key={path} className="break-all">{path}</li>)}</ul></div>)}</div>}
+        </div>
+      </div>}
+      {hasDeployKey && !portableProjectsEnabled && (
         <div className="px-4 md:px-12 pt-8 animate-fade-in-up stagger-3">
           <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-3">Publish</h2>
           <div className="p-5 rounded-xl border bg-bg-1 border-border-default">
@@ -149,7 +302,7 @@ export function Deploy() {
               <div className="flex-1 min-w-0">
                 <h3 className="text-sm font-semibold">Publish to Web</h3>
                 <p className="text-[11.5px] text-text-2 mt-0.5">
-                  Deploy your site to a live URL in seconds
+                  Legacy publishing is unavailable. Use the desktop destination review workflow.
                 </p>
 
                 {deployUrl && (
@@ -186,23 +339,10 @@ export function Deploy() {
 
                 <div className="mt-3 flex items-center gap-2">
                   <button
-                    onClick={handlePublish}
-                    disabled={publishing}
+                    disabled
                     className="px-4 py-1.5 rounded-lg bg-green text-bg-0 text-[12.5px] font-semibold hover:bg-green/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
                   >
-                    {publishing ? (
-                      <>
-                        <Loader2 size={13} className="animate-spin" />
-                        Publishing...
-                      </>
-                    ) : deployUrl ? (
-                      <>
-                        <RefreshCw size={13} />
-                        Update
-                      </>
-                    ) : (
-                      'Publish'
-                    )}
+                    Publishing unavailable
                   </button>
                   {timeAgo && (
                     <span className="text-[11px] text-text-3">Last published {timeAgo}</span>

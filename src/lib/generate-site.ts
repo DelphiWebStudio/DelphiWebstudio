@@ -1,3 +1,4 @@
+import { requestGeminiCredential } from '@/desktop/native-bridge'
 import type { SiteConfig, BlockConfig, ThemeConfig } from '@/blocks/types'
 import { blockMetadata } from '@/lib/block-metadata'
 import { GENERATION_PROMPT } from '@/lib/generation-prompt'
@@ -10,14 +11,18 @@ const DEFAULT_PROPS_MAP = Object.fromEntries(blockMetadata.map((b) => [b.type, b
 const GEMINI_MODEL = 'gemini-3-flash-preview'
 const STORAGE_KEY = 'openpage-gemini-key'
 
+// Cloud consent remains a session choice; saved credentials belong to the Windows user.
+export const geminiSession = { key: '', changed: false, cloudEnabled: false }
+
 export interface GenerationResult {
   config: SiteConfig
   source: 'ai' | 'template'
 }
 
 export async function generateSiteConfig(prompt: string, signal?: AbortSignal): Promise<GenerationResult> {
+  if (!geminiSession.cloudEnabled) return { config: getTemplateForPrompt(prompt), source: 'template' }
   // 1. Try client-side Gemini if key exists
-  const apiKey = localStorage.getItem(STORAGE_KEY)
+  const apiKey = geminiSession.changed ? geminiSession.key : (await requestGeminiCredential('read')) || localStorage.getItem(STORAGE_KEY)
   if (apiKey) {
     try {
       const config = await callGeminiDirect(prompt, apiKey, signal)
@@ -52,10 +57,10 @@ export async function generateSiteConfig(prompt: string, signal?: AbortSignal): 
 
 async function callGeminiDirect(prompt: string, apiKey: string, signal?: AbortSignal): Promise<SiteConfig> {
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       signal,
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [{ text: `Generate a website configuration for: ${prompt}` }] }],
@@ -124,7 +129,7 @@ function validateBlock(raw: Record<string, unknown>, index: number): BlockConfig
   const props = typeof raw.props === 'object' && raw.props ? { ...defaultProps, ...raw.props } : defaultProps
 
   return {
-    id: typeof raw.id === 'string' && raw.id ? raw.id : `block-${type}-${index}-${Date.now()}`,
+    id: typeof raw.id === 'string' && raw.id ? raw.id : `block-${type}-${index}-${crypto.randomUUID()}`,
     type: type as BlockConfig['type'],
     variant,
     props: props as Record<string, unknown>,
@@ -158,7 +163,7 @@ export function validateSiteConfig(raw: unknown, prompt?: string): SiteConfig {
       const pageBlocks = Array.isArray(p.blocks) ? validatePageBlocks(p.blocks) : []
       if (pageBlocks.length > 0) {
         pages.push({
-          id: typeof p.id === 'string' ? p.id : `page-${Date.now()}-${pages.length}`,
+          id: typeof p.id === 'string' ? p.id : `page-${crypto.randomUUID()}`,
           name: typeof p.name === 'string' ? p.name : `Page ${pages.length + 1}`,
           path: typeof p.path === 'string' ? p.path : `/${pages.length === 0 ? '' : `page-${pages.length}`}`,
           blocks: pageBlocks,

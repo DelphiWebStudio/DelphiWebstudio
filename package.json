@@ -1,14 +1,14 @@
 {
-  "name": "openpage",
+  "name": "delphi-web-studio-pro",
   "private": false,
   "version": "1.0.0",
-  "description": "Open-source website builder. Framer-quality visual editor + AI generation + JSON-first architecture.",
+  "description": "Visual website editor with a Delphi desktop host, portable projects, local media, and optional AI tools.",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/buildingopen/openpage.git"
+    "url": "https://github.com/DelphiWebStudio/DelphiWebstudio.git"
   },
-  "homepage": "https://openpage-phi.vercel.app",
+  "homepage": "https://github.com/DelphiWebStudio/DelphiWebstudio",
   "keywords": [
     "website-builder",
     "page-builder",
@@ -40,7 +40,9 @@
     "@tailwindcss/vite": "^4.2.1",
     "clsx": "^2.1.1",
     "immer": "^11.1.4",
+    "jszip": "3.10.1",
     "lucide-react": "^0.575.0",
+    "pdfjs-dist": "6.4.299",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.13.1",
@@ -54,15 +56,20 @@
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
-    "@vercel/node": "^5.6.7",
     "@vitejs/plugin-react": "^5.1.1",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
+    "fake-indexeddb": "6.2.4",
     "globals": "^16.5.0",
     "typescript": "~5.9.3",
-    "typescript-eslint": "^8.48.0",
+    "typescript-eslint": "^8.72.2",
     "vite": "^7.3.1",
     "vitest": "^4.0.18"
+  },
+  "overrides": {
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "11.0.8"
+    }
   }
 }

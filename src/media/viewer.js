@@ -1,0 +1,116 @@
+import { getDocument, GlobalWorkerOptions } from './pdf.min.js'
+
+GlobalWorkerOptions.workerSrc = './pdf.worker.min.js'
+const params = new URLSearchParams(location.search)
+const file = params.get('file') || ''
+const status = document.getElementById('status')
+const canvas = document.getElementById('page-canvas')
+const main = document.querySelector('main')
+const pageInput = document.getElementById('page')
+const zoomLabel = document.getElementById('zoom')
+const fitMode = ['width', 'page'].includes(params.get('fit')) ? params.get('fit') : 'auto'
+let pdf
+let zoom = 1
+let rendering
+let renderSequence = 0
+
+for (const [parameter, ids] of [['search', ['search-label', 'search']], ['download', ['download']], ['print', ['print']], ['fullscreen', ['fullscreen']]]) {
+  if (params.get(parameter) === '0') for (const id of ids) document.getElementById(id).hidden = true
+}
+
+if (!/^\.\.\/[a-zA-Z0-9._-]+\.pdf$/i.test(file)) {
+  status.textContent = 'Invalid PDF path.'
+} else {
+  document.getElementById('download').href = file
+  document.getElementById('print').href = file
+  const task = getDocument({ url: file, enableXfa: false })
+  task.onPassword = update => {
+    const password = window.prompt('Enter the PDF password:')
+    if (password === null) { task.destroy(); status.textContent = 'Password required.' }
+    else update(password)
+  }
+  task.promise.then(pdfDocument => {
+    pdf = pdfDocument
+    pageInput.max = String(pdf.numPages)
+    const requestedPage = Number(params.get('page'))
+    if (Number.isInteger(requestedPage) && requestedPage > 0) pageInput.value = String(Math.min(requestedPage, pdf.numPages))
+    document.getElementById('total').textContent = `of ${pdf.numPages}`
+    if (params.get('thumbnails') === '1') {
+      const container = document.getElementById('thumbnails')
+      container.hidden = false
+      const observer = new IntersectionObserver(entries => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue
+          const thumbnail = entry.target
+          observer.unobserve(thumbnail)
+          void pdf.getPage(Number(thumbnail.dataset.page)).then(page => {
+            const original = page.getViewport({ scale: 1 })
+            const viewport = page.getViewport({ scale: Math.min(60 / original.width, 80 / original.height) })
+            thumbnail.width = Math.ceil(viewport.width); thumbnail.height = Math.ceil(viewport.height)
+            return page.render({ canvas: thumbnail, canvasContext: thumbnail.getContext('2d'), viewport }).promise
+          }).catch(() => undefined)
+        }
+      }, { root: container, rootMargin: '100px' })
+      for (let number = 1; number <= pdf.numPages; number++) {
+        const button = document.createElement('button')
+        button.type = 'button'; button.setAttribute('aria-label', `Go to PDF page ${number}`)
+        const thumbnail = document.createElement('canvas')
+        thumbnail.width = 1; thumbnail.height = 1; thumbnail.dataset.page = String(number); thumbnail.setAttribute('aria-hidden', 'true')
+        button.append(thumbnail, String(number))
+        button.onclick = () => { pageInput.value = String(number); void render() }
+        container.append(button); observer.observe(thumbnail)
+      }
+    }
+    status.textContent = ''
+    return render()
+  }).catch(error => { status.textContent = `Unable to open PDF: ${error.message}` })
+}
+
+async function render() {
+  if (!pdf) return
+  const sequence = ++renderSequence
+  if (rendering) { rendering.cancel(); try { await rendering.promise } catch { /* cancelled */ } }
+  if (sequence !== renderSequence) return
+  const number = Math.max(1, Math.min(pdf.numPages, Number(pageInput.value) || 1))
+  pageInput.value = String(number)
+  const page = await pdf.getPage(number)
+  if (sequence !== renderSequence) return
+  const style = getComputedStyle(main)
+  const available = Math.max(1, main.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight))
+  const original = page.getViewport({ scale: 1 })
+  const availableHeight = Math.max(1, main.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom))
+  const widthScale = available / original.width
+  const pageScale = Math.min(widthScale, availableHeight / original.height)
+  const fitScale = Math.min(4, fitMode === 'page' ? pageScale : fitMode === 'width' ? widthScale : Math.min(1, widthScale))
+  const viewport = page.getViewport({ scale: fitScale * zoom })
+  canvas.width = Math.ceil(viewport.width)
+  canvas.height = Math.ceil(viewport.height)
+  canvas.setAttribute('aria-label', `PDF page ${number} of ${pdf.numPages}`)
+  rendering = page.render({ canvas, canvasContext: canvas.getContext('2d'), viewport })
+  try { await rendering.promise } catch (error) { if (error.name !== 'RenderingCancelledException') status.textContent = error.message }
+}
+
+document.getElementById('previous').onclick = () => { pageInput.value = String(Number(pageInput.value) - 1); void render() }
+document.getElementById('next').onclick = () => { pageInput.value = String(Number(pageInput.value) + 1); void render() }
+pageInput.onchange = () => void render()
+document.getElementById('zoom-out').onclick = () => { zoom = Math.max(.5, zoom - .25); zoomLabel.textContent = `Fit ${Math.round(zoom * 100)}%`; void render() }
+document.getElementById('zoom-in').onclick = () => { zoom = Math.min(3, zoom + .25); zoomLabel.textContent = `Fit ${Math.round(zoom * 100)}%`; void render() }
+window.addEventListener('resize', () => { void render() })
+document.getElementById('fullscreen').onclick = () => { void document.documentElement.requestFullscreen().catch(() => { status.textContent = 'Fullscreen unavailable.' }) }
+document.getElementById('search').onclick = async () => {
+  const query = document.getElementById('query').value.trim().toLocaleLowerCase()
+  if (!pdf || !query) return
+  status.textContent = 'Searching…'
+  try {
+    for (let number = 1; number <= pdf.numPages; number++) {
+      const content = await (await pdf.getPage(number)).getTextContent()
+      if (content.items.map(item => item.str || '').join(' ').toLocaleLowerCase().includes(query)) {
+        pageInput.value = String(number)
+        await render()
+        status.textContent = `Found on page ${number}.`
+        return
+      }
+    }
+    status.textContent = 'No matching text found. Scanned documents may not contain searchable text.'
+  } catch (error) { status.textContent = `Search failed: ${error.message}` }
+}

@@ -1,0 +1,305 @@
+# Portable project files
+
+A portable project contains the editable description of a website and references to its media. JSON (JavaScript Object Notation) stores that description as structured text; a ZIP archive can package it with the imported files. While editing, the app keeps a separate local draft in its embedded browser. IndexedDB is the browser database used for media and local revisions. Microsoft Edge WebView2 supplies that browser inside the Windows application.
+
+Last changed: 2026-11-18. Current release: 1.0.0 build 1. Portable project files, native saving and media-inclusive website export are part of this release. The earlier M1 implementation and isolated checks are retained below as historical evidence. See the [release review](RELEASE_1_0_REVIEW.md) for current validation and the distinction between owner installation observations and untested clean-Windows or power-loss scenarios.
+
+The code panel can be opened with its toolbar button or `J`, and its close button returns focus to the toolbar. The JSON editor has an accessible label and announces validation errors. Applying a JSON draft is blocked if the active project or configuration changed after editing began; copy the draft before cancelling and reopening. An isolated WebView2 test checked the keyboard shortcut, error, focus and stale-draft behavior. This is not a full accessibility audit.
+
+## Current project commands
+
+The page tabs stay together. The commands beside **Add page** act on the selected page. **Change address** and **Delete** are disabled on Home. **Check site** is under **Page tools**.
+
+The editor matches a reopened file to a draft by portable ID and saved manifest snapshot. Reopening the same saved version reuses its local draft and preserves later unsaved changes. Opening a different saved snapshot can create a separate draft. Save updates the known file path after a successful desktop save. Save As chooses a different target. Successful replacements discard temporary recovery material. Use a separate backup for a retained copy.
+
+Media folders belong to the saved project. Moving a file changes its folder assignment while keeping its asset reference, so existing links still resolve after save and reopen.
+
+Use **Local Storage** on the Dashboard to inspect per-project media and revision sizes. A revision is a profile-local snapshot. Save and verify a separate project file before removing a revision or clearing media belonging to a removed draft.
+
+## Enable and use
+
+The remaining sections retain earlier milestone procedures and validation notes. Statements that assets, native saving, offline styling, publishing or later editor features are still outstanding describe those earlier states and are superseded by the current release review and illustrated guides. Use the current User Guide for the complete operating procedure, including Save project, Save as, media folders, recovery and local reviewed export.
+
+The dashboard offers Personal, Portfolio, Community, Church, School club, Business, Documentation and Blog starters. Each begins with editable prompts suited to its purpose; replace the prompts with your own information. **Start blank** creates an empty site instead.
+
+For a Content section, select text in the Body field and use **Bold**, **Italic**, **Heading**, or **List**. Formatting markers appear in the field; the page preview and exported website show the formatted result. Heading and List apply to the selected lines. The field also supports links as described beside it.
+
+The editor's **Mode** menu chooses an initial workspace: Beginner opens Components, Designer opens Layers and the Design panel when no block is selected, and Professional opens Layers and the editable project JSON. All modes work on the same project and you can switch panels yourself. Professional HTML/CSS/JS source editing is not yet implemented.
+
+Use the Duplicate icon beside Add page to create a copy with a new address. Its blocks receive new IDs and can be edited independently, except for explicitly shared headers or footers, which remain shared. Links in the copy keep their original destinations. Copied article pages start as drafts. Undo removes the duplicate.
+
+In the editor's **Components** tab, select a section on the page, enter a name under **Reusable sections**, and choose **Save selected section**. Select another page and click the saved name to insert an independent copy; later edits to a copy do not change the saved section. Saved sections belong to the project and are included when it is saved. Removing a saved section does not remove copies already on pages, and can be undone.
+
+To share a header (Navbar) or Footer across pages, select it and choose **Share across pages** in its controls. A copy is added to each other page, and property or layout edits update the shared copies. New pages receive the shared sections. The command will not replace another existing header or footer; remove competing sections first. **Stop sharing across pages** makes the existing copies independent. Both operations can be undone; deleting one copy removes it from that page only.
+
+The Desktop, Tablet and Mobile buttons preview widths of 1,200, 768 and 375 pixels. Use the **Width** slider for any width from 320 to 1,920 pixels; selecting a device button restores its preset. If the editor window is narrower than the chosen width, scroll horizontally to see the rest of the preview. Check the exported website on actual devices as well: a preview cannot reproduce every browser or device behavior.
+
+In a selected section's **Screen visibility** properties, choose whether to show it on mobile (under 480 pixels), tablet (480–899 pixels), and desktop (900 pixels and wider). A hidden section remains available in editing mode, and is hidden in Preview and the exported page at the selected widths. Hiding is a layout setting: the content is still present in the exported HTML and must not be treated as private.
+
+**Open project** appears on Dashboard and the editor; **Save project** appears while a project is open. These commands are enabled by default and are separate from the existing HTML Export command and from Publish. For baseline comparisons, developers can explicitly set `VITE_WEBSTUDIO_PROJECTS=false` before starting Vite or building.
+
+Open accepts unversioned OpenPage SiteConfig JSON or WebStudio schema 2. Each open creates an independent local draft and never edits the selected file. A legacy file is upgraded in memory and saved as a new `.webstudio.json` download. The original is the recovery source; no automatic in-place migration occurs. Repeated opens retain the document projectId but have distinct local draft IDs. Duplicate assigns a new document identity.
+
+Media from a project ZIP is staged before its new draft appears in the project list. If an import fails, the app attempts to remove the media it staged and leaves the selected project unchanged. If the app is interrupted during import, staged media may remain in local storage without a visible draft; the original project ZIP remains available to open again. This is not a complete crash-recovery system. An isolated browser round trip opened, saved and reopened a five-page project containing a PDF, then exported it with the PDF and links intact.
+
+If the current project or its content changes while a project file is opening, the import is stopped before switching projects. The current edit remains in the editor; save it and open the other file again. An isolated browser test paused a two-asset import, edited the current page, and verified the edit remained while staged media was removed.
+
+Use the pencil button on a dashboard project card to rename the project. Saving includes that project name, so reopening the file retains it. The website's own name remains separate. Older files without a project name continue to open using their site name. An isolated browser test renamed the five-page sample, saved and reopened it, and checked both names.
+
+After confirming removal of a dashboard project, use **Undo** in the notification within 15 seconds to restore its project entry and existing media references. An isolated browser test restored a five-page project and its PDF. This undo is temporary and does not replace a separate project file; the current implementation leaves the removed project's media in local storage.
+
+Duplicate copies the project and its media into a separate local draft. If the source project changes or is removed while its media is being copied, duplication stops and asks you to try again instead of showing an outdated copy. Media already staged for that stopped copy may remain in local storage without a visible project. Tests cover source rename, removal and a reported media change during copying; they do not establish protection from every cross-window or storage-level race.
+
+Suggested project and website download filenames avoid Windows reserved device names and fall back to `site` if the name cannot supply a usable filename. This changes the suggested filename only; the project and website names remain unchanged. An isolated browser check covered reserved names, punctuation-only names and non-Latin names.
+
+Save validates a snapshot and starts a JSON download. Browser download settings determine the final location and collision filename. The message says a download was requested and asks the user to choose a destination if prompted; it does not claim an atomic filesystem write or confirmed disk durability. Existing browser draft autosave remains available. Native atomic saves and recovery are later work.
+
+While the editor is open, changes are written to the browser draft as the editor state changes, without waiting for a later screen refresh. Browser storage can still be cleared or fail, so use **Save project** to keep a separate portable copy.
+
+The History panel shows the current session's undo steps. Opening a project or closing the app clears those steps. History entries can be activated with the keyboard. A browser test checked the notice and keyboard restoration of a page edit.
+
+Use **Local revisions** and **Create local revision** to keep an additional snapshot of the current pages, settings and project media in this app's local browser storage. Open a revision as a separate local project to inspect or save it; the current project is not overwritten. The dashboard's **All local revisions** also lists snapshots from projects removed from the dashboard, so they can be opened as separate projects. Use **Remove…** and confirm to remove an individual revision; this cannot be undone. A browser test created a five-page revision with a PDF, restarted the browser, reopened the revision and verified its pages and PDF bytes. Revisions are not a substitute for separate project files: clearing browser data, changing profiles, storage failure or device failure can remove them. They are created only when requested. They are not included in exported project files, automatically pruned, or synchronized across computers.
+
+New local revisions include a SHA-256 checksum that is checked before opening; a damaged revision is left in storage and does not replace the current project. Older revisions without a checksum remain accessible and are labeled accordingly. Checksum verification reads the revision into memory and can fail for very large snapshots or low available memory; keep a separate project file as well.
+
+An isolated browser test altered a saved test revision and confirmed that opening was rejected without changing the project list. A separate test reopened an intact five-page revision and verified its original PDF bytes.
+
+If the current project changes while a revision checksum is being checked, opening stops and the newer edits remain in the draft. Opening also stops with a message if another media or save operation starts before verification finishes. Isolated browser tests exercised both cases and reopened an older revision that had no checksum.
+
+An isolated Win64 WebView2 test also created a local revision with an imported PDF, reopened it as a separate project in the same session, and verified that saved and exported ZIPs retained the original PDF bytes. This does not establish recovery after a desktop crash or power loss.
+
+In a separate isolated Win64 test, a completed local revision with a PDF and a newer draft were stored before the test host intentionally terminated during a staged save. After restart, the newer draft remained available and the earlier revision opened as a separate project; the last-good project file and recovered PDF bytes were unchanged. This covers one forced-process termination after storage completed, not interruption during revision writes or power loss.
+
+An isolated browser test removed a five-page test project from the dashboard, opened its remaining revision through **All local revisions**, and verified the recovered project's five pages and original PDF bytes.
+
+The revision menu itself was checked at 375, 768 and 1440 pixels on both the dashboard and editor; its panel stayed within the viewport. This check does not establish responsiveness for every other editor control or website block.
+
+An isolated browser test opened a five-page project with a PDF, edited News, closed the test browser normally, restarted it with the same isolated profile, and reopened the draft. The edit and original PDF bytes remained available in a subsequent project ZIP. This checks a clean browser restart, not a crash, power loss, disk failure, cleared storage or the desktop native-save workflow.
+
+If writing local draft storage fails, the editor keeps the current in-memory edits and displays a persistent warning to save a separate project file before closing. A browser test simulated storage quota failures and confirmed that a subsequent separate project download contained the current edit. A restart before saving can still lose changes; this is not crash recovery.
+
+If a local draft cannot be read, contains malformed JSON, has an incompatible basic structure, or uses a newer storage version, the editor warns on startup and prevents writes to the affected stored draft for that session. Save any new work separately before restarting to retry. Isolated browser tests simulated inaccessible and incompatible storage, confirmed the original stored values were unchanged, and requested a separate project download. This does not repair corrupted data or detect every possible invalid storage structure.
+
+The basic checks also reject malformed project entries, missing project identities or names, and duplicate local project IDs. Automated storage tests verify that the original stored text is not overwritten in these cases; the checks do not validate every field in a draft.
+
+For version 2 editor drafts, the startup checks also protect the stored text when the site name, block list or basic page structure is malformed. An automated test confirms that a legacy single-page draft still migrates. These checks do not repair the stored draft or validate every block field.
+
+Save downloads the snapshot captured when the command starts. If the project changes while that snapshot is prepared, newer edits stay in the browser draft and a notice asks you to save again to include them.
+
+While the project file is being prepared, the Save button shows **Preparing project…** and a notice asks you to keep the window open. An isolated browser test paused a media save, checked this feedback, then verified the saved PDF bytes. The desktop close warning only begins when the download or its dialog starts; it does not prevent closing during this earlier preparation step.
+
+## Format and preservation
+
+```json
+{"format":"webstudio","schemaVersion":2,"projectId":"stable-id","config":{"name":"My site","pages":[{"id":"home","name":"Home","path":"/","blocks":[]}],"blocks":[]}}
+```
+
+Unknown document/config/page/block fields and block types are retained through file parsing and serialization. The editor shows an unknown block as its existing placeholder. Empty pages remain intact. Top-level compatibility blocks are normalized to Home; when they match another existing page, that page's content is already retained. If they conflict with every page, import/save rejects the document rather than guessing which content to discard.
+
+Validation rejects duplicate page/block IDs, duplicate paths (including case collisions), traversal/encoded/nonportable Windows paths, missing Home, malformed blocks, prototype-polluting keys, active/privileged URL protocols, invalid known theme values, non-JSON editor values and unsupported format versions. Invalid input is reported before opening a replacement project. Validation does not execute scripts, access files, contact AI or publish.
+
+Unsupported block types appear as labeled placeholders; their project data is retained, and website export stops rather than silently dropping them. An isolated browser test opened, selected, saved and reopened unsupported blocks including names that match JavaScript object properties, and confirmed their data remained intact. Export remained blocked until unsupported blocks are removed or supported.
+
+Current files cover SiteConfig content/theme, non-secret site settings and extension data. Deployment credentials are excluded from saves and rejected in imported files. Assets are not yet integrated. Existing IDs are preserved; newly added pages and duplicated blocks use UUIDs. Page changes and the active-page selection participate in undo/redo.
+
+With the feature enabled, Export produces a ZIP containing a separate HTML file for every page and relative page navigation. Unknown block types cause a clear error rather than being silently omitted. The output currently relies on online fonts and Tailwind; fully self-contained export remains later work. Publishing is disabled in this mode until destination review and verification are implemented.
+
+## Evidence
+
+- Fixture: `samples/five-page.webstudio.json`, SHA-256 `86E4C4A1E1525B3CAED07BB3EE07D7B4C3F684038E683ED05993E7714C79675D`.
+- Actual browser Open -> News edit -> Save -> Open downloaded file retained all five pages, edited News text, empty Documents page and original projectId. Home compatibility blocks remained Home after a non-Home edit.
+- Traversal-path input was rejected while the current Documents page remained intact.
+- A future-chart block opened as a placeholder and survived Save with pluginVersion=7, its series and an unknown root pluginState field intact.
+- All 35 automated tests pass (27 new and eight inherited), covering migration/roundtrip/malformed inputs, independent local imports, duplicate identity and targeted storage updates. Lint, TypeScript and the feature-enabled production build pass; CI also builds the default mode.
+- Screenshot: `docs/m1-project-roundtrip.png`.
+- M1 pre-change tracked-source ZIP: `D:\Backups\WebStudio_M1_PreChange_89f6a6d.zip`, 397,371 bytes.
+
+At the time of this first increment, native safe save/recovery and portable assets were outstanding. Later sections document subsequent implementations and their test limits. Existing footer/navbar links are not yet bound to page IDs.
+
+## Five-page project and media round trip
+
+An isolated browser test opened the five-page sample, imported the sample bulletin PDF, edited News to link to About and the PDF, saved a project ZIP and reopened it as a separate copy. It then exported a website ZIP and verified all five HTML files, the edited text, the rewritten About link, the PDF link, and the original PDF bytes in both ZIPs. This is one browser workflow, not proof of native atomic saving, recovery or all page and asset combinations. The test did not publish a website.
+
+An isolated Win64 desktop test opened that five-page PDF fixture, saved it, reopened the saved file separately, and exported it. The test inspected the saved and exported ZIPs for all five pages, the edited News text and About link, and the original PDF bytes. It used an isolated WebView profile and the legacy test dialog; it did not publish or establish behavior for every project or crash scenario. The reproducible test source is `tests/native/DesktopFivePageRoundtripSmoke.dpr`; stage the browser round-trip project ZIP as `editor/fixture.zip` and the original sample PDF as `editor/proof.pdf` in a fresh test folder.
+
+An additional isolated Win64 test opened the same synthetic fixture and used the normal modern dialogs to save the project ZIP and export the website ZIP. The saved project retained five pages and the original PDF bytes; the exported site contained all five HTML files, the edited News text and About link, and the same PDF bytes. A separate isolated browser reopened that modern-saved project and exported it again with the same checks. The test did not publish a website or simulate power loss. `tests/native/DesktopModernFivePageHarness.dpr` loads the synthetic fixture in a fresh test folder and leaves the normal save dialogs interactive.
+
+The project-file, storage, revision and site-action checks passed 86 tests; the multi-page export, HTML export and unsupported-block checks passed another 58 tests. These checks support the specified exit scenario, not every possible block variant or failure condition.
+
+## Native create-only save increment
+
+`desktop/project/WebStudio.ProjectSave.pas` can write a caller-supplied byte snapshot to a uniquely named temporary file beside a new target, flush it, and move it into place without a replace flag. It rejects relative paths and does not overwrite an existing target. The caller must choose the destination and validate the snapshot; this unit is not connected to the editor or a file dialog. It does not implement Save over an existing project, crash recovery, conflict detection, a transactional multi-file project, or protection against a hostile process changing the destination directory.
+
+The same unit can flush an existing staged file and move it to a new filename in the same folder without a replace flag. If the target exists, the staged file remains available and the target is unchanged. An isolated Win64 test checked the successful move, an existing target, a locked stage and a different destination folder. The caller must own and validate the staged file and its directory. This operation is not connected to the editor, cannot replace an existing project, and does not establish complete crash recovery or protect against another process changing the staged file between operations.
+
+The Win64 `tests/native/ProjectSaveSmoke.dpr` test compiled and ran with RAD Studio 37.0. It checked a multi-chunk file, an empty file, failure to overwrite an existing file, relative and missing-directory rejection, and temporary-file cleanup. The implementation relies on Windows file APIs; see Microsoft's [MoveFileEx documentation](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-movefileexw) for platform semantics. This is an initial native storage increment, not a completed save or recovery workflow.
+
+`desktop/project/WebStudio.ProjectOpen.pas` adds a read-only operation for a native-caller-selected absolute drive path. The caller sets a maximum byte count before allocation, and the read denies concurrent write access while the file is open. The native smoke test checks a multi-chunk round trip, empty input, size limits, relative-path rejection and an exclusively locked file. The operation does not parse or validate projects, resolve hostile filesystem paths, show a dialog or connect to the editor; those remain the host's responsibility.
+
+`SaveProjectRecoveryZip` creates a new ZIP containing a caller-selected project file. It holds the source open against writes, writes to a new staged file, verifies the archive entry and its bytes against the source, flushes it and moves it to a new destination. An existing recovery ZIP is never intentionally overwritten. Isolated Win64 tests checked ordinary, empty, Unicode-named and ZIP sources, collision and size limits, a locked source, and a 96 MiB synthetic project with byte-by-byte verification and a bounded working-memory check. This does not replace the original project or prove power-loss recovery.
+
+`RestoreProjectRecoveryZip` reads one recovery entry within caller-supplied archive and project size limits, checks the entry name, CRC and consistency of the local and central ZIP headers, and streams its bytes to a new staged file. It compares the staged bytes with a second checked read of the ZIP, flushes the file and moves it to a new destination without replacing an existing file. Isolated Win64 tests restored ordinary, empty, Unicode-named and ZIP projects and rejected existing destinations, size-limit violations, malformed or multi-entry archives, traversal names, mismatched headers and a corrupted CRC. Tests also verified every byte of a 288 MiB synthetic project with a bounded working-memory check. Open a restored project to validate it; this is not a complete hostile-archive security audit or power-loss recovery workflow.
+
+## M3 update
+
+Projects with imported media now save as `.webstudio.zip` files, containing the manifest and media; projects without media save as JSON. Opening a ZIP validates and restores its media into a separate browser project. See MEDIA_LIBRARY.md for details and limitations. The earlier statement that assets are not integrated describes M1 only.
+
+## M6 export styling increment
+
+New exports embed generated Tailwind styles and use installed system font fallbacks, rather than loading Tailwind and Google Fonts. Theme colors are retained. Sites can still request external resources explicitly supplied by the user, including image URLs, favicon, Open Graph images and optional analytics. Those references are not copied or converted. Complete self-contained export, SEO checks, and secure publishing remain unfinished.
+
+ZIP export assigns fixed timestamps to files and folder entries. A local test confirmed identical ZIP bytes for unchanged multi-page input exported at different times in the same environment.
+
+## Page addresses
+
+Page addresses can be changed with Change address beside Add page. Home stays at `/`; other paths are validated and the change can be undone. The dialog offers to update Content text links and known Hero, CTA, Banner, Navbar and Footer destinations in the same undoable change. External bookmarks and links in other content are not rewritten, so check them after changing an address.
+
+Page renames require a nonempty name. Invalid or unchanged rename requests leave the project and undo history unchanged; a valid rename can be undone and redone.
+
+Use Search details beside Add page to set its search title and description. The exported page uses these for HTML and sharing metadata; blank fields fall back to the site-wide settings. These edits are saved with the project and can be undone.
+
+If a public site URL is configured in Settings, ZIP export also writes canonical and sharing URLs for each page using that address and its subfolder. Enter the final address carefully; the app does not verify or publish the website.
+
+## Media integrity check
+
+Before opening or saving, known block media IDs and local `assets/` paths are checked against the project media list, including references inside nested items. Missing or mismatched media and duplicate IDs or case-colliding paths produce an error rather than a portable file with silently broken references. An unsuccessful open leaves the current project selected; an unsuccessful save leaves the editing state intact. Unknown block types are preserved and their plugin-specific references are not interpreted. Restoring missing files and native crash-safe saving remain future work.
+
+When a project ZIP is reopened and saved, unrecognized metadata on retained media entries is preserved by media ID while current names, paths, checksums and other known fields are updated. An isolated browser test verified an additional nested metadata field and the original PDF bytes survived a ZIP round trip. Unknown metadata is preserved without interpreting it and may need review after replacing a file.
+
+## Page links in ZIP exports
+
+When a button or link uses an exact project page path such as `/about`, website ZIP export rewrites it to the correct relative HTML file for the page it appears on. Query strings and fragment identifiers are preserved. Links to unknown paths and external sites are unchanged; full broken-link checks remain unfinished. An isolated browser test followed a button from a nested page to another page and then Home while the site was served under a subdirectory.
+
+For Hero, CTA and Banner links and Navbar and Footer navigation destinations, the Properties panel offers **Choose a site page** below the URL field. Selecting a page fills in its path; the URL field remains editable for external addresses or anchors. Draft articles are omitted from the chooser. The chooser does not cover arbitrary links inside content or automatically update references when a page is removed.
+
+Before deleting a page, the editor lists other pages with Content text links or known Hero, CTA, Banner, Navbar or Footer destinations that point to it. Deletion is explicitly confirmed and can be undone; it does not automatically remove those links. Links in other block types or custom content are not checked, so this is not a complete broken-link audit.
+
+**Check site** runs local checks for project media, missing image descriptions, heading order, editor-managed links and anchors, and form configuration. Changing or deleting a page address uses the same link coverage, including links on section objects, standalone images, rich text, and Navbar submenus. Select **Open this block** to go to a block finding. Unknown root-relative paths may name a separate hosted resource. External links and arbitrary custom code require separate review.
+
+In Preview mode, links to existing site pages switch the visible page without leaving the editor. Other links are not followed there; use the exported website to test external addresses and anchors. In editing mode, clicking a link selects its block instead of navigating away. The split Hero preview also shows its configured image when available.
+
+New Footer blocks start without prefilled legal links or copyright claims. To add working links, select the Footer and add a label and URL under **Navigation destinations** in Properties. Choose an existing page or enter an external address. Existing legacy text-only labels remain text and are preserved. The multi-column layout uses the description and columns actually present in the project instead of generating product or legal placeholder content. Existing saved values are preserved; projects that previously relied on generated placeholder columns will no longer display those placeholders unless the content was explicitly saved.
+
+New Navbar blocks start without placeholder links or a call-to-action label. Existing labels remain intact. Legacy Navbar text labels remain text-only. To add working links, select the Navbar, choose Navigation destinations in Properties, and add a label and URL for each link (for example, /about). Use the page selector to choose an existing non-draft page, or type an external address. These links appear on desktop and in a scrollable mobile menu; the separate site-page navigation also remains available. A browser check exercised a 25-link menu on a phone-sized viewport and checked desktop link boundaries. The centered Navbar layout and its logo appear in both the editor and export.
+
+ZIP export checks page filenames against already packaged files and folders, including case-insensitive collisions and file/folder conflicts. If a page would overwrite a bundled PDF viewer file, export stops and identifies the conflicting page; the project remains open. Rename that page path before retrying.
+
+## Optional sitemap
+
+In Settings → SEO, set **Public site URL** only when the destination is known, including any subfolder (for example, `https://example.com/site/`). ZIP export then includes `sitemap.xml` listing each exported HTML page at that address. The address must be absolute HTTP or HTTPS and must not contain credentials, a query or a fragment. Leave it blank to omit the sitemap. Opening or exporting a project does not publish or submit the sitemap.
+
+No `robots.txt` is created: search engines expect it at the host root, which may be outside a subfolder deployment. Sitemap submission and search indexing remain the site owner's responsibility; see [Google's sitemap guidance](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap) and [robots.txt location rules](https://developers.google.com/crawling/docs/robots-txt/create-robots-txt). SEO and accessibility audits remain incomplete.
+
+## Contact email option
+
+A Contact block can be configured with **Contact Email** in Properties. The exported form checks required name, email and message fields, then opens the visitor's configured email application with a draft. The visitor must send that draft; WebStudio does not receive or send the message. This option requires JavaScript and a working mail handler and does not guarantee delivery.
+
+Alternatively, enter a form service's **HTTPS URL** in Properties. The exported form sends the name, email and message fields as a standard form POST to that service, which must accept those fields. The service URL takes precedence over Contact Email and appears in the public website; do not put passwords or secret keys in it. Add your own privacy and consent notice in Properties to display a required visitor checkbox. Check site warns when a configured service lacks that notice. Configure and test the service separately, and inform visitors how their information is handled. Preview does not send data. If a supplied service URL is invalid, the form remains disabled rather than falling back silently to email. Forms without either valid option remain disabled; newsletter signup is still unconfigured.
+
+Use **Export → Review files** to build a local website ZIP, inspect its file list and see local validation findings for exported pages, including unconfigured forms and known broken links. **Download reviewed ZIP** downloads the exact reviewed package. If the project changes, review it again. These checks are not a complete accessibility or link audit. This is a local file list, not a comparison with a hosting destination, and it does not publish the site.
+
+In the Windows app, **Open reviewed site in browser** opens that same ZIP through a temporary local preview. Resize the browser to test different widths. Site form submissions are blocked in this preview. Use **Stop local preview** or close the editor to end the preview and release its temporary archive.
+
+Dashboard → **Local Storage** reports the size of stored media and local revisions by project. Review and remove individual revisions or media left by a removed draft. The cleanup operates on the editor profile. Saved project ZIPs and external backups are separate.
+
+After reviewing files, **Prepare file manifest** hashes the website files. Download the manifest to keep a local snapshot; selecting a previous WebStudio manifest lists files added, changed or removed since that snapshot. This does not inspect a live destination or delete anything. SFTP (SSH File Transfer Protocol) transfers website files over an encrypted connection to a compatible server. The desktop SFTP workflow below can compare and check a destination separately.
+
+The experimental desktop SFTP dialog also supports a destination scan, a matching ZIP backup and a review of a website ZIP against those files. The destination check is read-only. After review and a successful check, the transfer button requires a new local receipt filename and explicit confirmation. For replacements, enter a separate existing recovery folder outside the website and ensure the host does not serve it; the application cannot verify the host's web-server configuration. The transfer rechecks the inputs and destination, retains replaced files in that folder, and records its progress and final verification in the receipt. Files only on the destination are kept. A failed transfer may leave partial changes: inspect the receipt, take a new scan and backup, and review before trying again. This workflow has been tested with synthetic local SFTP data; an actual host deployment has not been verified.
+
+To restore an earlier destination backup, first scan the current destination and save a new backup of its current contents. In the desktop review, select the earlier backup as the website ZIP, the new scan and new backup as destination evidence, the original completed deployment receipt, and an existing private recovery folder. Choose **Review files**, then **Review added rollback**. This lists files that the receipt says the deployment added and whose current contents still match it. After checking the destination, **Retain added files** requires a separate confirmation and moves those files into private recovery rather than deleting them. Other destination-only files are kept. Next, scan and back up the destination again, then review the earlier backup as the website ZIP and separately confirm restoration of its changed files. The two steps have separate receipts; inspect them and rescan if either stops. The application cannot verify that the host keeps the recovery folder private. No restore or publication occurs during scan, backup or review.
+
+A synthetic local SFTP test restored a changed file from an earlier backup, retained two newer destination-only files, and kept the displaced file in the private recovery folder.
+
+A synthetic desktop test reviewed a completed transfer receipt, retained two added files, rescanned and backed up the destination, then restored the earlier backup and verified the original file set. It used a legacy Windows save dialog and an in-memory loopback destination; the modern dialog and real-host rollback remain unverified.
+
+An isolated desktop test also reviewed synthetic files, checked an in-memory loopback destination, selected a receipt through the legacy Windows save dialog, confirmed the transfer, and checked the completed receipt. It did not contact a real host. The modern receipt dialog and real-host transfer remain unverified.
+
+## Current local desktop preview
+
+The experimental preview at `bin/DelphiWebStudio-Preview-M7-20261101-1308` contains the desktop build and locally built editor assets from that staging, plus a signature-verified WebView2 loader. The staged files were compared with their build inputs. An isolated-profile startup smoke check confirmed that the process started and remained running briefly; it did not verify that the editor rendered or exercise the full user workflow. This is not an installer, a release or a clean-machine test. Windows x64 and the WebView2 Runtime are required; optional local AI files are not included.
+
+The newer desktop source has a **Diagnostics** menu showing the WebView2 version and whether the local editor loaded. The dialog stays local and does not include project contents or credentials. An isolated native test exercised the missing-editor state; the earlier preview above does not include this addition.
+
+## Optional site search
+
+In Settings → General, set **Site search** to **Include in website ZIP** to add a Search link and a local search page. Search uses an index embedded in the exported page; it does not send queries to a search service. It searches page names and common text fields such as headings, descriptions, captions, questions and answers. It does not extract text from PDFs or search every possible block or plugin field. The index is part of the public website export and should contain only content intended for publication. A page path that would overwrite `search.html` is rejected. The Search link in the editor is a preview; use the exported website to run a search.
+
+An isolated browser test saved and reopened the setting, searched a nested page, followed the result under a subfolder, and blocked external requests. Full CMS and document-text search remain future work.
+
+Article pages use optional `webstudioArticle` metadata on ordinary pages. Drafts stay in project saves but are omitted from website exports and generated search/sitemaps; see ARTICLE_PAGES.md for operation and limitations.
+
+For Hero, CTA, Banner, Navbar and Footer links rendered by the HTML exporter, unsupported link schemes, protocol-relative URLs, backslashes and control characters are exported as text rather than active links. **Check site** reports destinations it can inspect; project validation may reject some invalid URLs earlier. This check does not cover every URL field or plugin and is not a complete security audit.
+
+In the experimental Delphi desktop shell, Save project and Export prompt for a destination using a Windows Save dialog. Project downloads with the standard `.webstudio.json` or `.webstudio.zip` suggested name are written to a staged file beside the selected destination. A new destination is created without overwriting another file. An existing destination requires a separate confirmation before replacement. If finalization fails or the download is interrupted, hover over the status line for the staged path to check; it may contain partial data. Website exports continue to use the ordinary download flow. Older staged previews may still use direct downloads.
+
+The current shell source suggests a date-and-time suffix for each project filename to make separate saved copies easier to distinguish. You may change the suggested name; choosing an existing project prompts for confirmation before replacement. An isolated legacy-dialog test checked JSON and ZIP suggestions and confirmed that the website export suggestion was unchanged. Older previews do not include this suggestion.
+
+In another isolated test, a file appeared at the selected destination while a staged download was in progress. Finalization left that file unchanged and retained the staged bytes for inspection. The test used synthetic data and does not cover every filesystem or process race.
+
+The shell also checks that a project destination keeps the format's `.json` or `.zip` extension, so a ZIP is not saved under a JSON name or vice versa. An isolated legacy-dialog test rejected both mismatches and then completed a correctly named save. This safeguard is in the current source; older previews may not include it.
+
+The current shell source offers **Recover staged file...** in the top bar. Select a `.webstudio-download-*.tmp` file from the project save folder, then choose a new filename in that same folder. The shell recognizes the initial bytes as JSON or ZIP and moves the staged file without replacing an existing destination. A staged file can be incomplete: open the recovered project to validate it and keep other project copies. Cancellation, an unrecognized file, a wrong extension or an existing destination leaves the staged file in place. Isolated Win64 tests exercised these cases and JSON/ZIP recovery using legacy dialogs; they do not establish complete crash recovery or validate every project or archive. Older previews do not have this button.
+
+In an isolated test, closing the shell during an active staged project download left a separate last-good project unchanged, but no staged file remained. Recovery cannot restore a file that WebView2 has removed. If no staged file remains, reopen the local draft if available or use an earlier saved project. This controlled shutdown test is not a power-loss test and does not establish that recent edits always survive.
+
+The current shell source warns on the first attempt to close while a project download is active or a save dialog is pending. Wait for the status line to report the outcome, or close a second time to interrupt it. Isolated Win64 tests checked the warning, the deliberate second close and normal closing after a completed save. This does not prevent forced termination, power loss or interruption while the browser is still preparing a download; older previews do not include the warning.
+
+An isolated test also forcibly terminated its own test process during an active staged project download. A separate last-good test project remained unchanged, but no staged file was observed afterward. This was one forced-process termination, not a power-loss test; it did not establish whether recent editor changes survived in local draft storage.
+
+In a follow-up isolated forced-termination test, the editor first wrote a changed headline to its local draft, then its test process was terminated during a staged download. A new test shell using the same isolated profile reopened the draft and displayed that headline. This covers one edit after it reached local storage; it does not establish survival of unsaved edits, media writes, cleared storage, all shutdown timings or power loss.
+
+Another isolated run imported the sample PDF and wrote a headline before terminating the test process during a staged save. The restarted shell reopened the draft, listed the PDF and saved a new project ZIP containing the headline and original PDF bytes. Both changes had completed storage before termination; this does not test interruption during a media write, cleared storage, every shutdown timing or power loss.
+
+An isolated test recovered both JSON and ZIP copies of the five-page sample, reopened each in the editor, and verified that the website export contained all five pages. This test did not simulate a power failure or recover a damaged media archive.
+
+A separate isolated test recovered a five-page project ZIP containing the sample PDF, reopened it, and exported all five pages with an edited page link and the original PDF bytes intact. The native recovery test used legacy dialogs and a completed staged file; it did not simulate a power failure or establish that an interrupted download is complete.
+
+The desktop status line reports when WebView2 marks a selected download complete or interrupted, including the filename. An isolated legacy-dialog test exercised completed project and website downloads, cancellation, a repeated save and an interrupted download. A completion report is WebView2's outcome, not a guarantee of crash-safe disk durability. Modern-dialog and broader failure testing remain open.
+
+Opening a project rejects a JSON file or ZIP manifest larger than 100 MiB before reading its contents. Saving also stops before downloading a manifest above that limit so the application does not produce a project it cannot reopen. The ZIP may be larger when it contains media. This limit helps prevent excessive manifest allocation; it is not a complete defense against every oversized or malformed archive.
+
+Opening a project ZIP verifies the manifest's recorded CRC and requires valid UTF-8 before parsing it. An isolated browser test rejected a ZIP with altered manifest bytes while preserving the current project, then opened a valid project ZIP containing a PDF. CRC detects accidental corruption; it does not authenticate the archive or establish protection against a deliberately crafted ZIP. This check uses metadata and the CRC implementation from the pinned JSZip version.
+
+Opening a standalone JSON project also requires valid UTF-8, so invalid bytes are reported instead of silently replaced in project text. An isolated browser test rejected a damaged JSON file, preserved the current project and then opened valid JSON. UTF-8 files with a byte-order mark remain supported.
+
+An isolated browser check rejected an oversized JSON file and a ZIP whose manifest metadata claimed more than 100 MiB, then opened the five-page sample in the same session. Another browser check simulated an oversized serialized manifest, verified that no download was started, then restored the normal size and saved the sample. This does not test every archive or complete native save and recovery.
+
+The current desktop shell offers **Project > Back up project...** and **Project > Restore project backup...**. Backup creates a checked ZIP containing a selected JSON or ZIP project; restore writes its contents to a new filename. Neither operation replaces an existing file. Open a restored project to check it. The current limits are 512 MiB for a project and 513 MiB for a backup ZIP. Both operations stream their data; opening a project in the editor has separate memory and manifest limits. Isolated tests covered cancellation, existing destinations, invalid archives, JSON and ZIP projects, and a modern Windows dialog round trip. A failed operation may leave a temporary file; these controls do not establish complete crash or power-loss recovery. Older previews may have lower limits.
+
+Project saves use a separate Windows dialog titled **Save project**. If the selected project already exists, the shell asks whether to replace it; No is the default. Website downloads retain their separate overwrite prompt. Earlier versions retained an automatic recovery ZIP; that behavior has since been removed. See the current replacement description below. These tests did not simulate power loss.
+
+The local preview `DelphiWebStudio-Preview-M4-20261031-2141` was mistakenly built without the portable-project feature enabled and does not show Open or Save project. Use `DelphiWebStudio-Preview-M1M4-20261031-2149` instead. Its executable and editor files were checked against the isolated build used for the modern-dialog test. Both are experimental previews, not installers or releases.
+
+The newer local preview `DelphiWebStudio-Preview-M2-20261101-0753` contains the tested M2 editor build and the same previously tested desktop executable and loader. Its staged files were checked against those sources. The new combination has not had a separate native desktop run. Custom HTML/CSS preview is unavailable in the desktop shell because frame navigation is blocked; use the exported site for review. This is an experimental preview, not an installer or release.
+
+The later experimental preview `DelphiWebStudio-Preview-M5-20261101-0816` stages the current tested editor, including component dragging and the optional HTTPS contact service, with the same desktop executable and loader. Its staged files were checked against their sources; the combination has not had a separate native desktop run. Publishing remains disabled pending destination review and verification.
+
+The local preview `DelphiWebStudio-Preview-M5-20261101-0833` additionally includes the form consent option and local website file review. The staged executable, loader and editor files match their tested sources; this combination has not had a separate native desktop run. No website is published by using this preview.
+
+Portable project controls are enabled by default in new builds. Developers can explicitly set `VITE_WEBSTUDIO_PROJECTS=false` to disable them for a baseline comparison. A build made with no project feature variable matched the project-enabled build byte for byte; an isolated browser displayed Open and Save and reopened the modern-dialog test project.
+
+The local revisions list offers **Save revision as file**, including on the dashboard when the original draft is no longer present. The revision checksum is checked before requesting a download; a damaged revision is not downloaded. Older revisions without checksums can be downloaded with a warning to open and verify the file. An isolated browser test downloaded a five-page revision with the original PDF bytes, rejected a damaged revision and displayed the older-revision warning. A download request does not itself confirm that a file was saved, and local revisions remain dependent on browser storage until saved separately.
+
+An isolated Delphi WebView2 test also created and saved a five-page local revision using the native project save dialog, then checked the resulting ZIP for all five pages and the original PDF bytes. This test did not interrupt a revision write or simulate power loss.
+
+An isolated Windows test found that `ReplaceFile` replaced an existing synthetic backup file and also succeeded while a read handle denied write sharing but allowed deletion. A future replacement workflow therefore cannot assume an existing backup is protected by that API or that the handle alone prevents a competing rename. This is a platform behavior check, not an implemented project replacement or a crash-safety guarantee. Microsoft documents [ReplaceFile failure outcomes and volume requirements](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-replacefilew).
+
+An isolated browser test deliberately aborted a new revision's IndexedDB transaction after its write began. The application reported the failure, and the previous revision could still be downloaded with all five pages and its original PDF bytes; the aborted revision was absent. This is a transaction-abort test, not a process crash, device failure or power-loss test.
+
+Project saves and local revisions warn when the project's media revision changes while a snapshot is being prepared, because the resulting snapshot may contain earlier media. An isolated browser test changed media metadata during preparation and verified warnings for both save paths and the earlier metadata in the downloaded project. This detects changes reported to the current project store; it is not a cross-window locking mechanism.
+
+When a project or local revision is being opened, the current project is also checked for changes to its project record, such as a rename, settings update or media revision. If it changes during preparation, opening stops and the current project remains active. An isolated browser test simulated a media update while checking a revision and a rename while opening a project; both operations stopped without creating another project. Normal revision recovery also passed. This check observes the current application store and does not lock other windows or external files.
+
+In an isolated Delphi WebView2 test, the test process was intentionally terminated while a second local revision's IndexedDB transaction was held open. On restart with the same isolated profile, the earlier revision remained available and was saved as a ZIP containing all five pages and the original PDF bytes; the incomplete revision was absent. The test covers one forced host-process termination and transaction timing, not power loss, a device failure or all interruption points.
+
+If local draft storage is unreadable or malformed, the dashboard offers **Save unreadable draft data**. This downloads a ZIP of whichever raw project-list and editor-draft values can still be read, preserving their UTF-16 code units in `.utf16le` files. It does not alter the stored values, include media, or produce a project that can be opened directly; the files may contain private settings or saved access keys. An isolated browser test covered malformed data, unusual UTF-16 code units, one inaccessible value, and completely inaccessible storage. When storage access itself is unavailable, no recovery file can be created until at least one value can be read.
+
+The project-list read check also protects against malformed stored configuration, page and settings structures, including those inside a stored project file. If such a record is detected, the original project-list value is kept rather than overwritten by new in-memory work. Tests checked malformed records, an older valid project with unknown fields, and recovery of the original bytes from a damaged record. This is a structural check, not a complete validation of every stored property.
+
+Stored projects with a valid pages-only configuration remain supported. When a project has a stored project file but no separate draft configuration, opening it uses that file's configuration and supplies the legacy blocks view from its Home page. A newer separate draft takes precedence. Isolated browser tests checked both cases with a five-page project and confirmed that opening did not change the stored project file.
+
+Draft read checks also reject malformed block records in project lists and editor storage, including older single-page drafts, before allowing those storage values to be overwritten. Unknown block types and their data remain supported when their basic record structure is intact. Tests verified that damaged project and editor block data remained unchanged and could be exported for recovery; the checks do not validate every block property.
+
+When stored legacy `blocks` conflict with every page's blocks, the draft is protected instead of silently discarding the conflicting content. Legacy blocks matching any page remain accepted. An isolated browser test preserved and exported conflicting project and editor data while new work remained in memory. As with portable-file validation, the comparison uses the serialized block data; the exported raw recovery data may require manual repair.
+
+The shell checks the staged JSON or ZIP project manifest and the identities, sizes and write times of the confirmed original and validated stage. Windows `ReplaceFile` temporarily retains the original beside the project; after checking the replacement and original identities, the shell deletes that temporary original. A successful save retains no automatic previous-version ZIP or recovery folder. If cleanup cannot be performed, or replacement needs inspection, the status details identify the retained file. The manifest check is preliminary and does not validate every media file or all project semantics. Isolated tests cover repeated replacements, Unicode filenames, hard links, missing and locked files, changed targets, cancellation and invalid staged JSON and ZIP files. File identity and sharing behavior depend on the filesystem; every failure point and power loss have not been proven safe. See Microsoft's [ReplaceFile](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-replacefilew) documentation.

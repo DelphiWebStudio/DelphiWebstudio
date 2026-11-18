@@ -3,15 +3,16 @@ import { ChevronDown } from 'lucide-react'
 import { useConfigStore } from '@/store/configStore'
 import type { ThemeConfig } from '@/blocks/types'
 import { themePresets, resolveTheme, googleFontOptions } from '@/lib/theme-presets'
+import { WindowsColorInput } from './WindowsColorInput'
 
-function ColorInput({ value, onInput, onChange }: { value: string; onInput: (v: string) => void; onChange: (v: string) => void }) {
+function ColorInput({ label, value, onInput, onChange }: { label: string; value: string; onInput: (v: string) => void; onChange: (v: string) => void }) {
   return (
     <div className="flex items-center gap-1.5">
-      <input
-        type="color"
+      <WindowsColorInput
+        label={`Choose ${label} color`}
         value={value}
-        onInput={(e) => onInput((e.target as HTMLInputElement).value)}
-        onChange={(e) => onChange(e.target.value)}
+        onPreview={onInput}
+        onChange={onChange}
         className="w-6 h-6 rounded border border-border-default bg-bg-2 cursor-pointer p-0.5 shrink-0"
       />
       <input
@@ -68,6 +69,7 @@ function ColorSection({ title, colors, defaultOpen = false }: {
             <div key={c.key} className="flex items-center justify-between">
               <span className="text-[10.5px] text-text-2">{c.label}</span>
               <ColorInput
+                label={c.label}
                 value={resolved[c.key] as string}
                 onInput={(v) => previewTheme({ [c.key]: v })}
                 onChange={(v) => updateTheme({ [c.key]: v })}

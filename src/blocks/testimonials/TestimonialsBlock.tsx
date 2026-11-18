@@ -16,11 +16,7 @@ interface TestimonialsProps {
   items?: Testimonial[]
 }
 
-const defaultTestimonials: Testimonial[] = [
-  { name: 'Sarah Chen', role: 'CEO at TechCorp', quote: 'OpenPage completely changed how we build landing pages. The JSON config approach is genius.', rating: 5 },
-  { name: 'Marcus Johnson', role: 'Lead Developer', quote: 'Finally, a tool where both designers and AI agents can work together seamlessly.', rating: 5 },
-  { name: 'Emma Wilson', role: 'Product Manager', quote: 'We shipped our marketing site in half the time. The component library is incredible.', rating: 4 },
-]
+const defaultTestimonials: Testimonial[] = []
 
 function StarRating({ rating }: { rating: number }) {
   return (
@@ -53,7 +49,7 @@ function TestimonialsCards({ props }: { props: TestimonialsProps }) {
       <div className="grid grid-cols-1 @2xl:grid-cols-3 gap-4">
         {items.map((item, i) => (
           <div
-            key={i}
+            key={i} data-ws-item-field="items" data-ws-item-index={i}
             className={`reveal-fade-up reveal-d${Math.min(i + 2, 8)} bg-bg-2 border border-border-default rounded-xl p-5 transition-all hover:border-border-hover`}
           >
             <Quote size={20} className="text-green/30 mb-3" />
@@ -102,7 +98,7 @@ function TestimonialsCarousel({ props }: { props: TestimonialsProps }) {
       </div>
 
       <div className="reveal-fade-up reveal-d2 max-w-2xl mx-auto">
-        <div className="text-center">
+        <div className="text-center" data-ws-item-field="items" data-ws-item-index={safeIndex}>
           <Quote size={32} className="text-green/20 mx-auto mb-4" />
           <p className="text-lg text-text-0 leading-relaxed mb-4 italic">
             "{item.quote}"
@@ -128,7 +124,7 @@ function TestimonialsCarousel({ props }: { props: TestimonialsProps }) {
 
           {/* Navigation */}
           <div className="flex items-center justify-center gap-4 mt-6">
-            <button
+            <button data-ws-block-button
               onClick={() => goTo(safeIndex - 1)}
               className="w-8 h-8 rounded-full border border-border-default bg-bg-2 flex items-center justify-center text-text-2 hover:text-text-0 hover:border-border-hover transition-colors"
             >
@@ -136,7 +132,7 @@ function TestimonialsCarousel({ props }: { props: TestimonialsProps }) {
             </button>
             <div className="flex gap-1.5">
               {items.map((_, i) => (
-                <button
+                <button data-ws-block-button
                   key={i}
                   onClick={() => goTo(i)}
                   className={`w-2 h-2 rounded-full transition-colors ${
@@ -145,7 +141,7 @@ function TestimonialsCarousel({ props }: { props: TestimonialsProps }) {
                 />
               ))}
             </div>
-            <button
+            <button data-ws-block-button
               onClick={() => goTo(safeIndex + 1)}
               className="w-8 h-8 rounded-full border border-border-default bg-bg-2 flex items-center justify-center text-text-2 hover:text-text-0 hover:border-border-hover transition-colors"
             >
@@ -165,7 +161,7 @@ function TestimonialsSpotlight({ props }: { props: TestimonialsProps }) {
 
   return (
     <section className="px-6 @md:px-10 py-16 @md:py-24">
-      <div className="max-w-2xl mx-auto text-center">
+      <div className="max-w-2xl mx-auto text-center" data-ws-item-field="items" data-ws-item-index={0}>
         <div className="reveal-fade-up reveal-d1"><Quote size={48} className="text-green/20 mx-auto mb-6" /></div>
         <p className="reveal-fade-up reveal-d2 text-xl @md:text-2xl text-text-0 leading-relaxed mb-8 italic font-display">
           "{item.quote}"

@@ -20,6 +20,12 @@ import { ContentBlock } from './content/ContentBlock'
 import { ImageBlock } from './image/ImageBlock'
 import { VideoBlock } from './video/VideoBlock'
 import { GalleryBlock } from './gallery/GalleryBlock'
+import { PdfBlock } from './pdf/PdfBlock'
+import { MediaBlock } from './media/MediaBlock'
+import { DocumentLibraryBlock } from './media/DocumentLibraryBlock'
+import { CollageBlock } from './collage/CollageBlock'
+import { PanelBlock } from './panel/PanelBlock'
+import { CalendarBlock } from './calendar/CalendarBlock'
 
 // Error boundary for individual blocks
 class BlockErrorBoundary extends Component<
@@ -53,12 +59,12 @@ class BlockErrorBoundary extends Component<
 function PlaceholderBlock({ block }: { block: BlockConfig }) {
   return (
     <div className="px-9 py-7 text-center text-text-3 text-sm">
-      {block.type} block (coming soon)
+      Unsupported block: {block.type}. Its data is preserved; it cannot be exported until supported or removed.
     </div>
   )
 }
 
-const blockRenderers: Record<string, React.ComponentType<{ block: BlockConfig }>> = {
+const blockRenderers: Record<string, React.ComponentType<{ block: BlockConfig; editable?: boolean }>> = {
   navbar: NavbarBlock,
   hero: HeroBlock,
   features: FeaturesBlock,
@@ -78,13 +84,21 @@ const blockRenderers: Record<string, React.ComponentType<{ block: BlockConfig }>
   image: ImageBlock,
   video: VideoBlock,
   gallery: GalleryBlock,
+  pdfViewer: PdfBlock,
+  document: MediaBlock,
+  documentLibrary: DocumentLibraryBlock,
+  audio: MediaBlock,
+  mediaVideo: MediaBlock,
+  collage: CollageBlock,
+  panel: PanelBlock,
+  calendar: CalendarBlock,
 }
 
-export function RenderBlock({ block }: { block: BlockConfig }): ReactNode {
-  const Renderer = blockRenderers[block.type] || PlaceholderBlock
+export function RenderBlock({ block, editable = false }: { block: BlockConfig; editable?: boolean }): ReactNode {
+  const Renderer = Object.hasOwn(blockRenderers, block.type) ? blockRenderers[block.type] : PlaceholderBlock
   return (
     <BlockErrorBoundary blockType={block.type}>
-      <Renderer block={block} />
+      <Renderer block={block} editable={['collage', 'hero', 'content', 'panel', 'image', 'gallery', 'documentLibrary', 'calendar'].includes(block.type) ? editable : undefined} />
     </BlockErrorBoundary>
   )
 }

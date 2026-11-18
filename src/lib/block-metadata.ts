@@ -10,13 +10,17 @@ export interface BlockMeta {
 }
 
 export const blockMetadata: BlockMeta[] = [
+  { type: 'collage', label: 'Photo collage', description: 'Move and layer photos and other images', category: 'Media', variants: ['default'], defaultProps: { images: [] } },
+  { type: 'panel', label: 'Panel', description: 'Movable colored panel with image and text', category: 'Content', variants: ['default'], defaultProps: { title: 'Panel title', body: 'Add your text here.', src: '', alt: '', blockBackgroundColor: '#b9aeb6', layoutWidth: 40 } },
+  { type: 'documentLibrary', label: 'Document library', description: 'Searchable list of documents', category: 'Media', variants: ['default'], defaultProps: { title: 'Documents', items: [] } },
+  { type: 'calendar', label: 'Calendar', description: 'Monthly calendar with editable events', category: 'Content', variants: ['default'], defaultProps: { title: 'Calendar', intro: '', events: [] } },
   {
     type: 'navbar',
     label: 'Navbar',
-    description: 'Navigation bar with logo, links, and CTA',
+    description: 'Navigation bar with editable text links',
     category: 'Navigation',
     variants: ['default', 'centered'],
-    defaultProps: { logo: 'Brand', links: ['Features', 'Pricing', 'About'], ctaText: 'Get Started' },
+    defaultProps: { logo: '', links: [], navItems: [{ label: 'Home', url: '/' }], ctaText: '' },
   },
   {
     type: 'hero',
@@ -24,7 +28,7 @@ export const blockMetadata: BlockMeta[] = [
     description: 'Full-width hero section with headline and CTAs',
     category: 'Hero',
     variants: ['centered', 'split', 'gradient', 'minimal'],
-    defaultProps: { headline: 'Your Headline Here', subheadline: 'A compelling subheadline that explains your value proposition.', primaryCta: 'Get Started', secondaryCta: 'Learn More' },
+    defaultProps: { headline: 'Your Headline Here', subheadline: 'A compelling subheadline that explains your value proposition.', primaryCta: '', secondaryCta: '' },
   },
   {
     type: 'features',
@@ -32,7 +36,7 @@ export const blockMetadata: BlockMeta[] = [
     description: 'Feature showcase with icon cards',
     category: 'Content',
     variants: ['grid', 'list', 'alternating'],
-    defaultProps: { title: 'Features', subtitle: 'Everything you need', items: [{ icon: 'Zap', title: 'Fast', description: 'Lightning fast performance' }, { icon: 'Shield', title: 'Secure', description: 'Enterprise-grade security' }, { icon: 'Globe', title: 'Global', description: 'Available worldwide' }] },
+    defaultProps: { title: 'Features', subtitle: '', items: [] },
   },
   {
     type: 'pricing',
@@ -48,15 +52,15 @@ export const blockMetadata: BlockMeta[] = [
     description: 'Conversion-focused section with CTA button',
     category: 'Conversion',
     variants: ['simple', 'split'],
-    defaultProps: { headline: 'Ready to get started?', subheadline: 'Start building today.', buttonText: 'Start Free' },
+    defaultProps: { headline: 'Ready to get started?', subheadline: '', buttonText: 'Learn more' },
   },
   {
     type: 'footer',
     label: 'Footer',
     description: 'Page footer with links and copyright',
     category: 'Navigation',
-    variants: ['simple', 'multi-column', 'minimal'],
-    defaultProps: { logo: 'Brand', copyright: '2026 Brand. All rights reserved.', links: ['Privacy', 'Terms'] },
+    variants: ['simple', 'multi-column', 'minimal', 'resources'],
+    defaultProps: { logo: '', copyright: '', links: [] },
   },
   {
     type: 'testimonials',
@@ -64,7 +68,7 @@ export const blockMetadata: BlockMeta[] = [
     description: 'Customer testimonials with quotes and ratings',
     category: 'Social Proof',
     variants: ['cards', 'carousel', 'spotlight'],
-    defaultProps: { title: 'What our customers say' },
+    defaultProps: { title: 'Testimonials', items: [] },
   },
   {
     type: 'stats',
@@ -72,7 +76,7 @@ export const blockMetadata: BlockMeta[] = [
     description: 'Key metrics and statistics display',
     category: 'Social Proof',
     variants: ['grid', 'bar', 'counter'],
-    defaultProps: { title: 'By the numbers' },
+    defaultProps: { title: 'By the numbers', items: [] },
   },
   {
     type: 'faq',
@@ -80,15 +84,15 @@ export const blockMetadata: BlockMeta[] = [
     description: 'Frequently asked questions accordion',
     category: 'Content',
     variants: ['accordion'],
-    defaultProps: { title: 'Frequently Asked Questions' },
+    defaultProps: { title: 'Frequently Asked Questions', items: [] },
   },
   {
     type: 'team',
     label: 'Team',
-    description: 'Team member grid with photos and roles',
+    description: 'Team grid or staff directory with portraits and bios',
     category: 'Content',
-    variants: ['grid'],
-    defaultProps: { title: 'Meet the Team' },
+    variants: ['grid', 'directory'],
+    defaultProps: { title: 'Meet the Team', members: [] },
   },
   {
     type: 'contact',
@@ -104,7 +108,7 @@ export const blockMetadata: BlockMeta[] = [
     description: 'Email subscription form with social proof',
     category: 'Conversion',
     variants: ['simple'],
-    defaultProps: { title: 'Stay in the loop', subtitle: 'Get updates on new features.', buttonText: 'Subscribe' },
+    defaultProps: { title: 'Stay in the loop', subtitle: '', buttonText: 'Subscribe' },
   },
   {
     type: 'logocloud',
@@ -112,14 +116,14 @@ export const blockMetadata: BlockMeta[] = [
     description: 'Company logos with hover effects',
     category: 'Social Proof',
     variants: ['default'],
-    defaultProps: { title: 'Trusted by leading companies' },
+    defaultProps: { title: 'Partners', logos: [] },
   },
   {
     type: 'content',
     label: 'Content',
     description: 'Rich text content section',
     category: 'Content',
-    variants: ['prose', 'columns', 'highlight'],
+    variants: ['prose', 'wide-prose', 'columns', 'highlight'],
     defaultProps: { body: '## Getting Started\n\nWrite your content here. Supports **bold**, *italic*, and lists.\n\n- First item\n- Second item\n- Third item' },
   },
   {
@@ -128,7 +132,7 @@ export const blockMetadata: BlockMeta[] = [
     description: 'Image with text overlay or side-by-side layout',
     category: 'Media',
     variants: ['hero-image', 'side-by-side', 'grid'],
-    defaultProps: { title: 'Visual Storytelling', subtitle: 'A picture is worth a thousand words.', imageSide: 'left' },
+    defaultProps: { imageSide: 'left', layoutWidth: 40 },
   },
   {
     type: 'video',
@@ -141,17 +145,17 @@ export const blockMetadata: BlockMeta[] = [
   {
     type: 'gallery',
     label: 'Gallery',
-    description: 'Image gallery in grid or masonry layout',
+    description: 'Image gallery in grid, masonry, or responsive layout',
     category: 'Media',
-    variants: ['grid', 'masonry'],
+    variants: ['grid', 'masonry', 'responsive'],
     defaultProps: { title: 'Gallery' },
   },
   {
     type: 'divider',
-    label: 'Divider',
-    description: 'Visual separator between sections',
-    category: 'Layout',
-    variants: ['line', 'space', 'dots'],
+    label: 'Strip',
+    description: 'Separator or blank space between sections',
+    category: 'Media',
+    variants: ['space', 'line', 'dots'],
     defaultProps: { height: 60, width: 'full' },
   },
   {
@@ -160,7 +164,7 @@ export const blockMetadata: BlockMeta[] = [
     description: 'Announcement bar or ribbon',
     category: 'Content',
     variants: ['ribbon', 'bar'],
-    defaultProps: { text: 'New: We just launched v2.0!', linkText: 'Learn more' },
+    defaultProps: { text: 'Add your announcement', linkText: '' },
   },
 ]
 

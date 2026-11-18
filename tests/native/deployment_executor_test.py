@@ -1,0 +1,320 @@
+import getpass, hashlib, io, json, os, pathlib, socket, stat, subprocess, sys, threading, uuid, zipfile
+
+# Synthetic files live only in this loopback server's memory. No website is published.
+root = pathlib.Path(__file__).resolve().parents[2]
+base = root / 'test-results'
+sys.path.insert(0, str(base / 'm6-sftp-server-deps'))
+import paramiko
+
+work = base / ('m6-executor-' + uuid.uuid4().hex)
+work.mkdir()
+host_key = paramiko.RSAKey.generate(2048)
+user_key = paramiko.RSAKey.generate(2048)
+key = work / 'client_key'
+user_key.write_private_key_file(str(key))
+subprocess.run(['icacls', str(key), '/inheritance:r', '/grant:r', getpass.getuser() + ':(R,W)'], check=True, capture_output=True)
+listener = socket.socket()
+listener.bind(('127.0.0.1', 0))
+listener.listen(1)
+listener.settimeout(60)
+port = listener.getsockname()[1]
+hosts = work / 'known_hosts'
+hosts.write_text(f'[127.0.0.1]:{port} {host_key.get_name()} {host_key.get_base64()}\n', encoding='ascii')
+
+baseline = {'index.html': b'Hello world!', 'assets/image.png': b'picture', 'empty.txt': b''}
+roots = ['/success', '/rollback', '/rollback-gui', '/gui', '/stale', '/race', '/journal', '/deny', '/midfail', '/postchange', '/private-missing', '/private-link']
+files = {prefix + '/' + name: content for prefix in roots for name, content in baseline.items()}
+directories = {'/', '/private'} | {directory for prefix in roots for directory in [prefix, prefix + '/assets']}
+removed = []
+class Writer(paramiko.SFTPHandle):
+    def __init__(self, path, flags):
+        super().__init__(flags)
+        self.path = path
+    def write(self, offset, data):
+        if offset != len(files[self.path]):
+            return paramiko.SFTP_FAILURE
+        files[self.path] += data
+        return paramiko.SFTP_OK
+
+class Server(paramiko.ServerInterface):
+    def check_auth_publickey(self, username, value):
+        return paramiko.AUTH_SUCCESSFUL if username == 'testuser' and value == user_key else paramiko.AUTH_FAILED
+    def get_allowed_auths(self, username):
+        return 'publickey'
+    def check_channel_request(self, kind, channel_id):
+        return paramiko.OPEN_SUCCEEDED if kind == 'session' else paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
+
+class Files(paramiko.SFTPServerInterface):
+    def lstat(self, path):
+        return self.stat(path)
+    def stat(self, path):
+        path = path.rstrip('/') or '/'
+        entry = paramiko.SFTPAttributes()
+        if path == '/linkprivate':
+            entry.st_mode, entry.st_size = stat.S_IFLNK | 0o777, 0
+        elif path in directories:
+            entry.st_mode, entry.st_size = stat.S_IFDIR | 0o755, 0
+        elif path in files:
+            entry.st_mode, entry.st_size = stat.S_IFREG | 0o644, len(files[path])
+        else:
+            return paramiko.SFTP_NO_SUCH_FILE
+        return entry
+    def list_folder(self, path):
+        path = path.rstrip('/') or '/'
+        if path not in directories:
+            return paramiko.SFTP_NO_SUCH_FILE
+        prefix = path + '/'
+        entries = []
+        for candidate in sorted(directories | set(files)):
+            if candidate.startswith(prefix) and '/' not in candidate[len(prefix):]:
+                entry = self.stat(candidate)
+                entry.filename = candidate[len(prefix):]
+                entries.append(entry)
+        return entries
+    def open(self, path, flags, attr):
+        if '/.webstudio-upload-' in path and flags & os.O_CREAT:
+            if path in files or path.rsplit('/', 1)[0] not in directories:
+                return paramiko.SFTP_FAILURE
+            files[path] = b''
+            return Writer(path, flags)
+        if path not in files or flags & (os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_TRUNC):
+            return paramiko.SFTP_PERMISSION_DENIED
+        handle = paramiko.SFTPHandle(flags)
+        handle.readfile = io.BytesIO(files[path])
+        return handle
+    def mkdir(self, path, attr):
+        if path == '/deny/newfolder':
+            return paramiko.SFTP_PERMISSION_DENIED
+        if path in directories or path in files or path.rsplit('/', 1)[0] not in directories:
+            return paramiko.SFTP_FAILURE
+        directories.add(path)
+        if path == '/race/newfolder':
+            files[path + '/new.txt'] = b'concurrent user data'
+        return paramiko.SFTP_OK
+    def rename(self, oldpath, newpath):
+        if oldpath not in files or newpath in files:
+            return paramiko.SFTP_FAILURE
+        files[newpath] = files.pop(oldpath)
+        if newpath == '/midfail/newfolder/new.txt':
+            directories.add('/midfail/secondfolder')
+            files['/midfail/secondfolder/second.txt'] = b'concurrent user data'
+        if newpath == '/postchange/index.html' and '/.webstudio-upload-' in oldpath:
+            files['/postchange/assets/image.png'] = b'PicturE'
+        return paramiko.SFTP_OK
+    def remove(self, path):
+        removed.append(path)
+        return paramiko.SFTP_PERMISSION_DENIED
+
+errors = []
+def serve():
+    try:
+        for _ in range(90):
+            connection, _ = listener.accept()
+            transport = paramiko.Transport(connection)
+            try:
+                transport.add_server_key(host_key)
+                transport.set_subsystem_handler('sftp', paramiko.SFTPServer, Files)
+                transport.start_server(server=Server())
+                while transport.is_active():
+                    threading.Event().wait(0.05)
+            except (OSError, EOFError, paramiko.SSHException):
+                pass
+            finally:
+                transport.close()
+    except Exception as exc:
+        errors.append(str(exc))
+    finally:
+        listener.close()
+
+thread = threading.Thread(target=serve, daemon=True)
+thread.start()
+scan = work / 'scan.json'
+scan.write_text(json.dumps({'format': 'webstudio-website-manifest', 'version': 1, 'files': [
+    {'path': name, 'size': len(content), 'sha256': hashlib.sha256(content).hexdigest()}
+    for name, content in baseline.items()]}), encoding='utf8')
+backup = work / 'backup.zip'
+with zipfile.ZipFile(backup, 'w') as archive:
+    for name, content in baseline.items():
+        archive.writestr(name, content)
+website = work / 'proposed.zip'
+with zipfile.ZipFile(website, 'w') as archive:
+    archive.writestr('index.html', b'new synthetic data')
+    archive.writestr('empty.txt', b'')
+    archive.writestr('newfolder/new.txt', b'synthetic addition')
+    archive.writestr('secondfolder/second.txt', b'second addition')
+exe = base / 'm6-sftp-build' / 'SftpConnectionSmoke.exe'
+
+def execute(remote, journal, confirmed='confirmed', source=website, extra=10, recovery='/private', current_scan=scan, current_backup=backup):
+    return subprocess.run([str(exe), str(port), str(key), str(hosts), remote, str(source), str(current_scan), str(current_backup), str(journal), confirmed, recovery] + ['test'] * extra, capture_output=True, text=True, timeout=90)
+
+not_confirmed_path = work / 'not-confirmed.jsonl'
+not_confirmed = execute('/success', not_confirmed_path, 'no')
+assert not_confirmed.returncode != 0 and not not_confirmed_path.exists()
+success_path = work / 'success.jsonl'
+success = execute('/success', success_path)
+if success.returncode:
+    raise SystemExit('Synthetic execution failed: ' + success.stdout + success.stderr)
+assert success.stdout.strip() == 'Transfers:3|Preserved:1'
+records = [json.loads(line) for line in success_path.read_text(encoding='utf8').splitlines()]
+assert [record['event'] for record in records] == ['reviewed', 'directory-intent', 'transfer-started', 'transfer-verified', 'directory-intent', 'transfer-started', 'transfer-verified', 'transfer-started', 'transfer-verified', 'destination-verified', 'complete']
+assert records[0]['onlyAtDestination'] == ['assets/image.png']
+assert files['/success/index.html'] == b'new synthetic data'
+assert files['/success/newfolder/new.txt'] == b'synthetic addition'
+assert files['/success/secondfolder/second.txt'] == b'second addition'
+assert files['/success/assets/image.png'] == b'picture'
+assert records[8]['originalPath'].startswith('/private/') and files[records[8]['originalPath']] == b'Hello world!'
+assert not any(path.startswith('/success/.webstudio-original-') for path in files)
+
+gui_receipt = work / 'gui-receipt.jsonl'
+gui = subprocess.run([str(exe), str(port), str(key), str(hosts), '/gui', str(website), str(scan), str(backup), str(gui_receipt)] + ['test'] * 14, capture_output=True, text=True, timeout=50)
+assert gui.returncode == 0 and 'Synthetic native confirmation workflow passed.' in gui.stdout, (gui.stdout, gui.stderr)
+assert files['/gui/index.html'] == b'new synthetic data'
+assert [json.loads(line)['event'] for line in gui_receipt.read_text(encoding='utf8').splitlines()][-1] == 'complete'
+
+rollback_source = work / 'rollback-source.jsonl'
+rollback_deploy = execute('/rollback', rollback_source)
+assert rollback_deploy.returncode == 0, (rollback_deploy.stdout, rollback_deploy.stderr)
+rollback_current = {path.removeprefix('/rollback/'): content for path, content in files.items() if path.startswith('/rollback/')}
+rollback_scan = work / 'rollback-current-scan.json'
+rollback_scan.write_text(json.dumps({'format': 'webstudio-website-manifest', 'version': 1, 'files': [
+    {'path': name, 'size': len(content), 'sha256': hashlib.sha256(content).hexdigest()}
+    for name, content in rollback_current.items()]}), encoding='utf8')
+rollback_backup = work / 'rollback-current-backup.zip'
+with zipfile.ZipFile(rollback_backup, 'w') as archive:
+    for name, content in rollback_current.items():
+        archive.writestr(name, content)
+rollback_output = work / 'rollback-added.jsonl'
+rollback_args = [str(exe), str(backup), str(rollback_scan), str(rollback_backup), str(rollback_source), str(rollback_output), str(key), str(hosts), str(port), '/rollback', '/private']
+unconfirmed_rollback = subprocess.run(rollback_args + ['no'] + ['test'] * 14, capture_output=True, text=True, timeout=30)
+assert unconfirmed_rollback.returncode != 0 and not rollback_output.exists() and files['/rollback/newfolder/new.txt'] == b'synthetic addition'
+confirmed_rollback = subprocess.run(rollback_args + ['confirmed'] + ['test'] * 14, capture_output=True, text=True, timeout=60)
+assert confirmed_rollback.returncode == 0, (confirmed_rollback.stdout, confirmed_rollback.stderr)
+rollback_events = [json.loads(line) for line in rollback_output.read_text(encoding='utf8').splitlines()]
+assert [event['event'] for event in rollback_events] == ['reviewed', 'retain-started', 'retain-verified', 'retain-started', 'retain-verified', 'complete']
+assert '/rollback/newfolder/new.txt' not in files and '/rollback/secondfolder/second.txt' not in files
+assert files[rollback_events[1]['retainedPath']] == b'synthetic addition' and files[rollback_events[3]['retainedPath']] == b'second addition'
+assert files['/rollback/index.html'] == b'new synthetic data' and files['/rollback/assets/image.png'] == b'picture'
+
+rollback_gui_source = work / 'rollback-gui-source.jsonl'
+gui_deploy = execute('/rollback-gui', rollback_gui_source)
+assert gui_deploy.returncode == 0, (gui_deploy.stdout, gui_deploy.stderr)
+rollback_gui_receipt = work / 'rollback-gui-receipt.jsonl'
+rollback_gui = subprocess.run([str(exe), str(port), str(key), str(hosts), '/rollback-gui', str(backup), str(rollback_scan), str(rollback_backup), str(rollback_gui_receipt), str(rollback_gui_source)] + ['test'] * 17, capture_output=True, text=True, timeout=50)
+assert rollback_gui.returncode == 0 and 'Synthetic native rollback workflow passed.' in rollback_gui.stdout, (rollback_gui.stdout, rollback_gui.stderr)
+assert '/rollback-gui/newfolder/new.txt' not in files and '/rollback-gui/secondfolder/second.txt' not in files
+assert [json.loads(line)['event'] for line in rollback_gui_receipt.read_text(encoding='utf8').splitlines()][-1] == 'complete'
+
+# The second desktop step restores the earlier backup after a new scan and backup.
+after_added = {path.removeprefix('/rollback-gui/'): content for path, content in files.items() if path.startswith('/rollback-gui/')}
+after_added_scan = work / 'after-added-scan.json'
+after_added_scan.write_text(json.dumps({'format': 'webstudio-website-manifest', 'version': 1, 'files': [
+    {'path': name, 'size': len(content), 'sha256': hashlib.sha256(content).hexdigest()}
+    for name, content in after_added.items()]}), encoding='utf8')
+after_added_backup = work / 'after-added-backup.zip'
+with zipfile.ZipFile(after_added_backup, 'w') as archive:
+    for name, content in after_added.items():
+        archive.writestr(name, content)
+restoration_receipt = work / 'restoration-gui.jsonl'
+restoration_gui = subprocess.run([str(exe), str(port), str(key), str(hosts), '/rollback-gui', str(backup), str(after_added_scan), str(after_added_backup), str(restoration_receipt)] + ['test'] * 14, capture_output=True, text=True, timeout=50)
+assert restoration_gui.returncode == 0 and 'Synthetic native confirmation workflow passed.' in restoration_gui.stdout, (restoration_gui.stdout, restoration_gui.stderr)
+assert {path.removeprefix('/rollback-gui/'): content for path, content in files.items() if path.startswith('/rollback-gui/')} == baseline
+assert [json.loads(line)['event'] for line in restoration_receipt.read_text(encoding='utf8').splitlines()][-1] == 'complete'
+
+# Restore the old backup using a fresh scan and backup of the current destination.
+# All paths and contents remain inside this in-memory test server.
+current = {path.removeprefix('/success/'): content for path, content in files.items() if path.startswith('/success/')}
+current_scan = work / 'restore-scan.json'
+current_scan.write_text(json.dumps({'format': 'webstudio-website-manifest', 'version': 1, 'files': [
+    {'path': name, 'size': len(content), 'sha256': hashlib.sha256(content).hexdigest()}
+    for name, content in current.items()]}), encoding='utf8')
+current_backup = work / 'restore-current.zip'
+with zipfile.ZipFile(current_backup, 'w') as archive:
+    for name, content in current.items():
+        archive.writestr(name, content)
+rollback_plan = subprocess.run([str(exe), str(backup), str(current_scan), str(current_backup), str(success_path), '127.0.0.1', '/success', str(port)] + ['test'] * 17, capture_output=True, text=True, timeout=30)
+assert rollback_plan.returncode == 0, (rollback_plan.stdout, rollback_plan.stderr)
+assert [line.split('|')[0] for line in rollback_plan.stdout.splitlines()] == ['R:newfolder/new.txt', 'R:secondfolder/second.txt']
+incomplete = work / 'incomplete.jsonl'
+incomplete.write_text('\n'.join(success_path.read_text(encoding='utf8').splitlines()[:-1]) + '\n', encoding='utf8')
+for receipt, host, original in [(incomplete, '127.0.0.1', backup), (success_path, 'wrong.example', backup), (success_path, '127.0.0.1', current_backup)]:
+    rejected = subprocess.run([str(exe), str(original), str(current_scan), str(current_backup), str(receipt), host, '/success', str(port)] + ['test'] * 17, capture_output=True, text=True, timeout=30)
+    assert rejected.returncode != 0
+restore_journal = work / 'restore.jsonl'
+restore = execute('/success', restore_journal, source=backup, current_scan=current_scan, current_backup=current_backup)
+assert restore.returncode == 0, (restore.stdout, restore.stderr)
+assert restore.stdout.strip() == 'Transfers:1|Preserved:2'
+assert files['/success/index.html'] == baseline['index.html']
+assert files['/success/newfolder/new.txt'] == b'synthetic addition'
+assert files['/success/secondfolder/second.txt'] == b'second addition'
+restore_records = [json.loads(line) for line in restore_journal.read_text(encoding='utf8').splitlines()]
+assert restore_records[-1]['event'] == 'complete'
+restore_original = next(record['originalPath'] for record in restore_records if record['event'] == 'transfer-verified')
+assert files[restore_original] == b'new synthetic data'
+
+added_content = files['/success/newfolder/new.txt']
+added_args = [str(exe), str(port), str(key), str(hosts), '/success/newfolder', 'new.txt', str(len(added_content))]
+wrong = subprocess.run(added_args + ['0' * 64] + ['test'] * 16, capture_output=True, text=True, timeout=30)
+assert wrong.returncode != 0 and files['/success/newfolder/new.txt'] == added_content
+retained = subprocess.run(added_args + [hashlib.sha256(added_content).hexdigest()] + ['test'] * 16, capture_output=True, text=True, timeout=30)
+assert retained.returncode == 0, (retained.stdout, retained.stderr)
+retained_path = retained.stdout.strip().split('|')[-1]
+assert retained_path.startswith('/private/.webstudio-added-') and files[retained_path] == added_content
+assert '/success/newfolder/new.txt' not in files and files['/success/secondfolder/second.txt'] == b'second addition'
+
+replacement_website = work / 'replacement.zip'
+with zipfile.ZipFile(replacement_website, 'w') as archive:
+    archive.writestr('index.html', b'replacement')
+replacement_journal = work / 'replacement.jsonl'
+replacement = execute('/success', replacement_journal, source=replacement_website, recovery='/success/private')
+assert replacement.returncode != 0 and 'private recovery folder' in replacement.stdout.lower() and not replacement_journal.exists()
+
+missing_private_path = work / 'missing-private.jsonl'
+missing_private = execute('/private-missing', missing_private_path, recovery='/missing')
+assert missing_private.returncode != 0 and not missing_private_path.exists() and files['/private-missing/index.html'] == b'Hello world!'
+linked_private_path = work / 'linked-private.jsonl'
+linked_private = execute('/private-link', linked_private_path, recovery='/linkprivate/secret')
+assert linked_private.returncode != 0 and not linked_private_path.exists() and files['/private-link/index.html'] == b'Hello world!'
+
+files['/stale/index.html'] = b'Xello world!'
+stale_path = work / 'stale.jsonl'
+stale = execute('/stale', stale_path)
+assert stale.returncode != 0 and not stale_path.exists() and files['/stale/index.html'] == b'Xello world!'
+
+race_path = work / 'race.jsonl'
+race = execute('/race', race_path)
+assert race.returncode != 0 and race_path.exists()
+race_records = [json.loads(line) for line in race_path.read_text(encoding='utf8').splitlines()]
+assert [record['event'] for record in race_records] == ['reviewed', 'directory-intent', 'transfer-started', 'transfer-failed']
+assert files['/race/newfolder/new.txt'] == b'concurrent user data' and files['/race/index.html'] == b'Hello world!'
+assert race_records[2]['stagedPath'] in files
+
+existing_path = work / 'existing.jsonl'
+existing_path.write_bytes(b'keep existing receipt')
+existing = execute('/journal', existing_path)
+assert existing.returncode != 0 and existing_path.read_bytes() == b'keep existing receipt' and files['/journal/index.html'] == b'Hello world!'
+
+denied_path = work / 'denied.jsonl'
+denied = execute('/deny', denied_path)
+assert denied.returncode != 0 and denied_path.exists() and '/deny/newfolder' not in directories
+assert [json.loads(line)['event'] for line in denied_path.read_text(encoding='utf8').splitlines()] == ['reviewed', 'directory-intent', 'stopped']
+
+midfail_path = work / 'midfail.jsonl'
+midfail = execute('/midfail', midfail_path)
+assert midfail.returncode != 0 and midfail_path.exists()
+assert [json.loads(line)['event'] for line in midfail_path.read_text(encoding='utf8').splitlines()] == ['reviewed', 'directory-intent', 'transfer-started', 'transfer-verified', 'directory-intent', 'transfer-started', 'transfer-failed']
+assert files['/midfail/index.html'] == b'Hello world!' and files['/midfail/newfolder/new.txt'] == b'synthetic addition' and files['/midfail/secondfolder/second.txt'] == b'concurrent user data'
+
+postchange_path = work / 'postchange.jsonl'
+postchange = execute('/postchange', postchange_path)
+assert postchange.returncode != 0 and postchange_path.exists()
+assert [json.loads(line)['event'] for line in postchange_path.read_text(encoding='utf8').splitlines()] == ['reviewed', 'directory-intent', 'transfer-started', 'transfer-verified', 'directory-intent', 'transfer-started', 'transfer-verified', 'transfer-started', 'transfer-verified', 'stopped']
+assert files['/postchange/assets/image.png'] == b'PicturE'
+
+changed_website = work / 'changed.zip'
+changed_website.write_bytes(website.read_bytes())
+changed_path = work / 'changed.jsonl'
+changed = execute('/stale', changed_path, source=changed_website, extra=11)
+assert changed.returncode != 0 and not changed_path.exists(), (changed.returncode, changed.stdout, changed.stderr, changed_path.exists())
+thread.join(timeout=5)
+assert not thread.is_alive() and not errors and not removed
+print('Synthetic site transfer, receipts and failure handling passed; no website was published.')

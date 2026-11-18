@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { FolderOpen, Layers, Briefcase, UtensilsCrossed, Building2, BookOpen } from 'lucide-react'
+import { FolderOpen, Layers, Briefcase, UtensilsCrossed, Building2, BookOpen, ChevronLeft, ChevronRight } from 'lucide-react'
+import { SelectionToolbar } from './SelectionToolbar'
 import { CanvasToolbar } from './CanvasToolbar'
 import { LeftSidebar } from './LeftSidebar'
 import { Canvas } from './Canvas'
@@ -12,32 +13,27 @@ import { GenerationOverlay } from './GenerationOverlay'
 import { useConfigStore } from '@/store/configStore'
 import { useEditorStore } from '@/store/editorStore'
 import { useProjectsStore } from '@/store/projectsStore'
-import { generateSiteConfig } from '@/lib/generate-site'
+import { geminiSession, generateSiteConfig } from '@/lib/generate-site'
 import { templateMeta, buildTemplate } from '@/lib/templates'
 import { hexToRgb } from '@/lib/theme-presets'
+import { LocalPlanReview } from '@/ai/LocalPlanReview'
 
 const templateIcons: Record<string, typeof Briefcase> = {
   Briefcase, UtensilsCrossed, Building2, BookOpen,
 }
 
 function useAutoSaveToProject() {
-  const config = useConfigStore((s) => s.config)
-  const activeProjectId = useEditorStore((s) => s.activeProjectId)
-  const updateProjectConfig = useProjectsStore((s) => s.updateProjectConfig)
-  const loadedConfigRef = useRef<string | null>(null)
-
-  // Snapshot the config at load time so we can diff
   useEffect(() => {
-    loadedConfigRef.current = JSON.stringify(config)
-  }, [activeProjectId]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (!activeProjectId) return
-    const serialized = JSON.stringify(config)
-    // Only save when config actually differs from what was loaded
-    if (serialized === loadedConfigRef.current) return
-    updateProjectConfig(activeProjectId, config)
-  }, [config, activeProjectId, updateProjectConfig])
+    return useConfigStore.subscribe((state, previous) => {
+      if (state.config === previous.config) return
+      const id = useEditorStore.getState().activeProjectId
+      if (!id) return
+      const projects = useProjectsStore.getState()
+      const project = projects.projects.find(item => item.id === id)
+      if (!project || JSON.stringify(project.config) === JSON.stringify(state.config)) return
+      projects.updateProjectConfig(id, state.config)
+    })
+  }, [])
 }
 
 function useGenerationOrchestration() {
@@ -76,7 +72,7 @@ function useGenerationOrchestration() {
         }
         clearGeneration()
         if (source === 'template') {
-          toast('Generated from template. Add a Gemini API key in Settings for AI generation.')
+          toast(geminiSession.cloudEnabled ? 'Generated from a local template. Check the cloud AI settings if you intended to use them.' : 'Generated from a local template. Cloud AI is off by default in Settings.')
         }
       })
       .catch((err) => {
@@ -98,13 +94,16 @@ function useGenerationOrchestration() {
 function EditorEmptyState() {
   const navigate = useNavigate()
   const addProject = useProjectsStore((s) => s.addProject)
+  const updateProjectConfig = useProjectsStore((s) => s.updateProjectConfig)
   const setConfig = useConfigStore((s) => s.setConfig)
   const setActiveProject = useEditorStore((s) => s.setActiveProject)
 
   function startFromTemplate(tplId: string, tplName: string) {
     const id = addProject(tplName)
+    const config = buildTemplate(tplId, tplName)
+    updateProjectConfig(id, config)
     setActiveProject(id)
-    setConfig(buildTemplate(tplId, tplName))
+    setConfig(config)
   }
 
   return (
@@ -165,8 +164,19 @@ function EditorEmptyState() {
 export function EditorLayout() {
   useAutoSaveToProject()
   useGenerationOrchestration()
+  const [leftCollapsed, setLeftCollapsed] = useState(true)
+  const [rightCollapsed, setRightCollapsed] = useState(true)
   const previewMode = useEditorStore((s) => s.previewMode)
+  const mode = useEditorStore((s) => s.mode)
   const activeProjectId = useEditorStore((s) => s.activeProjectId)
+
+  useEffect(() => {
+    const open = () => setLeftCollapsed(false)
+    const properties = () => setRightCollapsed(false)
+    window.addEventListener('webstudio.properties', properties)
+    window.addEventListener('webstudio.panel', open)
+    return () => { window.removeEventListener('webstudio.panel', open); window.removeEventListener('webstudio.properties', properties) }
+  }, [])
 
   if (!activeProjectId) {
     return <EditorEmptyState />
@@ -175,18 +185,31 @@ export function EditorLayout() {
   return (
     <div className="h-full flex flex-col relative">
       <div className="flex-1 flex overflow-hidden">
-        {!previewMode && <LeftSidebar />}
+        {!previewMode && <>
+          <LeftSidebar key={`left-${mode}`} collapsed={leftCollapsed} />
+          <div className="hidden md:flex w-6 shrink-0 items-start justify-center border-r border-border-default bg-bg-1 pt-1">
+            <button type="button" onClick={() => setLeftCollapsed(value => !value)}
+              aria-label={leftCollapsed ? 'Expand left panel' : 'Collapse left panel'}
+              aria-expanded={!leftCollapsed} aria-controls="editor-left-panel"
+              title={leftCollapsed ? 'Expand left panel' : 'Collapse left panel'}
+              className="flex h-7 w-5 items-center justify-center rounded border border-border-default text-text-2 hover:bg-bg-3 hover:text-text-0">
+              {leftCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+            </button>
+          </div>
+        </>}
         <div className="flex-1 flex flex-col min-w-0 relative">
-          <CanvasToolbar />
+          <CanvasToolbar settingsOpen={!rightCollapsed} onOpenSettings={() => setRightCollapsed(false)} />
+          {!previewMode && <SelectionToolbar />}
           <div className="flex-1 flex flex-col overflow-hidden relative">
             <Canvas />
             <JsonDrawer />
             <GenerationOverlay />
           </div>
         </div>
-        {!previewMode && <RightSidebar />}
+        {!previewMode && <RightSidebar key={`right-${mode}`} collapsed={rightCollapsed} onClose={() => setRightCollapsed(true)} />}
       </div>
       <VersionHistory />
+      <LocalPlanReview />
     </div>
   )
 }

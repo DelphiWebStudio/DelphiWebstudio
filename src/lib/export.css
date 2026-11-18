@@ -1,0 +1,59 @@
+@import "tailwindcss" source(none);
+@import "../blocks/navbar/navbar-submenu.css";
+@import "../blocks/calendar/calendar.css";
+@source "../lib/export-html.ts";
+@source "../blocks";
+
+@theme inline {
+  --color-bg-0: var(--color-bg-0);
+  --color-bg-1: var(--color-bg-1);
+  --color-bg-2: var(--color-bg-2);
+  --color-bg-3: var(--color-bg-3);
+  --color-bg-4: var(--color-bg-4);
+  --color-bg-5: var(--color-bg-5);
+  --color-text-0: var(--color-text-0);
+  --color-text-1: var(--color-text-1);
+  --color-text-2: var(--color-text-2);
+  --color-text-3: var(--color-text-3);
+  --color-green: var(--color-green);
+  --color-green-dim: var(--color-green-dim);
+  --color-border-default: var(--color-border-default);
+  --color-border-subtle: var(--color-border-subtle);
+  --color-border-hover: var(--color-border-hover);
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
+  --font-mono: var(--font-mono);
+  --radius-lg: var(--radius-lg);
+}
+
+@container (min-width: 28rem) {
+  .ws-block-columns { grid-template-columns: var(--ws-section-widths); }
+}
+@container (max-width: 940px) {
+  .ws-block-columns { grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
+  [data-ws-responsive-section] { min-height: 0 !important; container-type: inline-size; }
+  [data-section-text-container] { left: auto !important; top: auto !important; width: 100% !important; min-height: 0 !important; overflow-wrap: anywhere; }
+  .ws-stack-mobile { position: relative !important; inset: auto !important; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box; padding-inline: clamp(12px, 2cqw, 24px); }
+  .ws-stack-mobile > [data-ws-responsive-row] { display: grid !important; grid-template-columns: var(--ws-row-columns); gap: clamp(12px, 2cqw, 20px); align-items: start; }
+  .ws-stack-mobile [data-ws-responsive-column] { display: grid !important; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 12px; align-items: start; min-width: 0; }
+  .ws-stack-mobile [data-section-object] { position: relative !important; left: auto !important; top: auto !important; width: 100% !important; height: auto !important; min-height: 0 !important; margin: 0; overflow-wrap: anywhere; box-sizing: border-box; grid-column: var(--ws-grid-column) / span var(--ws-grid-span); }
+  .ws-stack-mobile [data-ws-object-type="image"] { max-width: calc(var(--ws-item-width, 100) * 12px); justify-self: center; }
+  .ws-stack-mobile [data-ws-object-type="image"] img { height: auto !important; max-width: 100%; }
+  .ws-stack-mobile [data-ws-object-type="collage"] [data-collage-canvas] { height: auto !important; aspect-ratio: 3 / 2; }
+  .ws-stack-mobile [data-ws-group-panel="true"] { display: flex !important; flex-direction: column; gap: 8px; grid-column: 1 / -1; min-width: 0; width: 100%; max-width: calc(var(--ws-group-width, 100) * 12px); justify-self: center; padding: 8px; background: var(--ws-group-background); }
+  .ws-stack-mobile [data-ws-group-panel="true"] > [data-section-object] { width: 100% !important; }
+  .ws-stack-mobile [data-ws-parented] { background: var(--ws-parent-background); padding: 8px; }
+  .ws-stack-mobile [data-ws-empty-panel="true"] { display: none; }
+  h1 { font-size: clamp(1.75rem, 5cqw, 3.5rem); overflow-wrap: anywhere; }
+  [data-placed-media] { position: relative !important; left: auto !important; top: auto !important; width: min(100%, calc(var(--ws-item-width, 100) * 12px)) !important; margin: 12px auto; }
+}
+@container (max-width: 700px) {
+  [data-ws-navbar-block], [data-ws-navbar-block] [data-ws-content], [data-ws-navbar] { height: auto !important; }
+  .ws-block-columns { grid-template-columns: 1fr; }
+}
+/* These rows measure the section, which can be narrower than the page. */
+@container (max-width: 640px) {
+  .ws-stack-mobile > [data-ws-responsive-row] { grid-template-columns: minmax(0, 1fr); }
+  .ws-stack-mobile [data-ws-responsive-column] { display: flex !important; flex-direction: column; gap: 16px; }
+  .ws-stack-mobile [data-ws-object-type="image"], .ws-stack-mobile [data-ws-group-panel="true"] { align-self: center; }
+}

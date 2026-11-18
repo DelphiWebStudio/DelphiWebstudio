@@ -1,0 +1,394 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const storage = new Map<string, string>()
+vi.stubGlobal('window', { localStorage: {
+  getItem: (key: string) => storage.get(key) ?? null,
+  setItem: (key: string, value: string) => storage.set(key, value),
+  removeItem: (key: string) => storage.delete(key),
+} })
+const { useConfigStore } = await import('../src/store/configStore')
+
+beforeEach(() => {
+  useConfigStore.getState().setConfig({ name: 'Test', pages: [{ id: 'home', name: 'Home', path: '/', blocks: [] }], blocks: [] })
+})
+
+describe('page history', () => {
+  it('undoes a group movement across blocks in one step', () => {
+    const store = useConfigStore.getState()
+    store.addBlock({ id: 'one', type: 'content', variant: 'default', props: { section1Objects: [{ id: 'a', x: 10 }] } })
+    store.addBlock({ id: 'two', type: 'content', variant: 'default', props: { section1Objects: [{ id: 'b', x: 20 }] } })
+    useConfigStore.getState().updateMultipleBlockProps([{ id: 'one', props: { section1Objects: [{ id: 'a', x: 15 }] } }, { id: 'two', props: { section1Objects: [{ id: 'b', x: 25 }] } }])
+    useConfigStore.getState().undo()
+    const blocks = useConfigStore.getState().getActivePageBlocks()
+    expect(blocks[0].props.section1Objects).toEqual([{ id: 'a', x: 10 }])
+    expect(blocks[1].props.section1Objects).toEqual([{ id: 'b', x: 20 }])
+  })
+  it('moves an existing collage into a section without losing images and restores it on undo', () => {
+    const photos = [{ src: 'assets/a.png', alt: 'A', x: '5', y: '6', width: '40', height: '40', layer: '2' }]
+    const props = { images: photos, customSetting: 'kept' }
+    const store = useConfigStore.getState()
+    store.addBlock({ id: 'hero', type: 'hero', variant: 'centered', props: { sectionCount: 2 } })
+    store.addBlock({ id: 'collage', type: 'collage', variant: 'default', props })
+    useConfigStore.getState().moveCollageBlockToSection('collage', 'hero', 2, 20, 30)
+    let blocks = useConfigStore.getState().getActivePageBlocks()
+    expect(blocks).toHaveLength(1)
+    expect(blocks[0].props.section2Objects).toEqual([expect.objectContaining({ type: 'collage', images: photos, sourceCollageProps: props, x: 20, y: 30 })])
+    useConfigStore.getState().undo()
+    blocks = useConfigStore.getState().getActivePageBlocks()
+    expect(blocks).toHaveLength(2)
+    expect(blocks[1].props).toEqual(props)
+  })
+  it('does not discard additional section content when moving a collage', () => {
+    const store = useConfigStore.getState()
+    store.addBlock({ id: 'hero', type: 'hero', variant: 'centered', props: {} })
+    store.addBlock({ id: 'collage', type: 'collage', variant: 'default', props: { images: [], section1Objects: [{ id: 'text', type: 'text' }] } })
+    expect(() => useConfigStore.getState().moveCollageBlockToSection('collage', 'hero', 1, 0, 0)).toThrow('additional section content')
+    expect(useConfigStore.getState().getActivePageBlocks()).toHaveLength(2)
+  })
+  it('duplicates a formatted section object visibly in front and preserves its rich text', () => {
+    const item = { id: 'original', type: 'text', x: 10, y: 20, width: 30, height: 80, layer: 2 }
+    const rich = [{ text: 'Styled', bold: true }]
+    useConfigStore.getState().addBlock({ id: 'hero', type: 'hero', variant: 'centered', props: { section1Objects: [item], sectionObject_original: 'Styled', sectionObject_originalRich: rich } })
+    useConfigStore.getState().editBlockItems('hero', 'section1Objects', 0, 0, 'duplicate')
+    const props = useConfigStore.getState().getActivePageBlocks()[0].props
+    const copy = (props.section1Objects as typeof item[])[1]
+    expect(copy).toMatchObject({ x: 12, y: 32, layer: 3 })
+    expect(copy.id).not.toBe(item.id)
+    expect(props[`sectionObject_${copy.id}`]).toBe('Styled')
+    expect(props[`sectionObject_${copy.id}Rich`]).toEqual(rich)
+    useConfigStore.getState().undo()
+    expect((useConfigStore.getState().getActivePageBlocks()[0].props.section1Objects as unknown[])).toHaveLength(1)
+  })
+  it('moves, duplicates, and removes composite items with undo', () => {
+    useConfigStore.getState().addBlock({ id: 'features', type: 'features', variant: 'grid', props: { items: [{ title: 'First' }, { title: 'Second' }] } })
+    useConfigStore.getState().editBlockItems('features', 'items', 0, 1)
+    expect(useConfigStore.getState().getActivePageBlocks()[0].props.items).toEqual([{ title: 'Second' }, { title: 'First' }])
+    useConfigStore.getState().editBlockItems('features', 'items', 1, 1, 'duplicate')
+    expect(useConfigStore.getState().getActivePageBlocks()[0].props.items).toEqual([{ title: 'Second' }, { title: 'First' }, { title: 'First' }])
+    useConfigStore.getState().editBlockItems('features', 'items', 0, 0, 'remove')
+    expect(useConfigStore.getState().getActivePageBlocks()[0].props.items).toEqual([{ title: 'First' }, { title: 'First' }])
+    useConfigStore.getState().undo()
+    expect(useConfigStore.getState().getActivePageBlocks()[0].props.items).toEqual([{ title: 'Second' }, { title: 'First' }, { title: 'First' }])
+  })
+  it('keeps individually adjusted items unchanged when their layout cannot be mapped', () => {
+    useConfigStore.getState().addBlock({ id: 'features', type: 'features', variant: 'grid', props: { items: [{ title: 'First' }, { title: 'Second' }], textAdjustments: { 'h3-0': { color: '#123456' } } } })
+    expect(() => useConfigStore.getState().editBlockItems('features', 'items', 0, 1)).toThrow('no data was changed')
+    expect(useConfigStore.getState().getActivePageBlocks()[0].props.items).toEqual([{ title: 'First' }, { title: 'Second' }])
+  })
+  it('moves placed media between blocks as one undoable change', () => {
+    const media = { id: 'photo', src: 'assets/photo.png', assetId: 'a', mime: 'image/png', name: 'Photo', x: 5, y: 10, width: 20 }
+    useConfigStore.getState().addBlock({ id: 'first', type: 'hero', variant: 'centered', props: { placedMedia: [media] } })
+    useConfigStore.getState().addBlock({ id: 'second', type: 'content', variant: 'prose', props: {} })
+    useConfigStore.getState().movePlacedMedia('first', 'second', 'photo', 30, 40, 15)
+    let blocks = useConfigStore.getState().getActivePageBlocks()
+    expect(blocks[0].props.placedMedia).toEqual([])
+    expect(blocks[1].props.placedMedia).toEqual([{ ...media, x: 30, y: 40, width: 15 }])
+    useConfigStore.getState().undo()
+    blocks = useConfigStore.getState().getActivePageBlocks()
+    expect(blocks[0].props.placedMedia).toEqual([media])
+    expect(blocks[1].props.placedMedia).toBeUndefined()
+  })
+  it('moves a formatted section object between blocks and undoes it in one step', () => {
+    const item = { id: 'text1', type: 'text', text: 'Original', x: 5, y: 10, width: 20, height: 80, layer: 1 }
+    const rich = [{ text: 'Formatted', bold: true, color: '#123456' }]
+    useConfigStore.getState().addBlock({ id: 'first', type: 'hero', variant: 'centered', props: { section2Objects: [item], sectionCount: 2, sectionObject_text1: 'Formatted', sectionObject_text1Rich: rich } })
+    useConfigStore.getState().addBlock({ id: 'second', type: 'content', variant: 'prose', props: {} })
+    useConfigStore.getState().moveSectionObject('first', 2, 'second', 1, 'text1', 30, 40, 25, 90)
+    let blocks = useConfigStore.getState().getActivePageBlocks()
+    expect(blocks[0].props.section2Objects).toEqual([])
+    expect(blocks[0].props.sectionObject_text1Rich).toBeUndefined()
+    expect(blocks[1].props.section1Objects).toEqual([{ ...item, x: 30, y: 40, width: 25, height: 90 }])
+    expect(blocks[1].props.sectionObject_text1Rich).toEqual(rich)
+    useConfigStore.getState().undo()
+    blocks = useConfigStore.getState().getActivePageBlocks()
+    expect(blocks[0].props.section2Objects).toEqual([item])
+    expect(blocks[0].props.sectionObject_text1Rich).toEqual(rich)
+    expect(blocks[1].props.section1Objects).toBeUndefined()
+  })
+  it('moves a panel and its formatted text together between sections and undoes the move', () => {
+    const panel = { id: 'panel', type: 'panel', x: 10, y: 20, width: 40, height: 180, layer: 1 }
+    const text = { id: 'child', type: 'text', parentId: 'panel', x: 15, y: 35, width: 20, height: 50, layer: 2 }
+    const rich = [{ text: 'Panel text', bold: true }]
+    const store = useConfigStore.getState()
+    store.addBlock({ id: 'first', type: 'hero', variant: 'centered', props: { section1Objects: [panel, text], sectionObject_child: 'Panel text', sectionObject_childRich: rich } })
+    store.addBlock({ id: 'second', type: 'content', variant: 'prose', props: {} })
+    useConfigStore.getState().moveSectionObject('first', 1, 'second', 1, 'panel', 30, 60, 20, 180)
+    let blocks = useConfigStore.getState().getActivePageBlocks()
+    expect(blocks[0].props.section1Objects).toEqual([])
+    expect(blocks[1].props.section1Objects).toEqual([{ ...panel, x: 30, y: 60, width: 20 }, { ...text, x: 32.5, y: 75, width: 10 }])
+    expect(blocks[1].props.sectionObject_childRich).toEqual(rich)
+    useConfigStore.getState().undo()
+    blocks = useConfigStore.getState().getActivePageBlocks()
+    expect(blocks[0].props.section1Objects).toEqual([panel, text])
+    expect(blocks[0].props.sectionObject_childRich).toEqual(rich)
+  })
+  it('adds a Navbar at the top, preserves other blocks, and still allows the user to move it', () => {
+    const store = useConfigStore.getState()
+    store.addBlock({ id: 'hero', type: 'hero', variant: 'centered', props: {} })
+    store.addBlock({ id: 'content', type: 'content', variant: 'prose', props: {} })
+    store.addBlock({ id: 'nav', type: 'navbar', variant: 'default', props: {} }, 2)
+    expect(useConfigStore.getState().getActivePageBlocks().map(block => block.id)).toEqual(['nav', 'hero', 'content'])
+    useConfigStore.getState().moveBlock(0, 1)
+    expect(useConfigStore.getState().getActivePageBlocks().map(block => block.id)).toEqual(['hero', 'nav', 'content'])
+    useConfigStore.getState().undo()
+    useConfigStore.getState().undo()
+    expect(useConfigStore.getState().getActivePageBlocks().map(block => block.id)).toEqual(['hero', 'content'])
+  })
+  it('inserts a reusable Navbar at the top of the active page', () => {
+    const store = useConfigStore.getState()
+    store.addBlock({ id: 'nav', type: 'navbar', variant: 'default', props: {} })
+    store.saveReusableSection('nav', 'Saved Navbar')
+    const section = useConfigStore.getState().config.webstudioReusableSections![0]
+    useConfigStore.getState().addPage('Other', '/other')
+    useConfigStore.getState().addBlock({ id: 'hero', type: 'hero', variant: 'centered', props: {} })
+    useConfigStore.getState().insertReusableSection(section.id)
+    expect(useConfigStore.getState().getActivePageBlocks().map(block => block.type)).toEqual(['navbar', 'hero'])
+  })
+  it('duplicates a page with independent block IDs, a unique address and undo', () => {
+    useConfigStore.getState().addBlock({ id: 'original', type: 'content', variant: 'prose', props: { body: 'Original text' } })
+    useConfigStore.getState().duplicatePage('home')
+    const copy = useConfigStore.getState().config.pages![1]
+    expect(copy.path).toBe('/home-copy')
+    expect(copy.blocks[0].id).not.toBe('original')
+    useConfigStore.getState().updateBlockProps(copy.blocks[0].id, { body: 'Changed copy' })
+    expect(useConfigStore.getState().config.pages![0].blocks[0].props.body).toBe('Original text')
+    useConfigStore.getState().undo()
+    useConfigStore.getState().undo()
+    expect(useConfigStore.getState().config.pages).toHaveLength(1)
+    useConfigStore.getState().duplicatePage('home')
+    useConfigStore.getState().duplicatePage('home')
+    expect(useConfigStore.getState().config.pages!.map(page => page.path)).toContain('/home-copy-2')
+  })
+  it('shares a header across pages and keeps edits, new pages and undo consistent', () => {
+    useConfigStore.getState().addBlock({ id: 'header', type: 'navbar', variant: 'default', props: { logoText: 'Welcome' } })
+    useConfigStore.getState().addPage('About', '/about')
+    useConfigStore.getState().setActivePage('home')
+    useConfigStore.getState().shareSectionAcrossPages('header')
+    let pages = useConfigStore.getState().config.pages!
+    expect(pages[1].blocks[0].props.logoText).toBe('Welcome')
+    useConfigStore.getState().updateBlockProps('header', { logoText: 'Updated' })
+    pages = useConfigStore.getState().config.pages!
+    expect(pages.map(page => page.blocks[0].props.logoText)).toEqual(['Updated', 'Updated'])
+    useConfigStore.getState().addPage('News', '/news')
+    expect(useConfigStore.getState().getActivePageBlocks()[0].props.logoText).toBe('Updated')
+    useConfigStore.getState().undo()
+    expect(useConfigStore.getState().config.pages).toHaveLength(2)
+    useConfigStore.getState().setActivePage('home')
+    useConfigStore.getState().unshareSection('header')
+    useConfigStore.getState().updateBlockProps('header', { logoText: 'Independent' })
+    expect(useConfigStore.getState().config.pages![1].blocks[0].props.logoText).toBe('Updated')
+  })
+
+  it('does not overwrite another page header when sharing', () => {
+    useConfigStore.getState().addBlock({ id: 'first', type: 'navbar', variant: 'default', props: {} })
+    useConfigStore.getState().addPage('About', '/about')
+    useConfigStore.getState().addBlock({ id: 'second', type: 'navbar', variant: 'default', props: {} })
+    expect(() => useConfigStore.getState().shareSectionAcrossPages('second')).toThrow('Remove other headers')
+    expect(useConfigStore.getState().config.pages!.map(page => page.blocks[0].id)).toEqual(['first', 'second'])
+  })
+  it('saves a section for another page, inserts an independent copy and supports undo', () => {
+    useConfigStore.getState().addBlock({ id: 'original', type: 'content', variant: 'prose', props: { body: 'Welcome' } })
+    useConfigStore.getState().saveReusableSection('original', 'Welcome section')
+    const section = useConfigStore.getState().config.webstudioReusableSections![0]
+    useConfigStore.getState().addPage('About', '/about')
+    useConfigStore.getState().insertReusableSection(section.id)
+    const copy = useConfigStore.getState().getActivePageBlocks()[0]
+    expect(copy.id).not.toBe('original')
+    expect(copy.props.body).toBe('Welcome')
+    useConfigStore.getState().updateBlockProps(copy.id, { body: 'Changed copy' })
+    expect(useConfigStore.getState().config.webstudioReusableSections![0].block.props.body).toBe('Welcome')
+    useConfigStore.getState().undo()
+    useConfigStore.getState().undo()
+    expect(useConfigStore.getState().getActivePageBlocks()).toHaveLength(0)
+  })
+  it('ignores invalid block moves without changing content or undo history', () => {
+    useConfigStore.getState().addBlock({ id: 'first', type: 'hero', variant: 'centered', props: { headline: 'First' } })
+    useConfigStore.getState().addBlock({ id: 'second', type: 'hero', variant: 'centered', props: { headline: 'Second' } })
+    const before = useConfigStore.getState()
+    for (const [from, to] of [[-1, 0], [2, 0], [0, -1], [0, 2], [0.5, 1], [NaN, 1], [1, 1]]) {
+      useConfigStore.getState().moveBlock(from, to)
+      expect(useConfigStore.getState().config).toEqual(before.config)
+      expect(useConfigStore.getState().undoStack).toEqual(before.undoStack)
+    }
+    useConfigStore.getState().moveBlock(0, 1)
+    expect(useConfigStore.getState().getActivePageBlocks().map(block => block.id)).toEqual(['second', 'first'])
+    useConfigStore.getState().undo()
+    expect(useConfigStore.getState().getActivePageBlocks().map(block => block.id)).toEqual(['first', 'second'])
+  })
+  it.each([
+    '{"state":{"config":null},"version":2}',
+    '{"state":{"config":{"name":"Future","blocks":[]}},"version":99}',
+    '{"state":{"config":{"name":"Broken","blocks":null}},"version":2}',
+    '{"state":{"config":{"name":"Broken","blocks":[],"pages":[null]}},"version":2}',
+    '{"state":{"config":{"name":"Broken","blocks":[],"pages":[{"id":"home","name":"Home","path":"/","blocks":"bad"}]}},"version":2}',
+    '{"state":{"config":{"name":"Broken","blocks":[null]}},"version":2}',
+    '{"state":{"config":{"name":"Broken","blocks":[{"id":"orphan","type":"future","variant":"x","props":{}}],"pages":[{"id":"home","name":"Home","path":"/","blocks":[]}]}},"version":2}',
+    '{"state":{"config":{"name":"Broken","blocks":[{"id":"one","type":"hero","variant":"centered","props":null}]}},"version":0}',
+    '{"state":{"config":{"name":"Broken","blocks":[],"webstudioReusableSections":[null]}},"version":2}',
+    '{"state":{"config":{"name":"Broken","pages":[{"id":"home","name":"Home","path":"/","blocks":[{"id":"one","type":"hero","variant":"centered","props":[]}]}]}},"version":2}',
+  ])('protects incompatible editor storage %s', async (stored) => {
+    storage.set('openpage-config', stored)
+    try {
+      await useConfigStore.persist.rehydrate()
+      useConfigStore.getState().addPage('In memory', '/memory')
+      expect(storage.get('openpage-config')).toBe(stored)
+    } finally {
+      storage.delete('openpage-config')
+      await useConfigStore.persist.rehydrate()
+    }
+  })
+  it('continues to migrate a legacy single-page draft', async () => {
+    storage.set('openpage-config', '{"state":{"config":{"name":"Legacy","blocks":[]}},"version":0}')
+    await useConfigStore.persist.rehydrate()
+    expect(useConfigStore.getState().config.pages).toMatchObject([{ id: 'page-home', path: '/', blocks: [] }])
+    expect(useConfigStore.getState().config.name).toBe('Legacy')
+  })
+  it('retains a valid pages-only draft and unknown block data', async () => {
+    const stored = '{"state":{"config":{"name":"Older","pages":[{"id":"home","name":"Home","path":"/","blocks":[{"id":"one","type":"futureBlock","variant":"custom","props":{"unknown":"keep"}}]}]}},"version":2}'
+    storage.set('openpage-config', stored)
+    try {
+      await useConfigStore.persist.rehydrate()
+      expect(useConfigStore.getState().config.pages?.[0].blocks[0]).toMatchObject({ type: 'futureBlock', props: { unknown: 'keep' } })
+    } finally {
+      storage.delete('openpage-config')
+      await useConfigStore.persist.rehydrate()
+    }
+  })
+  it('retains legacy blocks matching a non-Home page', async () => {
+    const block = { id: 'news-block', type: 'futureBlock', variant: 'custom', props: { value: 'keep' } }
+    const stored = JSON.stringify({ state: { config: { name: 'Older', blocks: [block], pages: [
+      { id: 'home', name: 'Home', path: '/', blocks: [] },
+      { id: 'news', name: 'News', path: '/news', blocks: [block] },
+    ] } }, version: 2 })
+    storage.set('openpage-config', stored)
+    try {
+      await useConfigStore.persist.rehydrate()
+      expect(useConfigStore.getState().config.pages?.[1].blocks[0]).toMatchObject(block)
+      useConfigStore.getState().addPage('Another', '/another')
+      expect(JSON.parse(storage.get('openpage-config')!).state.config.pages[1].blocks[0].props.value).toBe('keep')
+    } finally {
+      storage.delete('openpage-config')
+      await useConfigStore.persist.rehydrate()
+    }
+  })
+  it('keeps edits in memory when local draft storage fails', () => {
+    const write = vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => { throw new Error('storage full') })
+    try {
+      expect(() => useConfigStore.getState().addPage('News', '/news')).not.toThrow()
+      expect(useConfigStore.getState().config.pages?.[1].name).toBe('News')
+    } finally { write.mockRestore() }
+  })
+  it('rejects invalid or missing page renames without changing history or content', () => {
+    const id = useConfigStore.getState().addPage('News', '/news')
+    const before = useConfigStore.getState()
+    expect(() => before.renamePage(id, '   ')).toThrow('Page name is required')
+    expect(() => before.renamePage('missing', 'Other')).toThrow('Page no longer exists')
+    expect(useConfigStore.getState().config).toEqual(before.config)
+    expect(useConfigStore.getState().undoStack).toEqual(before.undoStack)
+    before.renamePage(id, 'News')
+    expect(useConfigStore.getState().undoStack).toEqual(before.undoStack)
+    before.renamePage(id, 'Updates')
+    expect(useConfigStore.getState().config.pages![1].name).toBe('Updates')
+    useConfigStore.getState().undo()
+    expect(useConfigStore.getState().config.pages![1].name).toBe('News')
+  })
+  it('saves and undoes page search metadata without affecting another page', () => {
+    const id = useConfigStore.getState().addPage('News', '/news')
+    useConfigStore.getState().updatePageSeo(id, 'News title', 'News description')
+    expect(useConfigStore.getState().config.pages![1].webstudioSeo).toEqual({ title: 'News title', description: 'News description' })
+    expect(useConfigStore.getState().config.pages![0].webstudioSeo).toBeUndefined()
+    useConfigStore.getState().undo()
+    expect(useConfigStore.getState().config.pages![1].webstudioSeo).toBeUndefined()
+    useConfigStore.getState().redo()
+    expect(useConfigStore.getState().config.pages![1].webstudioSeo?.title).toBe('News title')
+  })
+  it('restores the selected page when adding, undoing and redoing pages', () => {
+    const id = useConfigStore.getState().addPage('News', '/news')
+    expect(useConfigStore.getState().activePageId).toBe(id)
+    useConfigStore.getState().undo()
+    expect(useConfigStore.getState().activePageId).toBe('home')
+    expect(useConfigStore.getState().config.pages).toHaveLength(1)
+    useConfigStore.getState().redo()
+    expect(useConfigStore.getState().activePageId).toBe(id)
+    expect(useConfigStore.getState().config.pages).toHaveLength(2)
+  })
+
+  it('preserves Home blocks when another page is edited and restores deleted pages', () => {
+    useConfigStore.getState().addBlock({ id: 'h', type: 'hero', variant: 'centered', props: { headline: 'Home' } })
+    const id = useConfigStore.getState().addPage('News', '/news')
+    useConfigStore.getState().addBlock({ id: 'n', type: 'hero', variant: 'centered', props: { headline: 'News' } })
+    expect(useConfigStore.getState().config.blocks[0].id).toBe('h')
+    useConfigStore.getState().renamePage(id, 'Latest')
+    useConfigStore.getState().undo()
+    expect(useConfigStore.getState().config.pages?.[1].name).toBe('News')
+    useConfigStore.getState().removePage(id)
+    expect(useConfigStore.getState().activePageId).toBe('home')
+    useConfigStore.getState().undo()
+    expect(useConfigStore.getState().activePageId).toBe(id)
+    expect(useConfigStore.getState().getActivePageBlocks()[0].id).toBe('n')
+  })
+
+  it('rejects invalid or duplicate paths and protects Home', () => {
+    useConfigStore.getState().addPage('News', '/news')
+    expect(() => useConfigStore.getState().addPage('Duplicate', '/NEWS')).toThrow('Duplicate page path')
+    expect(() => useConfigStore.getState().addPage('Unsafe', '/../escape')).toThrow()
+    useConfigStore.getState().removePage('home')
+    expect(useConfigStore.getState().config.pages).toHaveLength(2)
+  })
+
+  it('changes a page address with undo and rejects unsafe, duplicate or Home addresses', () => {
+    const id = useConfigStore.getState().addPage('News', '/news')
+    useConfigStore.getState().addPage('Contact', '/contact')
+    useConfigStore.getState().changePagePath(id, '/updates')
+    expect(useConfigStore.getState().config.pages?.find(page => page.id === id)?.path).toBe('/updates')
+    useConfigStore.getState().undo()
+    expect(useConfigStore.getState().config.pages?.find(page => page.id === id)?.path).toBe('/news')
+    useConfigStore.getState().redo()
+    expect(useConfigStore.getState().config.pages?.find(page => page.id === id)?.path).toBe('/updates')
+    for (const path of ['/CONTACT', '/../escape', '/']) expect(() => useConfigStore.getState().changePagePath(id, path)).toThrow()
+    expect(() => useConfigStore.getState().changePagePath('home', '/other')).toThrow('Home')
+    expect(useConfigStore.getState().config.pages?.find(page => page.id === id)?.path).toBe('/updates')
+  })
+
+  it('optionally updates known page links in one undoable change, preserving queries and anchors', () => {
+    useConfigStore.getState().addBlock({ id: 'h', type: 'hero', variant: 'centered', props: { primaryCtaUrl: '/news?from=home#top', secondaryCtaUrl: 'https://example.com/news' } })
+    useConfigStore.getState().addBlock({ id: 'text', type: 'content', variant: 'prose', props: { body: '[Latest](/news?x=1#top) [Other](https://example.com/news)', section1Objects: [{ id: 'photo', type: 'image', url: '/news#latest' }], sectionObject_photoRich: [{ text: 'Latest', href: '/news?from=rich' }] } })
+    useConfigStore.getState().addBlock({ id: 'nav', type: 'navbar', variant: 'default', props: { navItems: [{ label: 'News', url: '/news#latest' }] } })
+    useConfigStore.getState().addBlock({ id: 'footer', type: 'footer', variant: 'simple', props: { navItems: [{ label: 'News', url: '/news?footer=1#latest' }] } })
+    const id = useConfigStore.getState().addPage('News', '/news')
+    useConfigStore.getState().addBlock({ id: 'c', type: 'cta', variant: 'simple', props: { buttonUrl: '/news/' } })
+    useConfigStore.getState().changePagePath(id, '/updates', true)
+    let pages = useConfigStore.getState().config.pages!
+    expect(pages[0].blocks.find(block => block.id === 'h')!.props.primaryCtaUrl).toBe('/updates?from=home#top')
+    expect(pages[0].blocks.find(block => block.id === 'h')!.props.secondaryCtaUrl).toBe('https://example.com/news')
+    expect(pages[0].blocks.find(block => block.id === 'text')!.props.body).toBe('[Latest](/updates?x=1#top) [Other](https://example.com/news)')
+    expect(pages[0].blocks.find(block => block.id === 'text')!.props.section1Objects).toEqual([{ id: 'photo', type: 'image', url: '/updates#latest' }])
+    expect(pages[0].blocks.find(block => block.id === 'text')!.props.sectionObject_photoRich).toEqual([{ text: 'Latest', href: '/updates?from=rich' }])
+    expect(pages[0].blocks.find(block => block.id === 'nav')!.props.navItems).toEqual([{ label: 'News', url: '/updates#latest' }])
+    expect(pages[0].blocks.find(block => block.id === 'footer')!.props.navItems).toEqual([{ label: 'News', url: '/updates?footer=1#latest' }])
+    expect(pages[1].blocks[0].props.buttonUrl).toBe('/updates')
+    expect(useConfigStore.getState().config.blocks.find(block => block.id === 'h')!.props.primaryCtaUrl).toBe('/updates?from=home#top')
+    useConfigStore.getState().undo()
+    pages = useConfigStore.getState().config.pages!
+    expect(pages[1].path).toBe('/news')
+    expect(pages[0].blocks.find(block => block.id === 'h')!.props.primaryCtaUrl).toBe('/news?from=home#top')
+    expect(pages[0].blocks.find(block => block.id === 'text')!.props.body).toBe('[Latest](/news?x=1#top) [Other](https://example.com/news)')
+    expect(pages[0].blocks.find(block => block.id === 'nav')!.props.navItems).toEqual([{ label: 'News', url: '/news#latest' }])
+    expect(pages[0].blocks.find(block => block.id === 'footer')!.props.navItems).toEqual([{ label: 'News', url: '/news?footer=1#latest' }])
+    useConfigStore.getState().redo()
+    expect(useConfigStore.getState().config.pages![1].path).toBe('/updates')
+    useConfigStore.getState().changePagePath(id, '/articles', false)
+    expect(useConfigStore.getState().config.pages![0].blocks.find(block => block.id === 'h')!.props.primaryCtaUrl).toBe('/updates?from=home#top')
+  })
+
+  it('undoes and redoes a complete JSON replacement without discarding extension data', () => {
+    const before = { ...useConfigStore.getState().config, name: 'Original', extension: { retained: 1 } }
+    useConfigStore.getState().setConfig(before)
+    useConfigStore.getState().replaceConfig({ ...before, name: 'Edited', extension: { retained: 2 } })
+    useConfigStore.getState().undo()
+    expect(useConfigStore.getState().config).toEqual(before)
+    useConfigStore.getState().redo()
+    expect(useConfigStore.getState().config.name).toBe('Edited')
+    expect((useConfigStore.getState().config as typeof before).extension).toEqual({ retained: 2 })
+  })
+})

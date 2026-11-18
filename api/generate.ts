@@ -1,9 +1,9 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node'
+import type { ApiRequest, ApiResponse } from './lib/http-types.js'
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY
 const GEMINI_MODEL = 'gemini-3-flash-preview'
 
-const systemPrompt = `You are a website configuration generator for OpenPage, a visual website builder.
+const systemPrompt = `You are a website configuration generator for Delphi Web Studio, a visual website builder.
 
 Given a user's description, generate a complete JSON site configuration.
 
@@ -132,7 +132,7 @@ DM Sans, Inter, Space Grotesk, Poppins, Manrope, Outfit, Plus Jakarta Sans, Sora
 
 Return ONLY valid JSON. No markdown, no code fences, no explanation.`
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
@@ -141,7 +141,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'GEMINI_API_KEY not configured' })
   }
 
-  const { prompt } = req.body
+  const { prompt } = req.body || {}
   if (!prompt || typeof prompt !== 'string') {
     return res.status(400).json({ error: 'prompt is required' })
   }
@@ -151,10 +151,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
         signal: controller.signal,
         body: JSON.stringify({
           contents: [

@@ -1,10 +1,12 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Pencil, Settings, Menu, X, Star } from 'lucide-react'
+import { LayoutDashboard, Pencil, Settings, Menu, X, Star, Download } from 'lucide-react'
+import appLogo from '../../images and icons/DelphiWebStudio-app-icon.png'
 import { useState } from 'react'
 
 const links = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/editor', label: 'Editor', icon: Pencil },
+  { to: '/deploy', label: 'Export', icon: Download },
   { to: '/settings', label: 'Settings', icon: Settings },
 ]
 
@@ -15,11 +17,9 @@ export function TopNav() {
     <header className="h-12 bg-bg-1 border-b border-border-default flex items-center px-4 gap-2 fixed top-0 left-0 right-0 z-50">
       {/* Logo */}
       <NavLink to="/" className="flex items-center gap-2 mr-6 select-none">
-        <svg viewBox="0 0 24 24" className="w-5 h-5">
-          <circle cx="12" cy="12" r="10" fill="#22c55e" />
-        </svg>
+        <img src={appLogo} alt="" className="h-8 w-8 object-contain" />
         <span className="font-display font-bold text-base text-text-0 tracking-tight">
-          OpenPage
+          Delphi Web Studio Pro
         </span>
       </NavLink>
 
@@ -46,12 +46,15 @@ export function TopNav() {
 
       {/* Right side */}
       <div className="ml-auto flex items-center gap-2">
+        <NavLink to="/settings" aria-label="Settings" className="md:hidden flex items-center gap-1 rounded border border-border-default px-2 py-1 text-xs text-text-1">
+          <Settings size={14} /> Settings
+        </NavLink>
         <a
-          href="https://github.com/buildingopen/openpage"
+          href="https://github.com/DelphiWebStudio/DelphiWebstudio"
           target="_blank"
           rel="noopener noreferrer"
           className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border-default text-text-2 text-[11.5px] hover:text-text-0 hover:border-border-hover hover:bg-bg-2 transition-all"
-          title="Star on GitHub"
+          title="Project repository"
         >
           <Star size={12} />
           GitHub

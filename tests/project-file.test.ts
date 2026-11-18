@@ -1,0 +1,253 @@
+import { describe, expect, it } from 'vitest'
+import JSZip from 'jszip'
+import { createProjectFile, decodeProjectFile, parseProjectFile, readProjectZipManifest, serializeProjectFile, validateProjectConfig, validateProjectMedia } from '../src/project/project-file'
+import type { SiteConfig } from '../src/blocks/types'
+
+const legacy = { name: 'My site', blocks: [{ id: 'hero', type: 'hero', variant: 'centered', props: { headline: 'Hello' } }] }
+const fivePages = {
+  name: 'Five pages',
+  pages: ['/', '/about', '/news', '/documents', '/contact'].map((path, index) => ({
+    id: `page-${index}`, name: `Page ${index}`, path,
+    blocks: [{ id: `block-${index}`, type: 'content', variant: 'prose', props: { body: `Page ${index} text` } }],
+  })),
+}
+
+describe('portable project files', () => {
+  it('round-trips empty and nested media folders', () => {
+    const project = { ...createProjectFile(validateProjectConfig(fivePages), 'project'), mediaFolders: ['Historical Photos', 'Historical Photos/1920s', 'Empty'] }
+    expect(parseProjectFile(serializeProjectFile(project)).project.mediaFolders).toEqual(project.mediaFolders)
+    expect(() => parseProjectFile(JSON.stringify({ ...project, mediaFolders: ['Photos/../Invalid'] }))).toThrow('invalid media folders')
+  })
+  it('preserves Hero dimensions and section count when saving and reopening', () => {
+    const props = { headline: 'Welcome', sectionCount: 2, layoutWidth: 75, layoutHeight: 260, layoutLeft: 10 }
+    const config = validateProjectConfig({ name: 'Site', blocks: [{ id: 'hero', type: 'hero', variant: 'centered', props }] })
+    const reopened = parseProjectFile(serializeProjectFile(createProjectFile(config, 'project'))).project.config
+    expect(reopened.blocks[0].props).toEqual(props)
+  })
+  it('preserves collage layers and panel placement across save and reopen', () => {
+    const blocks = [
+      { id: 'collage', type: 'collage', variant: 'default', props: { images: [{ src: 'assets/a.png', alt: 'Photo', x: '20', y: '30', width: '35', height: '40', layer: '2' }] } },
+      { id: 'panel', type: 'panel', variant: 'default', props: { title: 'Title', body: 'Text', src: 'assets/p.png', layoutWidth: 35, layoutLeft: 50, layoutTop: -100, layoutLayer: 3, blockBackgroundColor: '#123456' } },
+    ]
+    const config = validateProjectConfig({ name: 'Site', blocks })
+    const reopened = parseProjectFile(serializeProjectFile(createProjectFile(config, 'project'))).project.config
+    expect(reopened.blocks).toEqual(blocks)
+    expect(() => validateProjectMedia(reopened, [])).toThrow('Missing project media')
+    expect(() => validateProjectMedia(reopened, [{ id: 'a', path: 'assets/a.png' }, { id: 'p', path: 'assets/p.png' }])).not.toThrow()
+  })
+  it('preserves individual image and text styling across project save and reopen', () => {
+    const props = { title: 'Gallery', images: [{ src: 'https://example.test/a.png', alt: 'A' }, { src: 'https://example.test/b.png', alt: 'B' }], imageAdjustments: { '1': { width: '140', left: '-25' } }, textAdjustments: { 'h2-0': { size: '34', color: '#123456' } }, textSize: '20', textColor: '#654321' }
+    const config = validateProjectConfig({ name: 'Site', blocks: [{ id: 'gallery', type: 'gallery', variant: 'grid', props }] })
+    const reopened = parseProjectFile(serializeProjectFile(createProjectFile(config, 'project'))).project.config
+    expect(reopened.blocks[0].props).toEqual({ ...props, images: props.images.map((image, index) => ({ ...image, id: `gallery-photo-${index + 1}`, caption: '' })) })
+  })
+  it('preserves image positioning, size and layering when saving and reopening', () => {
+    const props = { src: 'https://example.test/photo.png', alt: 'Photo', layoutWidth: 45, layoutHeight: 280, layoutLeft: 35, layoutTop: -100, layoutLayer: 2 }
+    const config = validateProjectConfig({ name: 'Site', blocks: [{ id: 'photo', type: 'image', variant: 'hero-image', props }] })
+    const reopened = parseProjectFile(serializeProjectFile(createProjectFile(config, 'project'))).project.config
+    expect(reopened.blocks[0].props).toEqual(props)
+  })
+  it('preserves responsive visibility and rejects invalid values', () => {
+    const config = { name: 'Site', blocks: [{ id: 'one', type: 'content', variant: 'prose', props: { body: 'Text' }, webstudioHiddenOn: { mobile: true, tablet: false } }] }
+    const project = createProjectFile(validateProjectConfig(config), 'project')
+    const reopened = parseProjectFile(serializeProjectFile(project)).project.config
+    expect(reopened.blocks[0].webstudioHiddenOn).toEqual({ mobile: true, tablet: false })
+    expect(() => validateProjectConfig({ ...config, blocks: [{ ...config.blocks[0], webstudioHiddenOn: { mobile: 'yes' } }] })).toThrow('true or false')
+  })
+  it('retains shared header identifiers across a project save and reopen', () => {
+    const config = validateProjectConfig({ name: 'Site', pages: [
+      { id: 'home', name: 'Home', path: '/', blocks: [{ id: 'one', type: 'navbar', variant: 'default', props: { logoText: 'Site' }, webstudioSharedSectionId: 'shared' }] },
+      { id: 'about', name: 'About', path: '/about', blocks: [{ id: 'two', type: 'navbar', variant: 'default', props: { logoText: 'Site' }, webstudioSharedSectionId: 'shared' }] },
+    ] })
+    const reopened = parseProjectFile(serializeProjectFile(createProjectFile(config, 'project'))).project.config
+    expect(reopened.pages!.map(page => page.blocks[0].webstudioSharedSectionId)).toEqual(['shared', 'shared'])
+  })
+  it('preserves reusable sections and checks their media references', () => {
+    const config: SiteConfig = { ...legacy, webstudioReusableSections: [{ id: 'saved', name: 'Picture', block: { id: 'old', type: 'image', variant: 'hero-image', props: { assetId: 'photo', src: 'assets/photo.png' } } }] }
+    const reopened = parseProjectFile(serializeProjectFile(createProjectFile(config, 'project'))).project.config
+    expect(reopened.webstudioReusableSections).toEqual(config.webstudioReusableSections)
+    expect(() => validateProjectMedia(reopened, [])).toThrow('Missing project media')
+    expect(() => validateProjectMedia(reopened, [{ id: 'photo', path: 'assets/photo.png' }])).not.toThrow()
+  })
+  it('decodes UTF-8 project text without silently replacing damaged bytes', () => {
+    const text = '{"name":"Café 社区"}'
+    expect(decodeProjectFile(new TextEncoder().encode(text))).toBe(text)
+    expect(decodeProjectFile(new Uint8Array([0xef, 0xbb, 0xbf, ...new TextEncoder().encode(text)]))).toBe(text)
+    expect(() => decodeProjectFile(new Uint8Array([0xc3, 0x28]))).toThrow('not valid UTF-8')
+  })
+  it('checks ZIP manifest integrity before reading project content', async () => {
+    const text = '{"name":"Hello world"}'
+    const zip = new JSZip()
+    zip.file('project.webstudio.json', text)
+    const bytes = await zip.generateAsync({ type: 'uint8array', compression: 'STORE' })
+    const valid = await JSZip.loadAsync(bytes)
+    expect(await readProjectZipManifest(valid.file('project.webstudio.json')!)).toBe(text)
+    const marker = new TextEncoder().encode('Hello world')
+    const index = bytes.findIndex((_, position) => marker.every((byte, offset) => bytes[position + offset] === byte))
+    expect(index).toBeGreaterThanOrEqual(0)
+    bytes[index] = 'J'.charCodeAt(0)
+    const damaged = await JSZip.loadAsync(bytes)
+    await expect(readProjectZipManifest(damaged.file('project.webstudio.json')!)).rejects.toThrow('checksum does not match')
+  })
+
+  it('rejects non-UTF-8 and oversized ZIP manifests', async () => {
+    const zip = new JSZip()
+    zip.file('project.webstudio.json', new Uint8Array([0xc3, 0x28]))
+    const parsed = await JSZip.loadAsync(await zip.generateAsync({ type: 'uint8array' }))
+    const manifest = parsed.file('project.webstudio.json')!
+    await expect(readProjectZipManifest(manifest)).rejects.toThrow('not valid UTF-8')
+    const metadata = (manifest as JSZip.JSZipObject & { _data: { uncompressedSize: number } })._data
+    metadata.uncompressedSize = 100 * 1024 * 1024 + 1
+    await expect(readProjectZipManifest(manifest)).rejects.toThrow('too large')
+  })
+  it('migrates legacy JSON without changing the input and creates a stable portable identity', () => {
+    const source = JSON.stringify(legacy)
+    const { project, migrated } = parseProjectFile(source)
+    expect(migrated).toBe(true)
+    expect(project.schemaVersion).toBe(2)
+    expect(project.config.pages?.[0]).toMatchObject({ id: 'page-home', path: '/', blocks: legacy.blocks })
+    expect(JSON.stringify(legacy)).toBe(source)
+    const reopened = parseProjectFile(serializeProjectFile(project))
+    expect(reopened.migrated).toBe(false)
+    expect(reopened.project).toEqual(project)
+  })
+
+  it('round-trips five pages and preserves unknown project/page/block fields and block types', () => {
+    const source = structuredClone(fivePages)
+    source.pages[2].blocks[0] = { id: 'future', type: 'future-chart', variant: 'custom', props: { series: [1, 2] } } as unknown as typeof source.pages[2]['blocks'][0]
+    const config = { ...source, customSetting: { locale: 'de' } }
+    Object.assign(config.pages[2], { futurePageField: { x: 1 } })
+    Object.assign(config.pages[2].blocks[0], { pluginVersion: 8 })
+    const project = { ...createProjectFile(config as unknown as SiteConfig, 'stable-id'), futureProjectField: { preserved: true } }
+    const reopened = parseProjectFile(serializeProjectFile(project)).project
+    expect(reopened).toEqual(project)
+    expect(reopened.config.pages).toHaveLength(5)
+    expect(reopened.config.blocks).toEqual(config.pages[0].blocks)
+  })
+
+  it('uses Home blocks regardless of the previously active page compatibility mirror', () => {
+    const config = { ...fivePages, blocks: fivePages.pages[3].blocks }
+    expect(validateProjectConfig(config).blocks).toEqual(fivePages.pages[0].blocks)
+    expect(config.blocks).toEqual(fivePages.pages[3].blocks)
+  })
+
+  it('preserves empty pages and rejects conflicting orphan legacy blocks', () => {
+    const config = structuredClone(fivePages)
+    config.pages[2].blocks = []
+    expect(validateProjectConfig(config).pages?.[2].blocks).toEqual([])
+    expect(() => validateProjectConfig({ ...config, blocks: legacy.blocks })).toThrow('Legacy blocks differ')
+  })
+
+  it.each(['/../escape', '/a/../../b', '//host/path', '/a\\b', '/%2e%2e/escape', '/a%2fb', '/a?x=1', '/a#x', '/a//b', '/CON', '/nul.txt', '/about.', '/a*b'])('rejects unsafe path %s', path => {
+    const config = structuredClone(fivePages)
+    config.pages[1].path = path
+    expect(() => validateProjectConfig(config)).toThrow()
+  })
+
+  it('rejects duplicate IDs and paths, including Windows path case collisions', () => {
+    for (const field of ['id', 'path'] as const) {
+      const config = structuredClone(fivePages)
+      config.pages[2][field] = config.pages[1][field].toUpperCase()
+      if (field === 'id') config.pages[2].id = config.pages[1].id
+      expect(() => validateProjectConfig(config)).toThrow('Duplicate page')
+    }
+    const config = structuredClone(fivePages)
+    config.pages[2].blocks[0].id = config.pages[1].blocks[0].id
+    expect(() => validateProjectConfig(config)).toThrow('Duplicate block ID')
+  })
+
+  it.each(['javascript:alert(1)', 'data:text/html,<script>alert(1)</script>', 'file:///C:/secret', 'vbscript:msgbox(1)'])('rejects active or privileged URL %s', url => {
+    expect(() => validateProjectConfig({ ...legacy, blocks: [{ ...legacy.blocks[0], props: { primaryCtaUrl: url } }] })).toThrow('URL protocol')
+  })
+
+  it('rejects prototype keys, malformed JSON, unknown versions, missing Home and unsafe font interpolation', () => {
+    expect(() => parseProjectFile('{')).toThrow('valid JSON')
+    expect(() => parseProjectFile('{"name":"x","blocks":[],"__proto__":{}}')).toThrow('Unsafe project property')
+    expect(() => parseProjectFile('{"format":"webstudio","schemaVersion":99,"config":{}}')).toThrow('Unsupported project')
+    expect(() => validateProjectConfig({ name: 'x', pages: [{ id: 'p', name: 'P', path: '/about', blocks: [] }] })).toThrow('Home')
+    expect(() => validateProjectConfig({ ...legacy, theme: { fontSans: "x';alert(1)//" } })).toThrow('font')
+  })
+
+  it('rejects non-JSON editor values instead of silently losing them during save', () => {
+    for (const value of [Infinity, NaN, () => 1, BigInt(1)]) {
+      expect(() => validateProjectConfig({ ...legacy, extra: value })).toThrow()
+    }
+  })
+
+  it('round-trips site settings and rejects embedded deployment credentials', () => {
+    const project = { ...createProjectFile(legacy as SiteConfig, 'p'), settings: { seoTitle: 'My site', future: { retained: true } } }
+    expect(parseProjectFile(serializeProjectFile(project)).project.settings).toEqual(project.settings)
+    expect(() => serializeProjectFile({ ...project, settings: { deployAccessKey: 'secret' } })).toThrow('credentials')
+    expect(() => parseProjectFile(JSON.stringify({ ...project, settings: { deployAccessKey: 'secret' } }))).toThrow('credential')
+  })
+
+  it('rejects missing, mismatched, or duplicate media references before open or save', () => {
+    const assets = [{ id: 'one', path: 'assets/one-image.png' }, { id: 'two', path: 'assets/two-image.png' }]
+    const config = { name: 'Media', blocks: [{ id: 'img', type: 'image', variant: 'grid', props: { assetId: 'one', src: 'assets/one-image.png', images: [{ src: 'assets/two-image.png' }] } }] } as SiteConfig
+    expect(() => validateProjectMedia(config, assets)).not.toThrow()
+    expect(() => validateProjectMedia(config, assets.slice(0, 1))).toThrow('Missing project media file')
+    expect(() => validateProjectMedia(config, assets.slice(1))).toThrow('Missing project media ID')
+    expect(() => validateProjectMedia(config, [...assets, { id: 'one', path: 'assets/other.png' }])).toThrow('duplicate media')
+    expect(() => validateProjectMedia(config, [...assets, { id: 'three', path: 'assets/ONE-image.png' }])).toThrow('duplicate media')
+    const mismatched = structuredClone(config)
+    mismatched.blocks[0].props.src = 'assets/two-image.png'
+    expect(() => validateProjectMedia(mismatched, assets)).toThrow('do not match')
+    mismatched.blocks[0].props.src = 'https://example.com/photo.png'
+    expect(() => validateProjectMedia(mismatched, assets)).toThrow('do not match')
+    delete mismatched.blocks[0].props.src
+    expect(() => validateProjectMedia(mismatched, assets)).toThrow('do not match')
+  })
+
+  it('retains unknown block data without interpreting plugin-specific media references', () => {
+    const config = { name: 'Future', blocks: [{ id: 'future', type: 'future-chart', variant: 'custom', props: { src: 'assets/plugin-file.bin' } }] } as unknown as SiteConfig
+    expect(() => validateProjectMedia(config, [])).not.toThrow()
+  })
+
+  it('checks feature image IDs and paths before saving', () => {
+    const assets = [{ id: 'one', path: 'assets/one.png' }, { id: 'two', path: 'assets/two.png' }]
+    const config = { name: 'Features', blocks: [{ id: 'f', type: 'features', variant: 'alternating', props: { items: [{ title: 'One', image: 'assets/one.png', assetId: 'one' }] } }] } as unknown as SiteConfig
+    expect(() => validateProjectMedia(config, assets)).not.toThrow()
+    ;(config.blocks[0].props.items as Array<Record<string, string>>)[0].image = 'assets/two.png'
+    expect(() => validateProjectMedia(config, assets)).toThrow('do not match')
+  })
+
+  it('checks team photo IDs and paths before saving', () => {
+    const assets = [{ id: 'one', path: 'assets/one.png' }, { id: 'two', path: 'assets/two.png' }]
+    const config = { name: 'Team', blocks: [{ id: 't', type: 'team', variant: 'grid', props: { members: [{ name: 'Alex', role: 'Volunteer', avatar: 'assets/one.png', assetId: 'one' }] } }] } as unknown as SiteConfig
+    expect(() => validateProjectMedia(config, assets)).not.toThrow()
+    ;(config.blocks[0].props.members as Array<Record<string, string>>)[0].avatar = 'assets/two.png'
+    expect(() => validateProjectMedia(config, assets)).toThrow('do not match')
+  })
+
+  it('checks local files linked from content before saving', () => {
+    const config = { name: 'Site', blocks: [{ id: 'c', type: 'content', variant: 'prose', props: { body: '[Bulletin](assets/bulletin.pdf#page=2)' } }] } as unknown as SiteConfig
+    expect(() => validateProjectMedia(config, [])).toThrow('Missing project media file')
+    expect(() => validateProjectMedia(config, [{ id: 'pdf', path: 'assets/bulletin.pdf' }])).not.toThrow()
+  })
+
+  it('retains article metadata and rejects invalid status or an article Home page', () => {
+    const config = structuredClone(fivePages) as unknown as SiteConfig
+    config.pages![1].webstudioArticle = { status: 'draft', author: 'Ada', summary: 'A draft', createdAt: '2026-01-01', modifiedAt: '2026-01-01' }
+    const project = createProjectFile(config, 'article-project')
+    expect(parseProjectFile(serializeProjectFile(project)).project.config.pages![1].webstudioArticle).toEqual(config.pages![1].webstudioArticle)
+    const badStatus = structuredClone(config)
+    badStatus.pages![1].webstudioArticle!.status = 'other' as never
+    expect(() => validateProjectConfig(badStatus)).toThrow('Invalid article status')
+    const badHome = structuredClone(config)
+    badHome.pages![0].webstudioArticle = badHome.pages![1].webstudioArticle
+    expect(() => validateProjectConfig(badHome)).toThrow('Home page cannot be an article')
+  })
+
+  it('rejects invalid page search metadata without changing the source', () => {
+    const config = { name: 'Site', pages: [{ id: 'home', name: 'Home', path: '/', blocks: [], webstudioSeo: { title: 42 } }], blocks: [] }
+    expect(() => validateProjectConfig(config)).toThrow('must be text')
+    expect(config.pages[0].webstudioSeo.title).toBe(42)
+  })
+
+  it('preserves article tags and rejects malformed values', () => {
+    const config = { name: 'Site', pages: [{ id: 'home', name: 'Home', path: '/', blocks: [] }, { id: 'news', name: 'News', path: '/news', blocks: [], webstudioArticle: { status: 'ready', author: '', summary: '', createdAt: '', modifiedAt: '', tags: ['Events', 'Community'] } }], blocks: [] }
+    expect(validateProjectConfig(config).pages![1].webstudioArticle?.tags).toEqual(['Events', 'Community'])
+    config.pages[1].webstudioArticle!.tags = ['']
+    expect(() => validateProjectConfig(config)).toThrow('Article tags')
+  })
+})

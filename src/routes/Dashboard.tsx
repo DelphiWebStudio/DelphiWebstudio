@@ -1,35 +1,26 @@
+import { ProjectThumbnail } from './ProjectThumbnail'
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Search, Sparkles, Trash2, FolderOpen, Copy, Pencil, Layers, Briefcase, UtensilsCrossed, Building2, BookOpen } from 'lucide-react'
-import { NavLink } from 'react-router-dom'
 import { useProjectsStore, type Project } from '@/store/projectsStore'
 import { useConfigStore, defaultConfig } from '@/store/configStore'
 import { useEditorStore } from '@/store/editorStore'
 import { hexToRgb } from '@/lib/theme-presets'
-import { templateMeta, buildTemplate } from '@/lib/templates'
+import { templateMeta, buildTemplate, getTemplateForPrompt } from '@/lib/templates'
+import { ProjectFileCommands } from '@/project/ProjectFileCommands'
+import { LocalStorageDialog } from '@/project/LocalStorageDialog'
+import { portableProjectsEnabled } from '@/project/project-file'
 
 const templateIcons: Record<string, typeof Briefcase> = {
   Briefcase, UtensilsCrossed, Building2, BookOpen,
 }
 
 const suggestions = [
-  {
-    label: 'SaaS landing page',
-    prompt: 'Create a SaaS landing page for a project management tool called "FlowBoard". Include a hero with a compelling headline about team productivity, a features grid highlighting task boards, real-time collaboration, and analytics. Add a pricing section with Free, Pro ($12/mo), and Enterprise tiers. Use a clean, modern dark theme with blue accents.',
-  },
-  {
-    label: 'Portfolio site',
-    prompt: 'Create a portfolio site for a freelance product designer named Alex Chen. Include a hero section with a strong personal headline, a project gallery showcasing 4-6 case studies with titles and descriptions, a testimonials section with client quotes, an about/bio section, and a contact form. Use a minimal, sophisticated aesthetic with warm neutral tones.',
-  },
-  {
-    label: 'Restaurant website',
-    prompt: 'Create a website for an upscale Italian restaurant called "Trattoria Luna". Include a hero with an inviting headline about authentic cuisine, a features section highlighting handmade pasta, wood-fired pizza, and a curated wine list. Add a content block with the chef\'s philosophy, a testimonials section with diner reviews, and a CTA to make reservations. Use warm, earthy tones with gold accents.',
-  },
-  {
-    label: 'AI startup',
-    prompt: 'Create a landing page for an AI startup called "NeuralFlow" that builds intelligent document processing tools. Include a hero with a bold headline about automating workflows, a features grid with smart extraction, multi-language support, and enterprise security. Add a stats section with impressive numbers, a pricing comparison table, customer testimonials from CTOs, and a strong CTA. Use a sleek dark theme with green accents.',
-  },
+  { label: 'Personal site', prompt: 'Personal website' },
+  { label: 'Community group', prompt: 'Community organization' },
+  { label: 'Church', prompt: 'Church website' },
+  { label: 'Documentation', prompt: 'Documentation website' },
 ]
 
 const filters = ['All', 'Published', 'Drafts'] as const
@@ -49,15 +40,16 @@ function projectAccent(project: Project): string {
 function PromptSection() {
   const navigate = useNavigate()
   const addProject = useProjectsStore((s) => s.addProject)
+  const updateProjectConfig = useProjectsStore((s) => s.updateProjectConfig)
   const setConfig = useConfigStore((s) => s.setConfig)
   const setActiveProject = useEditorStore((s) => s.setActiveProject)
-  const editorSetGenerating = useEditorStore((s) => s.setGenerating)
 
   const [prompt, setPrompt] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   function startBlank() {
     const id = addProject('Untitled Project')
+    updateProjectConfig(id, defaultConfig)
     setActiveProject(id)
     setConfig(defaultConfig)
     navigate('/editor')
@@ -65,8 +57,10 @@ function PromptSection() {
 
   function startFromTemplate(tplId: string, tplName: string) {
     const id = addProject(tplName)
+    const config = buildTemplate(tplId, tplName)
+    updateProjectConfig(id, config)
     setActiveProject(id)
-    setConfig(buildTemplate(tplId, tplName))
+    setConfig(config)
     navigate('/editor')
   }
 
@@ -74,16 +68,15 @@ function PromptSection() {
     const trimmed = text.trim()
     if (!trimmed) return
 
-    // Create placeholder project, set generation state, navigate immediately
     const placeholderName = trimmed.split(/\s+/).slice(0, 4).join(' ')
     const id = addProject(placeholderName.charAt(0).toUpperCase() + placeholderName.slice(1))
+    const config = getTemplateForPrompt(trimmed)
+    updateProjectConfig(id, config)
     setActiveProject(id)
-    setConfig(defaultConfig)
-    editorSetGenerating(trimmed)
+    setConfig(config)
     navigate('/editor')
   }
 
-  const hasGeminiKey = !!localStorage.getItem('openpage-gemini-key')
   const isFocused = prompt.length > 0
 
   return (
@@ -95,13 +88,13 @@ function PromptSection() {
 
       <div className="relative flex flex-col items-center pt-16 pb-6 px-6">
         <h1 className="text-[36px] font-display font-bold tracking-tight mb-2 text-center animate-fade-in-up stagger-1">What will you build?</h1>
-        <p className="text-text-2 text-[15px] mb-8 text-center animate-fade-in-up stagger-2">Describe your site and AI generates the layout, copy, and theme.</p>
+        <p className="text-text-2 text-[15px] mb-8 text-center animate-fade-in-up stagger-2">Choose a starter or describe the kind of site you want.</p>
 
         {/* Prompt card - gradient border wrapper */}
         <div className={`w-full max-w-[680px] rounded-2xl p-px transition-all duration-300 animate-scale-in stagger-3 ${
           isFocused
-            ? 'bg-gradient-to-b from-green/40 via-green/20 to-green/5 shadow-[0_0_80px_rgba(34,197,94,0.15)]'
-            : 'bg-gradient-to-b from-border-hover via-border-default to-border-subtle shadow-[0_0_60px_rgba(34,197,94,0.06)] hover:from-green/25 hover:via-green/10 hover:to-green/5 hover:shadow-[0_0_80px_rgba(34,197,94,0.1)]'
+            ? 'bg-gradient-to-b from-green/40 via-green/20 to-green/5 shadow-[0_0_80px_rgba(242,138,37,0.15)]'
+            : 'bg-gradient-to-b from-border-hover via-border-default to-border-subtle shadow-[0_0_60px_rgba(242,138,37,0.06)] hover:from-green/25 hover:via-green/10 hover:to-green/5 hover:shadow-[0_0_80px_rgba(242,138,37,0.1)]'
         }`}>
           <div className="bg-bg-1 rounded-[15px] overflow-hidden">
             <textarea
@@ -114,7 +107,7 @@ function PromptSection() {
                 }
               }}
               rows={3}
-              placeholder="A landing page for a modern fitness app with dark theme..."
+              placeholder="A website for our community group..."
               className="w-full px-5 pt-5 pb-3 bg-transparent text-text-0 text-[14px] placeholder:text-text-3 resize-none leading-relaxed"
             />
 
@@ -140,10 +133,10 @@ function PromptSection() {
                 <button
                   onClick={() => generate(prompt)}
                   disabled={!prompt.trim()}
-                  className="px-5 py-2.5 rounded-xl bg-green text-black text-[13px] font-semibold hover:bg-green-dim active:scale-[0.97] transition-all disabled:opacity-20 disabled:cursor-not-allowed inline-flex items-center gap-2 shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:shadow-[0_0_30px_rgba(34,197,94,0.4)]"
+                  className="px-5 py-2.5 rounded-xl bg-green text-black text-[13px] font-semibold hover:bg-green-dim active:scale-[0.97] transition-all disabled:opacity-20 disabled:cursor-not-allowed inline-flex items-center gap-2 shadow-[0_0_20px_rgba(242,138,37,0.3)] hover:shadow-[0_0_30px_rgba(242,138,37,0.4)]"
                 >
                   <Sparkles size={14} />
-                  Generate
+                  Create starter
                 </button>
               </div>
             </div>
@@ -194,25 +187,18 @@ function PromptSection() {
           >
             or start blank
           </button>
-          {!hasGeminiKey && (
-            <p className="text-text-3 text-[10.5px]">
-              Using template mode.{' '}
-              <NavLink to="/settings" className="text-green hover:text-green-dim transition-colors">
-                Add a Gemini API key
-              </NavLink>
-              {' '}for AI-generated sites.
-            </p>
-          )}
+          <p className="text-text-3 text-[10.5px]">Starters are created locally and can be edited.</p>
         </div>
       </div>
     </div>
   )
 }
 
-function ProjectCard({ project }: { project: Project }) {
+function ProjectCard({ project, onRemove }: { project: Project; onRemove: (id: string) => void }) {
   const navigate = useNavigate()
   const renameProject = useProjectsStore((s) => s.renameProject)
   const deleteProject = useProjectsStore((s) => s.deleteProject)
+  const restoreProject = useProjectsStore((s) => s.restoreProject)
   const duplicateProject = useProjectsStore((s) => s.duplicateProject)
   const setConfig = useConfigStore((s) => s.setConfig)
   const setActiveProject = useEditorStore((s) => s.setActiveProject)
@@ -242,14 +228,18 @@ function ProjectCard({ project }: { project: Project }) {
 
   function openProject() {
     setActiveProject(project.id)
-    setConfig(project.config || defaultConfig)
+    const config = project.config ?? project.projectFile?.config ?? defaultConfig
+    const home = config.pages?.find(page => page.path === '/') ?? config.pages?.[0]
+    setConfig(Array.isArray(config.blocks) ? config : { ...config, blocks: home?.blocks ?? [] })
     navigate('/editor')
   }
 
   function handleDelete(e: React.MouseEvent) {
     e.stopPropagation()
     if (confirming) {
+      onRemove(project.id)
       deleteProject(project.id)
+      toast('Project removed.', { duration: 15000, action: { label: 'Undo', onClick: () => restoreProject(project) } })
     } else {
       setConfirming(true)
       confirmTimer.current = setTimeout(() => setConfirming(false), 2000)
@@ -257,8 +247,6 @@ function ProjectCard({ project }: { project: Project }) {
   }
 
   const accent = projectAccent(project)
-  const rgb = hexToRgb(accent)
-  const layout = projectHash(project.name) % 3
 
   return (
     <div
@@ -266,7 +254,8 @@ function ProjectCard({ project }: { project: Project }) {
       className="group bg-bg-1 border border-border-default rounded-xl overflow-hidden cursor-pointer card-lift hover:border-border-hover hover:card-lift-hover"
     >
       {/* Thumbnail */}
-      <div className="h-32 bg-bg-2 relative overflow-hidden">
+      <div className="h-40 bg-bg-2 relative overflow-hidden">
+        <ProjectThumbnail project={project} />
         <div
           className="absolute inset-0 opacity-[0.04] group-hover:opacity-[0.08] transition-opacity duration-300"
           style={{ background: `linear-gradient(135deg, ${accent}, transparent)` }}
@@ -275,7 +264,7 @@ function ProjectCard({ project }: { project: Project }) {
         {/* Action buttons */}
         <div className="absolute top-2 right-2 z-10 flex gap-1">
           <button
-            onClick={(e) => { e.stopPropagation(); duplicateProject(project.id); toast('Project duplicated') }}
+            onClick={(e) => { e.stopPropagation(); void duplicateProject(project.id).then(id => { if (id) toast('Project duplicated'); else toast.error('Project not found.') }).catch((error: unknown) => toast.error(error instanceof Error && error.message === 'The project changed while it was being duplicated. Try again.' ? error.message : 'Project could not be duplicated. The original was not changed.')) }}
             aria-label={`Duplicate ${project.name}`}
             className="p-1.5 rounded-md border bg-bg-0/80 border-border-default text-text-3 opacity-0 group-hover:opacity-100 hover:text-green hover:border-green/30 transition-all"
           >
@@ -294,47 +283,6 @@ function ProjectCard({ project }: { project: Project }) {
           </button>
         </div>
 
-        {/* Wireframe - varies by project name hash */}
-        <div className="absolute inset-3 flex flex-col gap-1.5 p-2.5">
-          {layout === 0 && (
-            <>
-              <div className="h-2 rounded-sm w-2/3" style={{ background: `rgba(${rgb}, 0.15)` }} />
-              <div className="h-1.5 bg-bg-4/40 rounded-sm w-1/2" />
-              <div className="flex gap-1.5 mt-auto">
-                <div className="flex-1 h-6 rounded" style={{ background: `rgba(${rgb}, 0.07)` }} />
-                <div className="flex-1 h-6 rounded" style={{ background: `rgba(${rgb}, 0.07)` }} />
-                <div className="flex-1 h-6 rounded" style={{ background: `rgba(${rgb}, 0.07)` }} />
-              </div>
-            </>
-          )}
-          {layout === 1 && (
-            <>
-              <div className="flex gap-2 flex-1">
-                <div className="flex-1 flex flex-col gap-1">
-                  <div className="h-2 rounded-sm w-3/4" style={{ background: `rgba(${rgb}, 0.15)` }} />
-                  <div className="h-1.5 bg-bg-4/40 rounded-sm w-full" />
-                  <div className="h-1.5 bg-bg-4/40 rounded-sm w-2/3" />
-                  <div className="h-4 rounded w-1/2 mt-auto" style={{ background: `rgba(${rgb}, 0.12)` }} />
-                </div>
-                <div className="w-16 rounded" style={{ background: `rgba(${rgb}, 0.06)` }} />
-              </div>
-            </>
-          )}
-          {layout === 2 && (
-            <>
-              <div className="flex justify-center mt-1">
-                <div className="h-2 rounded-sm w-1/3" style={{ background: `rgba(${rgb}, 0.15)` }} />
-              </div>
-              <div className="flex justify-center">
-                <div className="h-1.5 bg-bg-4/40 rounded-sm w-2/3" />
-              </div>
-              <div className="flex gap-1 mt-auto justify-center">
-                <div className="w-12 h-4 rounded" style={{ background: `rgba(${rgb}, 0.12)` }} />
-                <div className="w-12 h-4 rounded bg-bg-4/30" />
-              </div>
-            </>
-          )}
-        </div>
       </div>
 
       {/* Body */}
@@ -355,11 +303,11 @@ function ProjectCard({ project }: { project: Project }) {
         ) : (
           <div
             className="text-[13px] font-semibold mb-1 transition-colors text-text-0 flex items-center gap-1.5 group/name"
-            onDoubleClick={(e) => { e.stopPropagation(); setEditing(true) }}
-            title="Double-click to rename"
           >
             <span className="truncate">{project.name}</span>
-            <Pencil size={10} className="text-text-3 opacity-0 group-hover:opacity-100 group-hover/name:opacity-60 transition-opacity shrink-0" />
+            <button type="button" aria-label={`Rename ${project.name}`} onClick={(event) => { event.stopPropagation(); setName(project.name); setEditing(true) }} className="text-text-3 hover:text-green focus-visible:text-green shrink-0">
+              <Pencil size={10} />
+            </button>
           </div>
         )}
         <div className="text-[10.5px] text-text-2 flex items-center gap-2">
@@ -371,7 +319,7 @@ function ProjectCard({ project }: { project: Project }) {
             />
             {project.status === 'published' ? 'Published' : 'Draft'}
           </span>
-          <span className="text-text-3">{project.updatedAt}</span>
+          <span className="text-text-3" title="Last local change; use Save to update your project file">Local draft · {project.modifiedAt ? new Date(project.modifiedAt).toLocaleString() : project.updatedAt}</span>
         </div>
       </div>
     </div>
@@ -382,6 +330,8 @@ export function Dashboard() {
   const projects = useProjectsStore((s) => s.projects)
   const [filter, setFilter] = useState<Filter>('All')
   const [search, setSearch] = useState('')
+  const [storageOpen, setStorageOpen] = useState(false)
+  const undoExpires = useRef(new Map<string, number>())
 
   const filtered = projects.filter((p) => {
     if (filter === 'Published' && p.status !== 'published') return false
@@ -392,6 +342,15 @@ export function Dashboard() {
 
   return (
     <div className="h-full overflow-y-auto">
+      {portableProjectsEnabled && <div className="flex flex-wrap items-start gap-2 px-4 md:px-12 pt-4">
+        <ProjectFileCommands allRevisions />
+        <button type="button" onClick={() => setStorageOpen(true)} className="rounded border border-border-default px-3 py-1.5 text-xs">Local Storage…</button>
+      </div>}
+      {storageOpen && <LocalStorageDialog onClose={() => setStorageOpen(false)} recentlyRemoved={id => {
+        if ((undoExpires.current.get(id) ?? 0) > Date.now()) return true
+        undoExpires.current.delete(id)
+        return false
+      }} />}
       <PromptSection />
 
       {/* Projects section */}
@@ -442,7 +401,7 @@ export function Dashboard() {
             <div className="px-4 md:px-12 pt-4 pb-12 grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3.5">
               {filtered.map((p, i) => (
                 <div key={p.id} className="animate-fade-in-up" style={{ animationDelay: `${i * 50}ms` }}>
-                  <ProjectCard project={p} />
+                  <ProjectCard project={p} onRemove={id => undoExpires.current.set(id, Date.now() + 15000)} />
                 </div>
               ))}
             </div>

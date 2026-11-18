@@ -1,0 +1,70 @@
+import { describe, expect, it } from 'vitest'
+import JSZip from 'jszip'
+import { compareWebsiteManifests, createDeploymentPlan, createRestorePlan, createWebsiteManifest, validateWebsiteManifest } from '../src/lib/website-manifest'
+
+const hashA = 'a'.repeat(64)
+const hashB = 'b'.repeat(64)
+const manifest = (files: { path: string; size: number; sha256: string }[]) => ({ format: 'webstudio-website-manifest' as const, version: 1 as const, files })
+
+describe('website deployment snapshots', () => {
+  it('previews deployment only when the backup matches the destination scan', async () => {
+    const backupZip = new JSZip()
+    backupZip.file('index.html', 'old page')
+    backupZip.file('old.html', 'old file')
+    const backup = await backupZip.generateAsync({ type: 'blob' })
+    const scan = await createWebsiteManifest(backup)
+    const desiredZip = new JSZip()
+    desiredZip.file('index.html', 'updated page')
+    desiredZip.file('new.html', 'new file')
+    const desired = await desiredZip.generateAsync({ type: 'blob' })
+    expect(await createDeploymentPlan(desired, scan, backup)).toEqual({ added: ['new.html'], changed: ['index.html'], removed: ['old.html'] })
+    const stale = structuredClone(scan)
+    stale.files[0].sha256 = hashA
+    await expect(createDeploymentPlan(desired, stale, backup)).rejects.toThrow('backup does not match')
+  })
+  it('plans restoration from a backup against a destination scan without changing either', async () => {
+    const zip = new JSZip()
+    zip.file('index.html', 'hello')
+    zip.file('old.html', 'old')
+    const backup = await zip.generateAsync({ type: 'blob' })
+    const destination = manifest([{ path: 'index.html', size: 1, sha256: hashA }, { path: 'new.html', size: 1, sha256: hashB }])
+    const before = structuredClone(destination)
+    expect(await createRestorePlan(backup, destination)).toEqual({ added: ['old.html'], changed: ['index.html'], removed: ['new.html'] })
+    expect(destination).toEqual(before)
+  })
+
+  it('rejects a damaged backup instead of producing a restore plan', async () => {
+    const zip = new JSZip()
+    zip.file('index.html', 'unique test content', { compression: 'STORE' })
+    const bytes = await zip.generateAsync({ type: 'uint8array' })
+    const marker = new TextEncoder().encode('unique test content')
+    const start = bytes.findIndex((_, index) => marker.every((value, offset) => bytes[index + offset] === value))
+    expect(start).toBeGreaterThan(-1)
+    bytes[start] ^= 1
+    await expect(createRestorePlan(new Blob([bytes]), manifest([]))).rejects.toThrow('checksum')
+  })
+  it('hashes the exact prepared ZIP files', async () => {
+    const zip = new JSZip()
+    zip.file('index.html', 'hello')
+    const current = await createWebsiteManifest(await zip.generateAsync({ type: 'blob' }))
+    expect(current.files).toEqual([{ path: 'index.html', size: 5, sha256: '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824' }])
+  })
+
+  it('reports added, changed and removed paths without changing either snapshot', () => {
+    const previous = manifest([{ path: 'old.html', size: 1, sha256: hashA }, { path: 'same.html', size: 1, sha256: hashA }, { path: 'changed.html', size: 1, sha256: hashA }])
+    const current = manifest([{ path: 'new.html', size: 1, sha256: hashB }, { path: 'same.html', size: 1, sha256: hashA }, { path: 'changed.html', size: 1, sha256: hashB }])
+    const before = structuredClone({ previous, current })
+    expect(compareWebsiteManifests(previous, current)).toEqual({ added: ['new.html'], changed: ['changed.html'], removed: ['old.html'] })
+    expect({ previous, current }).toEqual(before)
+  })
+
+  it.each(['../outside', '/absolute', 'folder/../outside', 'C:/outside', 'a\\outside'])('rejects unsafe path %s', path => {
+    expect(() => validateWebsiteManifest(manifest([{ path, size: 1, sha256: hashA }]))).toThrow()
+  })
+
+  it('rejects duplicate paths, file-folder conflicts and malformed hashes', () => {
+    expect(() => validateWebsiteManifest(manifest([{ path: 'Page.html', size: 1, sha256: hashA }, { path: 'page.html', size: 1, sha256: hashA }]))).toThrow('Duplicate')
+    expect(() => validateWebsiteManifest(manifest([{ path: 'a', size: 1, sha256: hashA }, { path: 'a-b', size: 1, sha256: hashA }, { path: 'a/b', size: 1, sha256: hashA }]))).toThrow('conflict')
+    expect(() => validateWebsiteManifest(manifest([{ path: 'ok', size: 1, sha256: 'bad' }]))).toThrow('checksum')
+  })
+})

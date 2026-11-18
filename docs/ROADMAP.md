@@ -1,0 +1,27 @@
+# Delphi Web Studio Pro roadmap
+
+Last changed: 2026-10-29. Each numbered milestone below is a group of planned work with a check that establishes when that group is accepted. These milestones are acceptance gates, not completed-feature claims. The roadmap covers the visual editor, portable projects, optional artificial intelligence (AI) and website-file delivery. SFTP (SSH File Transfer Protocol) is the encrypted delivery connection; WebView2 is the Microsoft browser engine used inside the Windows shell.
+
+| Milestone | Deliverables | Exit gate |
+| --- | --- | --- |
+| M0 | Fork/history, source audit, baseline evidence, CI | Build/tests and browser edit/reopen/export checked; offline failure documented; M1 plan reviewable |
+| M1 | Versioned portable project, migration/validation, IDs/paths, explicit save, page undo, complete multi-page export | Five-page save/reopen/export retains content/navigation; unknown types preserved; no publish |
+| M2 | Beginner/designer/pro UX, responsive controls, reusable sections, orange/blue product UI, noncommercial templates | Nontechnical user edits responsive site without code |
+| M3 | Bulk media, references/hashes, thumbnails, local PDF.js/document library | Mixed media import/cancel/reopen and PDF toolbar/mobile/offline output verified |
+| M4 | Pinned licensed optional local model/runtime, validated proposed actions | Five editable pages without account/API fee; approval/undo and unsafe-action rejection |
+| M5 | Collections/articles, RSS/sitemap/search, forms abstraction | Blog/document export works; unconfigured forms flagged |
+| M6 | Self-contained export, base paths, SFTP diff/confirmation/receipt/rollback | Offline ZIP and compatible static-host deployment tested |
+| M7 | Design-time Delphi shell, WebView2 bridge, native saves/credentials, installer | Clean Windows create/import/edit/AI/export without Node |
+| M8 | Static HTML/WordPress import, security/accessibility/performance, docs/release | Regression/license audits, recovery/docs and beta tests; no silent data loss |
+
+Use small feature branches and PRs. M0 includes docs/evidence/CI and minimal lint fixes. M1 project controls are enabled by default, and its specified five-page exit scenario has passed isolated testing. The browser prototype does not complete the required Delphi product. Translation is deferred. Formal guides/help remain separate requested deliverables.
+
+M2's specified no-code build-and-export scenario passed an automated browser check using the current editor; independent testing by a nontechnical user has not been observed. The desktop app does not currently preview custom HTML/CSS inside its blocked frame.
+
+M3's specified mixed-media offline scenario passed on the current editor with two images, a PDF and a text file. The four files survived save, reopen and export byte-for-byte, and images and PDF displayed with external requests blocked.
+
+M4's specified local five-page generation and editing functions were exercised in complementary isolated checks without an account or API fee. The generation and subsequent edit were not observed in one uninterrupted run. Both handoff model candidates have been sampled locally, but a multi-machine benchmark remains unverified. M5 is the next milestone under review.
+
+M5's local check created a ready article and a document site, detected an unconfigured contact form, saved and reopened the project, and exported the article, article index and media. A separate check configured an HTTPS form endpoint and intercepted a test POST; no external service was contacted. The sample site was tested on a local server only. Actual publication has not been performed or authorized, so the full M5 exit criterion has not been verified.
+
+Tracking: [issues 1–9](https://github.com/DelphiWebStudio/DelphiWebstudio/issues) correspond to M0–M8, each assigned to its matching GitHub milestone.

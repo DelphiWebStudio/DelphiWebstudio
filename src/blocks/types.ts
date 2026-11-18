@@ -18,14 +18,42 @@ export type BlockType =
   | 'image'
   | 'video'
   | 'gallery'
+  | 'collage'
+  | 'panel'
+  | 'pdfViewer'
+  | 'document'
+  | 'documentLibrary'
+  | 'calendar'
+  | 'audio'
+  | 'mediaVideo'
 
 export type BlockVariant = string
+
+export interface NavigationDestination {
+  label: string
+  url: string
+}
+
+export interface CalendarEvent {
+  id: string
+  title: string
+  date: string
+  time?: string
+  location?: string
+  details?: string
+}
+
+export interface NavbarDestination extends NavigationDestination {
+  children?: NavigationDestination[]
+}
 
 export interface BlockConfig {
   id: string
   type: BlockType
   variant: BlockVariant
   props: Record<string, unknown>
+  webstudioSharedSectionId?: string
+  webstudioHiddenOn?: { mobile?: boolean; tablet?: boolean; desktop?: boolean }
 }
 
 export interface ThemeConfig {
@@ -62,6 +90,16 @@ export interface PageConfig {
   name: string
   path: string
   blocks: BlockConfig[]
+  webstudioSeo?: { title?: string; description?: string }
+  webstudioCustomCode?: { html: string; css: string; js: string }
+  webstudioArticle?: {
+    status: 'draft' | 'ready'
+    author: string
+    summary: string
+    tags?: string[]
+    createdAt: string
+    modifiedAt: string
+  }
 }
 
 export interface SiteConfig {
@@ -69,4 +107,5 @@ export interface SiteConfig {
   pages?: PageConfig[]
   blocks: BlockConfig[]
   theme?: Partial<ThemeConfig>
+  webstudioReusableSections?: { id: string; name: string; block: BlockConfig }[]
 }
