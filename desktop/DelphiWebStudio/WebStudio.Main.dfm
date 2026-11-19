@@ -1,7 +1,7 @@
 object MainForm: TMainForm
   Left = 0
   Top = 0
-  Caption = 'Delphi Web Studio Pro 1.0.0 (build 1)'
+  Caption = 'Delphi Web Studio Pro 1.0.0 (build 2)'
   ClientHeight = 800
   ClientWidth = 1200
   Constraints.MinHeight = 480
@@ -74,6 +74,25 @@ object MainForm: TMainForm
   object EditorColorDialog: TColorDialog
     Options = [cdFullOpen]
     Left = 984
+    Top = 48
+  end
+  object LocalWebsiteFolderDialog: TFileOpenDialog
+    FavoriteLinks = <>
+    FileTypes = <>
+    Options = [fdoPickFolders, fdoForceFileSystem, fdoPathMustExist, fdoDontAddToRecent]
+    Title = 'Choose a dedicated local website test folder'
+    Left = 1048
+    Top = 48
+  end
+  object LocalWebsiteConfirmDialog: TTaskDialog
+    Caption = 'Refresh local website'
+    CommonButtons = [tcbYes, tcbNo]
+    DefaultButton = tcbNo
+    ExpandButtonCaption = 'Show file details'
+    MainIcon = 1
+    Text = 'Review the website files before refreshing this local test folder.'
+    Title = 'Refresh the local website files?'
+    Left = 1112
     Top = 48
   end
   object RecoveryOpenDialog: TOpenDialog

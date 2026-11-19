@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkSite } from '../src/project/site-checks'
+import { checkSite, checkSiteReadability, siteExternalLinks, textContrastRatio } from '../src/project/site-checks'
 import type { BlockConfig, SiteConfig } from '../src/blocks/types'
 import { exportSiteToHTML } from '../src/lib/export-html'
 import { createElement } from 'react'
@@ -12,6 +12,91 @@ const config: SiteConfig = { name: 'Community', pages: [
   { id: 'home', name: 'Home', path: '/', blocks: [hero] },
   { id: 'news', name: 'News', path: '/news', blocks: [{ id: 'news-section', type: 'content', variant: 'prose', props: { anchorName: 'headlines' } }] },
 ], blocks: [hero] }
+
+describe('readability and external link review', () => {
+  const withBlock = (props: Record<string, unknown>, type: BlockConfig['type'] = 'content') => {
+    const block: BlockConfig = { id: 'review', type, variant: type === 'content' ? 'prose' : 'minimal', props }
+    return { name: 'Review', blocks: [block], pages: [{ id: 'review-page', name: 'Review', path: '/', blocks: [block] }] } satisfies SiteConfig
+  }
+
+  it('uses relative luminance and accepts only editor-supported opaque colors', () => {
+    expect(textContrastRatio('#000000', '#ffffff')).toBeCloseTo(21, 7)
+    expect(textContrastRatio('#FFFFFF', '#000000')).toBeCloseTo(21, 7)
+    expect(textContrastRatio('#333333', '#333333')).toBe(1)
+    for (const color of ['transparent', '#fff', '#ffffff88', 'rgba(0,0,0,.5)', 'linear-gradient(white,black)', undefined]) {
+      expect(textContrastRatio(color, '#ffffff')).toBeNull()
+    }
+  })
+
+  it('checks actual declared size without rounding a failing ratio up to a pass', () => {
+    expect(checkSiteReadability(withBlock({ body: 'Normal-size information', textColor: '#777777', blockBackgroundColor: '#ffffff', textSize: 16 }))[0].message).toContain('minimum for this text size is 4.5:1')
+    expect(checkSiteReadability(withBlock({ body: 'Normal-size information', textColor: '#767676', blockBackgroundColor: '#ffffff', textSize: 16 }))).toEqual([])
+    expect(checkSiteReadability(withBlock({ body: 'Large information', textColor: '#888888', blockBackgroundColor: '#ffffff', textSize: 24 }))).toEqual([])
+    expect(checkSiteReadability(withBlock({ body: 'Large information', textColor: '#aaaaaa', blockBackgroundColor: '#ffffff', textSize: 24 }))[0].message).toContain('minimum for this text size is 3:1')
+    expect(checkSiteReadability(withBlock({ headline: 'Heading weight needs review', textColor: '#888888', blockBackgroundColor: '#ffffff', textSize: 22 }, 'hero'))[0].message).toContain('Check the actual weight')
+    const button = withBlock({ headline: 'Large heading', textSize: 32, primaryCta: 'Read more', primaryCtaUrl: '/news', buttonTextColor: '#888888', buttonBackgroundColor: '#ffffff' }, 'hero')
+    expect(checkSiteReadability(button)[0].message).toContain('Normal-size text needs 4.5:1')
+  })
+
+  it('labels an unknown size as a review and avoids guesses over photos or overridden styles', () => {
+    expect(checkSiteReadability(withBlock({ body: 'Information', textColor: '#888888', blockBackgroundColor: '#ffffff' }))[0].message).toContain('check the actual size and weight')
+    const colored = { headline: 'Photographic banner', textColor: '#888888', blockBackgroundColor: '#ffffff', heroImage: 'assets/photo.jpg' }
+    expect(checkSiteReadability(withBlock(colored, 'hero'))).toEqual([])
+    expect(checkSiteReadability(withBlock({ ...colored, heroImage: '', bodyRich: [{ text: 'Black wording', color: '#000000' }] }))).toEqual([])
+    expect(checkSiteReadability(withBlock({ body: 'A bold passage', bodyRich: [{ text: 'A bold passage', bold: true }], textColor: '#888888', blockBackgroundColor: '#ffffff', textSize: 22 }))).toEqual([])
+    expect(checkSiteReadability(withBlock({ body: 'Inherited colors', textColor: '#eeeeee' }))).toEqual([])
+    expect(checkSiteReadability(withBlock({ body: 'Overrides', textColor: '#ffffff', blockBackgroundColor: '#ffffff', textAdjustments: { 'p-0': { color: '#000000' } } }))).toEqual([])
+    expect(checkSiteReadability(withBlock({ body: 'Photographic layer', textColor: '#ffffff', blockBackgroundColor: '#ffffff', section1Objects: [{ id: 'photo', type: 'image', src: 'assets/photo.jpg' }, { id: 'caption', type: 'text', text: 'On the photograph', textColor: '#ffffff' }] }))).toEqual([])
+  })
+
+  it('points a failing section button to its object and preserves the project unchanged', () => {
+    const source = withBlock({ sectionCount: 2, section2Objects: [{ id: 'button-2', type: 'button', text: 'Read more', url: '/news', textColor: '#aaaaaa', backgroundColor: '#ffffff', fontSize: 16 }] })
+    const before = structuredClone(source)
+    expect(checkSiteReadability(source)).toEqual([expect.objectContaining({ pageId: 'review-page', blockId: 'review', section: 2, objectId: 'button-2', message: expect.stringContaining('Section 2 button contrast') })])
+    expect(source).toEqual(before)
+  })
+
+  it('checks text on a parent panel while skipping draft pages and custom stylesheet overrides', () => {
+    const source: SiteConfig = withBlock({ section1Objects: [
+      { id: 'panel', type: 'panel', color: '#ffffff' },
+      { id: 'text', type: 'text', text: 'Panel wording', parentId: 'panel', textColor: '#eeeeee', fontSize: 18 },
+    ] })
+    expect(checkSiteReadability(source)).toHaveLength(1)
+    source.pages![0].webstudioCustomCode = { html: '', css: 'p { color:black }', js: '' }
+    expect(checkSiteReadability(source)).toEqual([])
+    delete source.pages![0].webstudioCustomCode
+    source.pages!.push({ ...structuredClone(source.pages![0]), id: 'draft-page', path: '/draft', webstudioArticle: { status: 'draft', author: '', summary: '', createdAt: '', modifiedAt: '' } })
+    source.pages![0].blocks = []
+    source.blocks = []
+    expect(checkSiteReadability(source)).toEqual([])
+  })
+
+  it('deduplicates web destinations while retaining every affected page and object', () => {
+    const source = structuredClone(config)
+    source.pages![0].blocks[0].props.primaryCtaUrl = 'https://example.test/visit#schedule'
+    source.pages![1].blocks.push({ id: 'text', type: 'content', variant: 'prose', props: { body: '[Visit](https://example.test/visit#directions) [Email](mailto:office@nowhere.com)' } })
+    source.blocks = source.pages![0].blocks
+    const before = structuredClone(source)
+    const links = siteExternalLinks(source)
+    expect(links).toHaveLength(1)
+    expect(links[0].url).toBe('https://example.test/visit')
+    expect(links[0].locations).toEqual([expect.objectContaining({ pageId: 'home', blockId: 'hero' }), expect.objectContaining({ pageId: 'news', blockId: 'text' })])
+    expect(source).toEqual(before)
+  })
+
+  it('does not offer credentials, malformed web addresses, non-web protocols or draft-only links to the network check', () => {
+    const source: SiteConfig = withBlock({ body: '[Private](https://user:secret@example.test/private) [Bad](https://) [Phone](tel:123) [Internal](/news)' })
+    expect(siteExternalLinks(source)).toEqual([])
+    const messages = checkSite(source).map(issue => issue.message)
+    expect(messages).toContain('Private: remove the username or password from this link address.')
+    expect(messages).toContain('Bad: this web address is not valid.')
+    source.pages![0].blocks[0].props.body = '[Visit](https://example.test/visit)'
+    source.pages!.push({ ...structuredClone(source.pages![0]), id: 'draft-page', path: '/draft', webstudioArticle: { status: 'draft', author: '', summary: '', createdAt: '', modifiedAt: '' } })
+    source.pages![0].blocks = []
+    source.blocks = []
+    expect(siteExternalLinks(source)).toEqual([])
+  })
+})
 
 describe('local site checks', () => {
   it('reports duplicate anchors, missing placed-image descriptions, and heading gaps', () => {

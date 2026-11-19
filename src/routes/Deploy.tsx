@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Globe,
   FileJson,
@@ -18,6 +18,7 @@ import { ProjectMediaLibrary } from '@/media/media-library'
 import JSZip from 'jszip'
 import { createDeploymentPlan, createRestorePlan, createWebsiteManifest, validateWebsiteManifest, compareWebsiteManifests, type WebsiteManifest } from '@/lib/website-manifest'
 import { checkSite, type SiteIssue } from '@/project/site-checks'
+import { requestLocalWebsite } from '@/desktop/native-bridge'
 
 const readyOptions = [
   { icon: Download, label: 'Static HTML', description: 'Download a standalone HTML file', action: 'html' },
@@ -48,8 +49,35 @@ export function Deploy() {
   const [deploymentPlan, setDeploymentPlan] = useState<{ signature: string; result: ReturnType<typeof compareWebsiteManifests> } | null>(null)
   const [restoreWorking, setRestoreWorking] = useState(false)
   const [openingPreview, setOpeningPreview] = useState(false)
+  const [localFolder, setLocalFolder] = useState<{ projectId: string; folder: string; backup?: string } | null>(null)
+  const [localWorking, setLocalWorking] = useState(false)
   const desktop = window.location.hostname === 'webstudio.local'
   const signature = JSON.stringify({ projectId: activeProjectId, config, settings: project?.settings, mediaRevision: project?.mediaRevision })
+
+  useEffect(() => {
+    if (!desktop || !activeProjectId) return
+    let current = true
+    void requestLocalWebsite('get', activeProjectId).then(result => {
+      if (current) setLocalFolder({ projectId: activeProjectId, folder: result.folder })
+    }).catch(() => { if (current) setLocalFolder({ projectId: activeProjectId, folder: '' }) })
+    return () => { current = false }
+  }, [desktop, activeProjectId])
+
+  async function localWebsiteAction(action: 'choose' | 'prepare' | 'open') {
+    if (!activeProjectId || localWorking || openingPreview) return
+    if (action === 'prepare' && (!review || review.signature !== signature)) { toast.error('Use Review files before refreshing the local site.'); return }
+    const projectId = activeProjectId
+    setLocalWorking(true)
+    try {
+      const result = await requestLocalWebsite(action, projectId, action === 'prepare' && review ? token => downloadHTML(review.zip, `webstudio-preview-${token}.zip`) : undefined)
+      if (useEditorStore.getState().activeProjectId !== projectId) return
+      if (!result.cancelled) {
+        setLocalFolder({ projectId, folder: result.folder, backup: result.backup })
+        if (action === 'prepare') toast.success('Local website refreshed. Choose Open local site to try it.')
+      }
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'The local website operation failed.') }
+    finally { setLocalWorking(false) }
+  }
 
   async function previewReviewedWebsite() {
     if (!review || review.signature !== signature || openingPreview) return
@@ -242,6 +270,23 @@ export function Deploy() {
           ))}
         </div>
       </div>
+
+      {portableProjectsEnabled && <div className="px-4 md:px-12 pt-6">
+        <div className="rounded-xl border border-border-default bg-bg-1 p-4">
+          <h2 className="text-sm font-semibold">Local test folder</h2>
+          <p className="mt-1 text-xs text-text-2">Keep ordinary index.html, page files and assets in a folder you choose. Review files below, then refresh the folder whenever you want to test your latest edits. Nothing is published.</p>
+          {desktop ? <>
+            <p className="mt-2 break-all text-xs" aria-label="Selected local test folder">{localFolder?.projectId === activeProjectId && localFolder.folder ? localFolder.folder : 'No local test folder selected for this project.'}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button type="button" disabled={localWorking || openingPreview || !activeProjectId} onClick={() => void localWebsiteAction('choose')} className="rounded border border-border-default px-3 py-2 text-xs disabled:opacity-50">Choose local test folder</button>
+              <button type="button" disabled={localWorking || openingPreview || !review || review.signature !== signature || localFolder?.projectId !== activeProjectId || !localFolder.folder} onClick={() => void localWebsiteAction('prepare')} className="rounded border border-border-default px-3 py-2 text-xs disabled:opacity-50">{localWorking ? 'Working…' : 'Refresh local site'}</button>
+              <button type="button" disabled={localWorking || openingPreview || localFolder?.projectId !== activeProjectId || !localFolder.folder} onClick={() => void localWebsiteAction('open')} className="rounded border border-border-default px-3 py-2 text-xs disabled:opacity-50">Open local site</button>
+            </div>
+            <p className="mt-2 text-xs text-text-2">Windows asks before replacing files. A pre-refresh ZIP is kept beside the test folder; unrelated files stay untouched. The folder choice stays in this Windows profile and is not included in your portable project.</p>
+            {localFolder?.projectId === activeProjectId && localFolder.backup && <p className="mt-2 break-all text-xs" role="status">Pre-refresh backup: {localFolder.backup}</p>}
+          </> : <p className="mt-2 text-xs text-text-2">Choose, refresh and open a test folder in the Windows desktop edition. In a browser, use Review files and download the reviewed ZIP.</p>}
+        </div>
+      </div>}
 
       {portableProjectsEnabled && <div className="px-4 md:px-12 pt-6">
         <div className="rounded-xl border border-border-default bg-bg-1 p-4">

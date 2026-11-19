@@ -1,6 +1,14 @@
 # Changelog
 
-## Unreleased website translation - 2026-11-19
+## 1.0.0 build 2 - 2026-11-19
+
+- Added a permanent local test folder workflow: choose a folder, review exported files, refresh with a verified pre-change ZIP and open the exact managed files through a loopback browser server. Unrelated files and saved projects stay separate.
+- Expanded Check site with explicit solid-color contrast findings, guided keyboard/form/mobile review and optional Windows external-link status checks. Findings open and focus the affected page, block or object; blocked and unverified responses are distinguished from confirmed missing pages.
+- Made Page settings available from Page tools, the page controls and a page-tab right click. Review address and filename previews, supported link updates and optional related-address changes, then undo or redo the whole operation together.
+- Updated all seven illustrated DOCX/PDF guide pairs and added the complete built-in translation-language list.
+- Updated the Win32 and Win64 application, Windows file/product version and Package Studio Pro installer inputs to 1.0.0.2.
+
+### Website translation included in build 2
 
 - Added one Website translation checkbox under Project settings. Existing projects remain off; enabling it adds the automatic floating selector to all exported pages without owner language configuration.
 - Reused the Atlas website's fixed 35-language preset, bilingual alphabetical labels and right-to-left support. Translation runs in the website browser and leaves project wording unchanged.

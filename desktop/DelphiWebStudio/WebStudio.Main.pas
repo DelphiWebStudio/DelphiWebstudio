@@ -6,7 +6,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, Winapi.WebView2, System.SysUtils, System.Classes,
   Vcl.Controls, Vcl.Forms, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Edge, Vcl.Dialogs, Vcl.Menus,
-  WebStudio.Bridge, WebStudio.WebsitePreview, System.Generics.Collections;
+  WebStudio.Bridge, WebStudio.WebsitePreview, System.Generics.Collections, System.JSON;
 
 type
   TMainForm = class(TForm, ICoreWebView2ContextMenuRequestedEventHandler)
@@ -17,6 +17,8 @@ type
     SaveDownloadDialog: TSaveDialog;
     TextFontDialog: TFontDialog;
     EditorColorDialog: TColorDialog;
+    LocalWebsiteFolderDialog: TFileOpenDialog;
+    LocalWebsiteConfirmDialog: TTaskDialog;
     ProjectSaveDialog: TSaveDialog;
     RecoveryOpenDialog: TOpenDialog;
     RecoverySaveDialog: TSaveDialog;
@@ -87,17 +89,23 @@ type
     FWebsitePreview: TWebsitePreview;
     FPreviewArmToken: string;
     FPreviewStagePath: string;
+    FLocalRefreshProjectId: string;
+    FLocalTargetFolder: string;
+    FExternalLinksWorking: Boolean;
     procedure CompleteWebsitePreview(const Token: string; Completed: Boolean);
+    function LocalWebsiteFolder(const ProjectId: string): string;
+    procedure HandleLocalWebsiteMessage(Obj: TJSONObject);
+    procedure HandleExternalLinksMessage(Obj: TJSONObject);
   end;
 
 var MainForm: TMainForm;
 
 implementation
 
-uses Winapi.ActiveX, Winapi.ShellAPI, System.IOUtils, System.Zip, System.JSON, System.UITypes, System.RegularExpressions,
+uses Winapi.ActiveX, Winapi.ShellAPI, System.IOUtils, System.Zip, System.UITypes, System.RegularExpressions, System.IniFiles,
   Vcl.Graphics, Winapi.SpellCheck, System.Win.ComObj,
   WebStudio.ProjectSave, WebStudio.LocalAIForm, WebStudio.LocalAIHost, WebStudio.SftpForm,
-  WebStudio.Credentials;
+  WebStudio.Credentials, WebStudio.LocalWebsite, WebStudio.ExternalLinks;
 
 {$R *.dfm}
 
@@ -168,7 +176,7 @@ begin
   if RuntimeVersion = '' then RuntimeVersion := 'Not available';
   if StatusLabel.Caption = 'Local editor loaded.' then EditorState := 'Loaded'
   else EditorState := 'Not loaded; check the status line';
-  DiagnosticsDialog.Text := 'Desktop version: 1.0.0 (build 1); file version 1.0.0.1; ' +
+  DiagnosticsDialog.Text := 'Desktop version: 1.0.0 (build 2); file version 1.0.0.2; ' +
     {$IFDEF WIN64}'Win64'{$ELSE}'Win32'{$ENDIF} + sLineBreak +
     'WebView2 version: ' + RuntimeVersion + sLineBreak +
     'Local editor: ' + EditorState + sLineBreak + sLineBreak +
@@ -418,17 +426,36 @@ begin
 end;
 
 procedure TMainForm.CompleteWebsitePreview(const Token: string; Completed: Boolean);
-var Reply: TJSONObject; PreviewAddress: string;
+var Reply: TJSONObject; PreviewAddress, BackupPath, ReplyKind, Folder: string;
+  Refresh: TLocalWebsiteRefresh; Cancelled: Boolean;
 begin
+  ReplyKind := 'site.preview.result'; BackupPath := ''; Cancelled := False;
+  if FLocalRefreshProjectId <> '' then ReplyKind := 'site.local.result';
+  Folder := FLocalTargetFolder;
   try
     try
       if not Completed then raise EInvalidOpException.Create('The reviewed website could not be prepared.');
-      FreeAndNil(FWebsitePreview);
-      FWebsitePreview := TWebsitePreview.Create(FPreviewStagePath, Token);
-      PreviewAddress := FWebsitePreview.Address;
-      if NativeInt(ShellExecute(Handle, 'open', PChar(PreviewAddress), nil, nil, SW_SHOWNORMAL)) <= 32 then
-        raise EInvalidOpException.Create('Windows could not open the browser.');
-      StatusLabel.Caption := 'Local website preview opened.';
+      if FLocalRefreshProjectId <> '' then begin
+        Refresh := TLocalWebsiteRefresh.Create(Folder, FPreviewStagePath, FLocalRefreshProjectId);
+        try
+          LocalWebsiteConfirmDialog.Text := Refresh.Summary;
+          LocalWebsiteConfirmDialog.ExpandedText := Refresh.Details;
+          if not LocalWebsiteConfirmDialog.Execute or (LocalWebsiteConfirmDialog.ModalResult <> mrYes) then begin
+            Completed := False; Cancelled := True; StatusLabel.Caption := 'Local site refresh cancelled; files were not changed.';
+          end else begin
+            FreeAndNil(FWebsitePreview);
+            BackupPath := Refresh.Apply;
+            StatusLabel.Caption := 'Local website files refreshed. Choose Open local site to test them.';
+          end;
+        finally Refresh.Free end;
+      end else begin
+        FreeAndNil(FWebsitePreview);
+        FWebsitePreview := TWebsitePreview.Create(FPreviewStagePath, Token);
+        PreviewAddress := FWebsitePreview.Address;
+        if NativeInt(ShellExecute(Handle, 'open', PChar(PreviewAddress), nil, nil, SW_SHOWNORMAL)) <= 32 then
+          raise EInvalidOpException.Create('Windows could not open the browser.');
+        StatusLabel.Caption := 'Local website preview opened.';
+      end;
     except on E: Exception do begin
       FreeAndNil(FWebsitePreview);
       Completed := False;
@@ -438,17 +465,126 @@ begin
       Reply := TJSONObject.Create;
       try
         Reply.AddPair('version', TJSONNumber.Create(1));
-        Reply.AddPair('kind', 'site.preview.result');
+        Reply.AddPair('kind', ReplyKind);
         Reply.AddPair('token', Token);
         Reply.AddPair('ok', TJSONBool.Create(Completed));
         Reply.AddPair('message', StatusLabel.Caption);
+        if ReplyKind = 'site.local.result' then begin
+          Reply.AddPair('folder', Folder); Reply.AddPair('backup', BackupPath);
+          Reply.AddPair('cancelled', TJSONBool.Create(Cancelled));
+        end;
         EditorBrowser.DefaultInterface.PostWebMessageAsJson(PWideChar(Reply.ToJSON));
       finally Reply.Free end;
     end;
   finally
-    if not Completed and (FPreviewStagePath <> '') then DeleteFile(PChar(FPreviewStagePath));
+    if ((ReplyKind = 'site.local.result') or not Completed) and (FPreviewStagePath <> '') then DeleteFile(PChar(FPreviewStagePath));
     FPreviewStagePath := '';
+    FLocalRefreshProjectId := ''; FLocalTargetFolder := '';
   end;
+end;
+
+function TMainForm.LocalWebsiteFolder(const ProjectId: string): string;
+var Preferences: TMemIniFile;
+begin
+  Preferences := TMemIniFile.Create(TPath.Combine(GetEnvironmentVariable('LOCALAPPDATA'), 'DelphiWebStudio\LocalSiteFolders.ini'));
+  try Result := Preferences.ReadString('Folders', ProjectId, '') finally Preferences.Free end;
+end;
+
+procedure TMainForm.HandleLocalWebsiteMessage(Obj: TJSONObject);
+var Kind, Token, ProjectId, Folder, PreferencesPath, PreviewAddress: string;
+  Reply: TJSONObject; Preferences: TMemIniFile;
+begin
+  if (Obj.Count <> 4) or not Obj.TryGetValue<string>('kind', Kind) or
+    not Obj.TryGetValue<string>('token', Token) or not TRegEx.IsMatch(Token, '^[0-9a-f-]{36}$') or
+    not Obj.TryGetValue<string>('projectId', ProjectId) or not TRegEx.IsMatch(ProjectId, '^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$') then Exit;
+  Reply := TJSONObject.Create;
+  try
+    Reply.AddPair('version', TJSONNumber.Create(1)); Reply.AddPair('kind', 'site.local.result'); Reply.AddPair('token', Token);
+    try
+      Folder := LocalWebsiteFolder(ProjectId);
+      if Kind = 'site.local.cancel' then begin
+        if (FPreviewStagePath = '') and (FPreviewArmToken = Token) and (FLocalRefreshProjectId = ProjectId) then begin
+          FPreviewArmToken := ''; FLocalRefreshProjectId := ''; FLocalTargetFolder := '';
+          Reply.AddPair('cancelled', TJSONBool.Create(True));
+        end else Reply.AddPair('cancelled', TJSONBool.Create(False));
+      end else if Kind = 'site.local.choose' then begin
+        if (FPreviewArmToken <> '') or (FPreviewStagePath <> '') then raise EInvalidOpException.Create('Wait for the current website operation to finish.');
+        if TDirectory.Exists(Folder) then LocalWebsiteFolderDialog.DefaultFolder := Folder;
+        if not LocalWebsiteFolderDialog.Execute then begin
+          Reply.AddPair('ok', TJSONBool.Create(True)); Reply.AddPair('cancelled', TJSONBool.Create(True)); Reply.AddPair('folder', Folder);
+          Exit;
+        end;
+        Folder := TLocalWebsiteRefresh.ValidateFolder(LocalWebsiteFolderDialog.FileName);
+        PreferencesPath := TPath.Combine(GetEnvironmentVariable('LOCALAPPDATA'), 'DelphiWebStudio\LocalSiteFolders.ini');
+        ForceDirectories(ExtractFileDir(PreferencesPath));
+        Preferences := TMemIniFile.Create(PreferencesPath);
+        try Preferences.WriteString('Folders', ProjectId, Folder); Preferences.UpdateFile finally Preferences.Free end;
+      end else if Kind = 'site.local.open' then begin
+        Folder := TLocalWebsiteRefresh.ValidateFolder(Folder);
+        var Files := TLocalWebsiteRefresh.ReadFiles(Folder, ProjectId);
+        FreeAndNil(FWebsitePreview);
+        FWebsitePreview := TWebsitePreview.CreateFolder(Folder, Token, Files);
+        PreviewAddress := FWebsitePreview.Address;
+        if NativeInt(ShellExecute(Handle, 'open', PChar(PreviewAddress), nil, nil, SW_SHOWNORMAL)) <= 32 then
+          raise EInvalidOpException.Create('Windows could not open the browser.');
+        StatusLabel.Caption := 'Local test folder opened in the browser.';
+      end else if Kind = 'site.local.prepare' then begin
+        if (FPreviewArmToken <> '') or (FPreviewStagePath <> '') then raise EInvalidOpException.Create('Wait for the current website operation to finish.');
+        Folder := TLocalWebsiteRefresh.ValidateFolder(Folder);
+        FLocalRefreshProjectId := ProjectId; FLocalTargetFolder := Folder; FPreviewArmToken := Token;
+        Reply.RemovePair('kind').Free;
+        Reply.AddPair('kind', 'site.local.ready');
+      end else if Kind <> 'site.local.get' then Exit;
+      Reply.AddPair('ok', TJSONBool.Create(True)); Reply.AddPair('folder', Folder);
+    except on E: Exception do begin Reply.AddPair('ok', TJSONBool.Create(False)); Reply.AddPair('message', E.Message) end end;
+  finally
+    if EditorBrowser.DefaultInterface <> nil then EditorBrowser.DefaultInterface.PostWebMessageAsJson(PWideChar(Reply.ToJSON));
+    Reply.Free;
+  end;
+end;
+
+procedure TMainForm.HandleExternalLinksMessage(Obj: TJSONObject);
+var Token: string; Values: TJSONArray; Urls: TArray<string>; OwnerWindow: HWND;
+  Rejected: TJSONObject;
+begin
+  if (Obj.Count <> 4) or not Obj.TryGetValue<string>('token', Token) or
+    not TRegEx.IsMatch(Token, '^[0-9a-f-]{36}$') or not Obj.TryGetValue<TJSONArray>('urls', Values) or
+    (Values.Count < 1) or (Values.Count > 20) then Exit;
+  SetLength(Urls, Values.Count);
+  for var Index := 0 to Values.Count - 1 do begin
+    if not (Values.Items[Index] is TJSONString) or (Length(Values.Items[Index].Value) > 2048) then Exit;
+    Urls[Index] := Values.Items[Index].Value;
+  end;
+  if FExternalLinksWorking then begin
+    Rejected := TJSONObject.Create;
+    try
+      Rejected.AddPair('version', TJSONNumber.Create(1)); Rejected.AddPair('kind', 'site.links.result'); Rejected.AddPair('token', Token);
+      Rejected.AddPair('ok', TJSONBool.Create(False)); Rejected.AddPair('message', 'A link check is already running. Please wait for it to finish.');
+      EditorBrowser.DefaultInterface.PostWebMessageAsJson(PWideChar(Rejected.ToJSON));
+    finally Rejected.Free end;
+    Exit;
+  end;
+  FExternalLinksWorking := True; OwnerWindow := Handle;
+  TThread.CreateAnonymousThread(procedure
+    var Results, Error: string;
+    begin
+      Results := ''; Error := '';
+      try Results := CheckExternalLinks(Urls) except on E: Exception do Error := 'External links could not be checked.' end;
+      TThread.Queue(nil, procedure
+        var Reply: TJSONObject;
+        begin
+          if not IsWindow(OwnerWindow) or (FindControl(OwnerWindow) <> Self) or (csDestroying in ComponentState) then Exit;
+          FExternalLinksWorking := False;
+          if EditorBrowser.DefaultInterface = nil then Exit;
+          Reply := TJSONObject.Create;
+          try
+            Reply.AddPair('version', TJSONNumber.Create(1)); Reply.AddPair('kind', 'site.links.result'); Reply.AddPair('token', Token);
+            Reply.AddPair('ok', TJSONBool.Create(Error = ''));
+            if Error = '' then Reply.AddPair('results', TJSONObject.ParseJSONValue(Results)) else Reply.AddPair('message', Error);
+            EditorBrowser.DefaultInterface.PostWebMessageAsJson(PWideChar(Reply.ToJSON));
+          finally Reply.Free end;
+        end);
+    end).Start;
 end;
 
 procedure TMainForm.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
@@ -675,13 +811,14 @@ begin
     if Failed(Args.ArgsInterface.Get_Source(Source)) or (Source = nil) or
        Failed(Args.ArgsInterface.Get_webMessageAsJson(Raw)) or (Raw = nil) then Exit;
     SourceText := string(Source);
-    if not SourceText.StartsWith('https://webstudio.local/') or (TEncoding.UTF8.GetByteCount(string(Raw)) > 16384) then Exit;
+    if not SourceText.StartsWith('https://webstudio.local/') or (TEncoding.UTF8.GetByteCount(string(Raw)) > 65536) then Exit;
     for Index := 1 to Length(SourceText) do if (Ord(SourceText[Index]) < 32) or (SourceText[Index] = '\') then Exit;
     Parsed := TJSONObject.ParseJSONValue(string(Raw));
     try
       if not (Parsed is TJSONObject) then Exit;
       Obj := TJSONObject(Parsed);
       if Obj.TryGetValue<string>('kind', Kind) then begin
+        if (Kind <> 'site.links.check') and (TEncoding.UTF8.GetByteCount(string(Raw)) > 16384) then Exit;
         if Kind = 'ui.text.context' then begin
           if FTextContextRegistered and
             ((SourceText = 'https://webstudio.local/index.html') or SourceText.StartsWith('https://webstudio.local/index.html#/')) and
@@ -695,10 +832,13 @@ begin
         end;
         if ((SourceText = 'https://webstudio.local/index.html') or SourceText.StartsWith('https://webstudio.local/index.html#/')) and
           (Obj.GetValue('version') is TJSONNumber) and (Obj.GetValue('version').Value = '1') then begin
+          if Kind.StartsWith('site.local.') then begin HandleLocalWebsiteMessage(Obj); Exit end;
+          if Kind = 'site.links.check' then begin HandleExternalLinksMessage(Obj); Exit end;
           if (Kind = 'project.saveAs') and (Obj.Count = 2) then begin FSaveAsNext := True; Exit end;
           if (Kind = 'site.preview.prepare') and (Obj.Count = 3) and
             Obj.TryGetValue<string>('token', RequestId) and TRegEx.IsMatch(RequestId, '^[0-9a-f-]{36}$') then begin
             if FPreviewStagePath <> '' then Exit;
+            FLocalRefreshProjectId := ''; FLocalTargetFolder := '';
             FPreviewArmToken := RequestId;
             Reply := TJSONObject.Create;
             try

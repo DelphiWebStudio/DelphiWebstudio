@@ -1,6 +1,6 @@
 # Compatibility contract
 
-Reviewed November 19, 2026 for the local review update to version 1.0.0 build 1.
+Reviewed November 19, 2026 for version 1.0.0 build 2.
 
 The desktop editions are a 32-bit Windows application (Win32) and a 64-bit application (Win64). They target Windows 10/11 and display the editor through Microsoft Edge WebView2 Runtime. Win32 also runs on Windows x64; choose Win64 for a 64-bit system. Native forms remain editable in RAD Studio 37.0, the Delphi development environment. React supplies the visual canvas, the owner-approved runtime interface.
 
@@ -17,3 +17,7 @@ Optional Gemini assistance requires internet access and the Windows-saved Google
 Optional Website translation adds the fixed GTranslate floating selector throughout exported pages. It detects browser language automatically and requires an internet connection. Editor Preview retains original wording; use the reviewed website browser for actual translation. Existing projects remain off, and disabling it removes translation from subsequent exports. See [website translation](WEBSITE_TRANSLATION.md) for provider terms and limits.
 
 Preserve the upstream MIT license and attribution. New features must keep editor, Preview, saved project and exported-site behavior consistent. See the illustrated guides and [release review](RELEASE_1_0_REVIEW.md) for exact validation evidence and its limits.
+
+The Windows edition can refresh a dedicated permanent local website folder and serve only its managed visitor files through a loopback address. This uses the editor's native server; Python and Node.js are not installed requirements. Native folder choices stay on that Windows account and are excluded from portable projects. The separate temporary reviewed-ZIP preview remains available.
+
+Check site's external status option uses bounded Windows networking calls without browser CORS workarounds or a third-party checking service. Private networks, credentials in URLs and nonstandard HTTP ports are excluded. Unsupported network options produce an unverified result rather than relaxing address or TLS protections. The browser edition still provides the local project checks and guided review.

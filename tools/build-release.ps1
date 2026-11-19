@@ -22,7 +22,7 @@ try {
     }
     Copy-Item -LiteralPath (Join-Path $projectRoot 'dist') -Destination $editorDestination -Recurse
     $executable = Get-Item -LiteralPath (Join-Path $expectedBin 'DelphiWebStudioPro.exe')
-    if ($executable.VersionInfo.FileVersion -ne '1.0.0.1') { throw 'Unexpected release version.' }
+    if ($executable.VersionInfo.FileVersion -ne '1.0.0.2') { throw 'Unexpected release version.' }
     Write-Output "$platform ready: $($executable.FullName), version $($executable.VersionInfo.FileVersion)"
   }
 } finally { Pop-Location }

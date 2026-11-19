@@ -30,6 +30,8 @@ WORKPLAN-*.md
 # Secrets and generated/user-owned content
 /Projects/
 /Website Test/
+* Backups/
+.webstudio-local-site.json
 .env
 .env.*
 !.env.example

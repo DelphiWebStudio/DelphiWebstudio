@@ -6,10 +6,10 @@ This application extends [OpenPage](https://github.com/buildingopen/openpage), t
 
 ## Download and install
 
-Get the [v1.0.0.1 release](https://github.com/DelphiWebStudio/DelphiWebstudio/releases/tag/v1.0.0.1), application version **1.0.0 build 1**, Windows file/product version **1.0.0.1**:
+Get the [v1.0.0.2 release](https://github.com/DelphiWebStudio/DelphiWebstudio/releases/tag/v1.0.0.2), application version **1.0.0 build 2**, Windows file/product version **1.0.0.2**:
 
-- [Win64 installer](https://github.com/DelphiWebStudio/DelphiWebstudio/releases/download/v1.0.0.1/DelphiWebStudioPro-1.0.0.1-Win64-Setup.exe) for 64-bit Windows.
-- [Win32 installer](https://github.com/DelphiWebStudio/DelphiWebstudio/releases/download/v1.0.0.1/DelphiWebStudioPro-1.0.0.1-Win32-Setup.exe) for 32-bit Windows; it also runs on 64-bit Windows.
+- [Win64 installer](https://github.com/DelphiWebStudio/DelphiWebstudio/releases/download/v1.0.0.2/DelphiWebStudioPro-1.0.0.2-Win64-Setup.exe) for 64-bit Windows.
+- [Win32 installer](https://github.com/DelphiWebStudio/DelphiWebstudio/releases/download/v1.0.0.2/DelphiWebStudioPro-1.0.0.2-Win32-Setup.exe) for 32-bit Windows; it also runs on 64-bit Windows.
 
 Both editions target Windows 10/11 and use Microsoft Edge WebView2 Runtime, the browser engine embedded in the desktop window. Setup checks for the Runtime and offers Microsoft's download address if it is absent. Local editing does not need Node.js, development tools or a cloud account. The installers include the editor, SFTP workflow, seven illustrated guides and third-party notices; private website projects, profiles and credentials are excluded.
 
@@ -18,12 +18,12 @@ SFTP, the SSH File Transfer Protocol, uploads exported website files through an 
 ## What you can do
 
 - Arrange text, images, buttons, panels and other objects visually, with desktop, tablet and phone layouts.
-- Build multiple pages, clickable text and images, anchors, dropdown submenus and reusable shared sections.
+- Build multiple pages, clickable text and images, anchors, dropdown submenus and reusable shared sections. Change page names and addresses in Page settings, review supported link updates and undo the whole change together.
 - Organize imported media into folders, create galleries with numeric positions and captions, and display PDF documents.
 - Maintain calendars, staff directories with biography popups, contact pages and bulletin libraries.
 - Format text, clean pasted wording, adjust paragraph spacing, use Windows spelling suggestions and add words to a personal dictionary.
 - Ask Gemini to improve selected wording, create an editable page or section, or propose changes to existing components; review, refine, apply and undo the result.
-- Save portable projects with their media, check page descriptions and heading structure, export independent HTML pages with their assets, and review the website locally before publishing.
+- Save portable projects with their media, check page descriptions, heading structure and explicit text/background contrast, and optionally check external link responses. Export independent HTML pages with their assets, refresh a permanent local test folder and review the website before publishing.
 - Offer visitors an optional floating language selector throughout the exported website, with automatic browser-language detection and a built-in language list.
 
 A project is the editable source of your website. JSON (JavaScript Object Notation) is the structured text format that describes its content and layout; a project ZIP can package that description together with imported media. A website export contains the visitor pages and their supporting files. Saving or exporting does not publish a site. See [project files](docs/PROJECT_FILES.md), [editor experience](docs/EDITOR_EXPERIENCE.md) and [media library](docs/MEDIA_LIBRARY.md).
@@ -52,9 +52,11 @@ The assistant starts with a choice of Create or Edit existing content. Selected 
 
 Add a short description under each page's Search details; a site-wide description supplies a fallback. A page's main heading is marked H1 in the generated website, while H2 introduces a subordinate section. If a banner image contains the page title, its Page heading field can provide that main heading to assistive technology without adding duplicate visible lettering.
 
-Run Check site, then open Export and choose Review files. Resolve the findings that apply, download the reviewed ZIP, and use Open reviewed site in browser to test the generated pages locally. Keep the editor running for this temporary preview and choose Stop local preview when finished. Contact/address columns in a footer are ordinary information; intended navigation labels still need working destinations. The checker helps find specific omissions but does not certify accessibility, external links or security.
+Run Check site, then open Export and choose Review files. Resolve the findings that apply, download the reviewed ZIP, and use Open reviewed site in browser to test the generated pages locally. Keep the editor running for this temporary preview and choose Stop local preview when finished. Contact/address columns in a footer are ordinary information; intended navigation labels still need working destinations. The checker helps find specific omissions and solid-color contrast concerns. In the Windows edition, Check external links contacts the listed destinations only when requested; missing pages are separated from blocked or unverified responses. Guided keyboard, form and mobile review complements these checks without certifying accessibility or security. See [page names and addresses](docs/PAGE_ADDRESSES.md).
 
-For visitor translation, enable **Website translation** under Settings → Project settings before preparing the export. GTranslate is the online service that supplies the floating language selector. The built-in preset detects the visitor's browser language automatically and offers 35 languages with English and native names. No language list needs configuring. The original project wording stays unchanged; use the reviewed website in a browser to try translation. Existing projects keep this option off. This feature is part of the November 19 source/local review update; earlier published installers do not include it. See [website translation](docs/WEBSITE_TRANSLATION.md) for the procedure, service requirements and limits.
+For visitor translation, enable **Website translation** under Settings → Project settings before preparing the export. GTranslate is the online service that supplies the floating language selector. The built-in preset detects the visitor's browser language automatically and offers 35 languages with English and native names. No language list needs configuring. The original project wording stays unchanged; use the reviewed website in a browser to try translation. Existing projects keep this option off. The build-2 installers include this feature. See [website translation](docs/WEBSITE_TRANSLATION.md) for the procedure, service requirements and limits.
+
+The Windows Export screen also offers **Local test folder**. Choose a dedicated folder, prepare **Review files**, then **Refresh local site**. Review the overwrite/removal list before confirming; existing affected files are backed up to a separate ZIP first, and unrelated files stay untouched. **Open local site** serves the recorded website files in your browser while the editor stays open. No Python setup or publishing is involved. See [local site testing](docs/LOCAL_SITE_TESTING.md).
 
 ## Development and release checks
 
@@ -72,7 +74,9 @@ Vite starts at http://localhost:5173. The build includes TypeScript checking. Th
 
 On November 18, 2026, the full regression run passed **447 tests**, with two pre-existing optional integration checks skipped. Full source/API/test lint, TypeScript, Vite and both native Release builds passed. A separate npm registry bulk advisory check covering all 322 locked package names and their recorded versions, including development dependencies, returned zero advisories. These are dated checks, not an independent security audit or a guarantee for every computer.
 
-Run `tools/build-release.ps1 -NodeExe <full-node-path>` to rebuild both stages, then `tools/package-release.ps1` to assemble the installers with Package Studio Pro. Its complete authoring projects and payloads are retained under `Package Studio Pro/MySetups/DelphiWebStudioPro-1.0.0.1`; open the matching Win32 or Win64 `.wiproj` to build it there. [Installer instructions](desktop/installer/README.md) explain the package inputs. Optional serverless API endpoints are outside the desktop payload and require separate operator configuration. Earlier implementation requirements are retained in the [upstream baseline](docs/UPSTREAM_BASELINE.md) and [milestone handoff](docs/WEBSTUDIO_CODEX_HANDOFF.md).
+The November 19 build-2 validation passed **476 regression tests**, with two pre-existing optional checks skipped, and both native Release builds. Each architecture passed 34 native local-site checks and 31 Main-form GUI checks in isolated profiles. All seven revised guide pairs, totaling 165 pages and 172 real dotted TOC entries, were visually and structurally checked. The dated scope and limits are in the [release review](docs/RELEASE_1_0_REVIEW.md).
+
+Run `tools/build-release.ps1 -NodeExe <full-node-path>` to rebuild both stages, then `tools/package-release.ps1` to assemble the installers with Package Studio Pro. Its complete authoring projects and payloads are retained under `Package Studio Pro/MySetups/DelphiWebStudioPro-1.0.0.2`; open the matching Win32 or Win64 `.wiproj` to build it there. [Installer instructions](desktop/installer/README.md) explain the package inputs. Optional serverless API endpoints are outside the desktop payload and require separate operator configuration. Earlier implementation requirements are retained in the [upstream baseline](docs/UPSTREAM_BASELINE.md) and [milestone handoff](docs/WEBSTUDIO_CODEX_HANDOFF.md).
 
 ## Attribution
 
