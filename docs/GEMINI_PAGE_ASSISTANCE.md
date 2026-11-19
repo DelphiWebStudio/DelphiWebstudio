@@ -66,7 +66,7 @@ The conversion layer constructs normal `BlockConfig` and section-object records 
 
 These checks describe the original creation increment, before the later existing-content and targeting additions. The current November 18 release suite passed 447 tests with two pre-existing optional integration checks skipped; see [release review](RELEASE_1_0_REVIEW.md). No new live Gemini request was made for that release review.
 
-The pre-change ZIP is `D:\Backups\DelphiWebStudioPro-stage1-working-pre-stage2-20261117-002324-UTC.zip`: 495 files, 199,551,425 bytes, ZIP CRC verified, SHA-256 `[private fingerprint omitted]`. It includes source, working builds, saved projects, documentation and assets. Reinstallable dependencies, generated caches, test results and duplicate Git history are excluded; the earlier complete v1.0 fallback ZIP remains preserved.
+The pre-change ZIP contains 495 files (199,551,425 bytes) and passed ZIP CRC verification. Its private location and fingerprint are omitted from this public record. It includes source, working builds, saved projects, documentation and assets. Reinstallable dependencies, generated caches, test results and duplicate Git history are excluded; the earlier complete v1.0 fallback ZIP remains preserved.
 
 The regression suite passed 410 tests, with two existing integration tests skipped. TypeScript, the production bundle, changed-file lint and both native builds passed. Unit checks cover all eight supported section types, stale/tampered-plan rejection, unapproved/external fields, consent, request boundaries, insertion position, preservation of existing pages, exact Undo/Redo, portable save/reopen and HTML export.
 

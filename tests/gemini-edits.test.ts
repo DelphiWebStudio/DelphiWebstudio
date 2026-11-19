@@ -236,11 +236,11 @@ describe('Gemini editing of existing content', () => {
   })
   it('preserves markdown headings, lists and emphasis when adding an inline link', () => {
     const fixture = structuredClone(config)
-    fixture.pages![0].blocks.push({ id: 'prose', type: 'content', variant: 'prose', props: { body: '## Mission Churches\n\n- **Community Hall** in Riverside\n- Another church' } })
+    fixture.pages![0].blocks.push({ id: 'prose', type: 'content', variant: 'prose', props: { body: '## Community Venues\n\n- **Community Hall** in Exampletown\n- Another venue' } })
     fixture.blocks = fixture.pages![0].blocks
     const preview = previewEdits(fixture, scope, plan(op('linkText', 'block:prose', 'body', { text: 'Community Hall', url: '/visit' })))
     const runs = preview.config.blocks.at(-1)!.props.bodyRich as Record<string, unknown>[]
-    expect(runs[0]).toMatchObject({ text: 'Mission Churches', tag: 'h2' })
+    expect(runs[0]).toMatchObject({ text: 'Community Venues', tag: 'h2' })
     expect(runs.some(run => run.text === 'Community Hall' && run.bold === true && run.href === '/visit' && run.tag === 'li')).toBe(true)
   })
 })

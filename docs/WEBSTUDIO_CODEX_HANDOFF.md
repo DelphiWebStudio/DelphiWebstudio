@@ -1,11 +1,11 @@
 # WEBSTUDIO — MASTER CODEX IMPLEMENTATION HANDOFF
 
-> **Repository update, 2026-10-29:** The fork originally named `DelphiWebStudio/openpage` was renamed at the owner's request to [DelphiWebStudio/DelphiWebStudio](https://github.com/DelphiWebStudio/DelphiWebstudio). References to the original fork name below are retained as historical handoff context; use the renamed repository for current work. Its upstream remains `buildingopen/openpage`.
+> **Repository update:** The original fork was renamed `DelphiWebStudio` on 2026-10-29. The current maintained repository is [DelphiWebStudio/DelphiWebstudio](https://github.com/DelphiWebStudio/DelphiWebstudio). Personal account details from the original handoff are omitted; its upstream remains `buildingopen/openpage`.
 
 **Document version:** 1.0 • **Prepared:** 2026-10-29  
-**Owner / target GitHub account:** `DelphiWebStudio`  
+**Repository steward:** Delphi Web Studio Pro contributors
 **Upstream:** https://github.com/buildingopen/openpage  
-**Required fork destination:** `https://github.com/DelphiWebStudio/openpage` (or confirm existing fork/name before proceeding)  
+**Current maintained repository:** `https://github.com/DelphiWebStudio/DelphiWebstudio`
 **Product name:** Delphi Web Studio Pro. Retain original attribution.
 **Audience:** Codex engineering agent taking over full-stack and Delphi development
 
@@ -29,9 +29,9 @@ References: https://github.com/buildingopen/openpage ; https://github.com/buildi
 
 ## 3. GitHub setup and ownership (P0)
 
-1. Authenticate GitHub as `DelphiWebStudio`; verify account with `gh auth status` or connected GitHub API. Do not fork into a personal or organization account with a different name.
-2. Check for an existing `DelphiWebStudio/openpage` repository/fork before creating. If it exists, inspect whether it is already the correct fork and contains user work. **Never overwrite, delete, force-push, or recreate it.** If collision exists, consult owner; suggested alternate name `webstudio` only with explicit approval.
-3. Fork `buildingopen/openpage` to account `DelphiWebStudio`, keeping fork relationship. Suggested CLI command **only after checks**: `gh repo fork buildingopen/openpage --clone=false --remote=false`; verify the actual target owner. Consider API fork with explicit organization/user target if supported.
+1. Authenticate with the authorized repository account; verify it with `gh auth status` or the connected GitHub API. Confirm the intended repository owner before creating a fork.
+2. Check for an existing approved fork before creating one. If it exists, inspect whether it is already the correct fork and contains user work. **Never overwrite, delete, force-push, or recreate it.** If its name collides with another repository, consult the owner; use an alternate name only with explicit approval.
+3. Fork `buildingopen/openpage` to the approved owner, keeping the fork relationship. Suggested CLI command **only after checks**: `gh repo fork buildingopen/openpage --clone=false --remote=false`; verify the actual target owner. Consider API fork with explicit organization/user target if supported.
 4. Clone approved fork and set `upstream` remote to `https://github.com/buildingopen/openpage.git`. Record upstream commit SHA in `docs/UPSTREAM_BASELINE.md`.
 5. Preserve `LICENSE`, copyright notices, and third-party notices. Keep original commit history and attribution. Set repository description accurately; write new `README.md` explaining WebStudio aims and upstream provenance.
 6. Work in feature branches and PRs. Protect default branch; no force pushes. Prefer small reviewable changes, gated by tests and build verification.
@@ -250,7 +250,7 @@ Threat model: malformed uploaded PDFs/images/SVG; prompt injection in imported d
 ## 18. Milestones, order, deliverables and exit gates
 
 ### M0 — Fork, audit, baseline (FIRST)
-Fork to `DelphiWebStudio/openpage` after owner verification; clone; document exact upstream SHA, architecture, dependencies, licenses; baseline build/test and HTML offline-export audit. Deliver PR with docs/CI fixes only. **Exit:** original editor still builds, renders, saves and exports as baseline; findings documented.
+Fork `buildingopen/openpage` to the approved repository owner after verification; clone; document exact upstream SHA, architecture, dependencies, licenses; baseline build/test and HTML offline-export audit. Deliver PR with docs/CI fixes only. **Exit:** original editor still builds, renders, saves and exports as baseline; findings documented.
 
 ### M1 — Multi-page project model and safe save
 Schema v2, migration from original one-page configs, page manager, navigation, durable local saves, revision/undo. **Exit:** 5-page project reopens perfectly and exports correctly.
@@ -293,7 +293,7 @@ Static HTML importer, WordPress content import, accessible code view, security/q
 ## 20. Codex first-session work order (execute sequentially)
 
 **A.** Verify authenticated account and whether destination fork exists; if GitHub permissions unavailable, provide exact commands and await access, do not invent a successful fork.  
-**B.** Fork `buildingopen/openpage` to `DelphiWebStudio/openpage` without deleting existing repos.  
+**B.** Fork `buildingopen/openpage` to the approved repository owner without deleting existing repositories.
 **C.** Clone, read full README/CLAUDE/LICENSE and relevant source; identify actual versioned schema, renderer, state-store, editor layout, export, AI endpoint and tests.  
 **D.** Run baseline build/tests in a reproducible environment, report actual outcomes.  
 **E.** Write `docs/WEBSTUDIO_ARCHITECTURE.md`, ADR-001 (extend OpenPage rather than rewrite), ADR-002 (JSON canonical schema), ADR-003 (offline AI structured tools), ADR-004 (Delphi shell + embedded React).  
@@ -303,7 +303,7 @@ Static HTML importer, WordPress content import, accessible code view, security/q
 
 ### Copy-paste initial Codex instruction
 
-> Read `WEBSTUDIO_CODEX_HANDOFF.md` in full. Your first mission is M0: safely create/verify fork of `buildingopen/openpage` under my GitHub user `DelphiWebStudio`, preserve the upstream MIT license and git history, clone it, run tests/build, audit the actual architecture and existing export behavior, then propose an incremental implementation PR for M1. Do not overwrite any existing repository, do not force-push, and do not claim features are implemented unless tested. The target is a completely free, offline-first Wix/WordPress/FrontPage-style visual website editor with local AI, unlimited user-owned media, PDF viewer, multi-page CMS, and a Delphi Windows shell; exclude all ecommerce/financial functionality and never publish without explicit user confirmation. At the end of M0 report repository URL, upstream commit, installed toolchain, baseline test results, file-level architecture, and next PR plan.
+> Read `WEBSTUDIO_CODEX_HANDOFF.md` in full. Your first mission is M0: safely create/verify fork of `buildingopen/openpage` under the approved repository owner, preserve the upstream MIT license and git history, clone it, run tests/build, audit the actual architecture and existing export behavior, then propose an incremental implementation PR for M1. Do not overwrite any existing repository, do not force-push, and do not claim features are implemented unless tested. The target is a completely free, offline-first Wix/WordPress/FrontPage-style visual website editor with local AI, unlimited user-owned media, PDF viewer, multi-page CMS, and a Delphi Windows shell; exclude all ecommerce/financial functionality and never publish without explicit user confirmation. At the end of M0 report repository URL, upstream commit, installed toolchain, baseline test results, file-level architecture, and next PR plan.
 
 ## 21. Open issues requiring deliberate decisions
 

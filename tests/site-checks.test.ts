@@ -33,7 +33,7 @@ describe('local site checks', () => {
     const copy = structuredClone(config)
     const footer: BlockConfig = { id: 'footer', type: 'footer', variant: 'multi-column', props: {
       links: [], navItems: [{ label: 'News', url: '/news' }],
-      columns: [{ title: 'Visit', links: ['123 Example Road', 'Riverside, GA 31082'] }, { title: 'Contact', links: ['office@nowhere.com'] }],
+      columns: [{ title: 'Visit', links: ['123 Example Avenue', 'Example City, GA 00000'] }, { title: 'Contact', links: ['office@nowhere.com'] }],
     } }
     copy.pages![0].blocks.push(footer)
     copy.blocks = copy.pages![0].blocks
@@ -52,22 +52,22 @@ describe('local site checks', () => {
   })
   it.each(['hero-image', 'grid', 'side-by-side'])('accepts an explicit image-page heading without changing the visible %s image', variant => {
     const image: BlockConfig = { id: 'banner', type: 'image', variant, props: {
-      src: 'assets/happenings.png', alt: 'Parish happenings', caption: '', images: [{ src: 'assets/happenings.png', alt: 'Parish happenings' }],
+      src: 'assets/events.png', alt: 'Community events', caption: '', images: [{ src: 'assets/events.png', alt: 'Community events' }],
     } }
-    const page: SiteConfig = { name: 'Happenings', pages: [{ id: 'happenings', name: 'Happenings', path: '/', blocks: [image] }], blocks: [image] }
+    const page: SiteConfig = { name: 'Events', pages: [{ id: 'events', name: 'Events', path: '/', blocks: [image] }], blocks: [image] }
     expect(checkSite(page, undefined, true).some(issue => issue.message.includes('No H1 heading'))).toBe(true)
     const before = exportSiteToHTML(page)
     const previewBefore = renderToStaticMarkup(createElement(ImageBlock, { block: image }))
     image.props.pageHeading = '   '
     expect(exportSiteToHTML(page)).toBe(before)
-    image.props.pageHeading = ' Parish happenings '
+    image.props.pageHeading = ' Community events '
     const after = exportSiteToHTML(page)
     const previewAfter = renderToStaticMarkup(createElement(ImageBlock, { block: image }))
     expect(checkSite(page, undefined, true).filter(issue => issue.message.includes('heading'))).toEqual([])
-    expect(after).toContain('<h1 class="sr-only">Parish happenings</h1>')
-    expect(previewAfter).toContain('<h1 class="sr-only">Parish happenings</h1>')
-    expect(after.replace('<h1 class="sr-only">Parish happenings</h1>', '')).toBe(before)
-    expect(previewAfter.replace('<h1 class="sr-only">Parish happenings</h1>', '')).toBe(previewBefore)
+    expect(after).toContain('<h1 class="sr-only">Community events</h1>')
+    expect(previewAfter).toContain('<h1 class="sr-only">Community events</h1>')
+    expect(after.replace('<h1 class="sr-only">Community events</h1>', '')).toBe(before)
+    expect(previewAfter.replace('<h1 class="sr-only">Community events</h1>', '')).toBe(previewBefore)
   })
   it('recognizes generated Search and Articles destinations when enabled', () => {
     const copy = structuredClone(config)
@@ -234,7 +234,7 @@ describe('local site checks', () => {
   it('warns about nonfunctional legacy navigation without altering it', () => {
     const copy = structuredClone(config)
     copy.pages![0].blocks.push({ id: 'nav', type: 'navbar', variant: 'default', props: { links: ['About'], navItems: [{ label: 'News', url: '/news' }], ctaText: 'Join' } })
-    copy.pages![0].blocks.push({ id: 'footer', type: 'footer', variant: 'multi-column', props: { links: ['Privacy'], navItems: [{ label: 'News', url: '/news' }], columns: [{ title: 'Visit', links: ['123 Example Road'] }] } })
+    copy.pages![0].blocks.push({ id: 'footer', type: 'footer', variant: 'multi-column', props: { links: ['Privacy'], navItems: [{ label: 'News', url: '/news' }], columns: [{ title: 'Visit', links: ['123 Example Avenue'] }] } })
     copy.blocks = copy.pages![0].blocks
     const before = structuredClone(copy)
     const issues = checkSite(copy)

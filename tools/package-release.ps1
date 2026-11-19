@@ -1,5 +1,5 @@
 ﻿param(
-  [string]$PackageStudioRoot = 'C:\Development\Package Studio Pro'
+  [string]$PackageStudioRoot = (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Package Studio Pro')
 )
 $ErrorActionPreference = 'Stop'
 $projectRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))

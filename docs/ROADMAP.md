@@ -24,4 +24,4 @@ M4's specified local five-page generation and editing functions were exercised i
 
 M5's local check created a ready article and a document site, detected an unconfigured contact form, saved and reopened the project, and exported the article, article index and media. A separate check configured an HTTPS form endpoint and intercepted a test POST; no external service was contacted. The sample site was tested on a local server only. Actual publication has not been performed or authorized, so the full M5 exit criterion has not been verified.
 
-Tracking: [issues 1–9](https://github.com/DelphiWebStudio/DelphiWebstudio/issues) correspond to M0–M8, each assigned to its matching GitHub milestone.
+The original tracking assigned issues 1-9 to M0-M8, each with its matching GitHub milestone. Use the [current repository's issues](https://github.com/DelphiWebStudio/DelphiWebstudio/issues) for active tracking.

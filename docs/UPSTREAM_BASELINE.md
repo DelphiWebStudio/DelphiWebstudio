@@ -6,13 +6,13 @@ Last changed: 2026-10-29 (America/New_York).
 
 ## Identity and preservation
 
-- Authenticated owner: `DelphiWebStudio`, verified using connector and CLI.
+- The original repository owner was verified using the connector and CLI; personal account details are omitted from this public record.
 - Upstream: https://github.com/buildingopen/openpage, default branch `master`.
 - Starting commit: `9818eb43a88e01b23cb55752e19902d8285a853b`.
-- Fork created as `DelphiWebStudio/openpage` and renamed on 2026-10-29 to https://github.com/DelphiWebStudio/DelphiWebstudio. GitHub confirmed `fork: true` and parent `buildingopen/openpage` after the rename.
-- Branch: `codex/m0-baseline`; workspace: `C:\Development\Delphi Web Studio`.
-- Remotes: origin = `https://github.com/DelphiWebStudio/DelphiWebstudio.git`; upstream = `https://github.com/buildingopen/openpage.git`. Authenticated owner search found no private counterpart. No private counterpart was created.
-- Workspace was empty. Pre-change ZIP: `D:\Backups\WebStudio_PreChange_20261029_180857.zip`, 18,733 bytes, contains handoff and global directives; ZIP entries verified.
+- The original fork was created and renamed to `DelphiWebStudio` on 2026-10-29. GitHub confirmed `fork: true` and parent `buildingopen/openpage` after the rename.
+- Baseline branch: `codex/m0-baseline`.
+- Current maintained repository: `https://github.com/DelphiWebStudio/DelphiWebstudio.git`; upstream: `https://github.com/buildingopen/openpage.git`. The initial authenticated repository search found no private counterpart; none was created.
+- The workspace was empty. Its 18,733-byte pre-change ZIP contains the handoff and global directives; ZIP entries were verified. The private backup location is omitted.
 - Original MIT license, copyright and history remain intact.
 
 ## Actual toolchain

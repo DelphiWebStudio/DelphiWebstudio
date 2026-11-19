@@ -112,7 +112,7 @@ With the feature enabled, Export produces a ZIP containing a separate HTML file 
 - A future-chart block opened as a placeholder and survived Save with pluginVersion=7, its series and an unknown root pluginState field intact.
 - All 35 automated tests pass (27 new and eight inherited), covering migration/roundtrip/malformed inputs, independent local imports, duplicate identity and targeted storage updates. Lint, TypeScript and the feature-enabled production build pass; CI also builds the default mode.
 - Screenshot: `docs/m1-project-roundtrip.png`.
-- M1 pre-change tracked-source ZIP: `D:\Backups\WebStudio_M1_PreChange_89f6a6d.zip`, 397,371 bytes.
+- The M1 pre-change tracked-source ZIP was preserved and measured 397,371 bytes; its private location is omitted.
 
 At the time of this first increment, native safe save/recovery and portable assets were outstanding. Later sections document subsequent implementations and their test limits. Existing footer/navbar links are not yet bound to page IDs.
 

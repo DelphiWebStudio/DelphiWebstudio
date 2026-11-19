@@ -1,5 +1,12 @@
 # Changelog
 
+## Installer and privacy refresh - 2026-11-19
+
+- Corrected installation to writable custom folders by keeping Start Menu and Desktop shortcuts under the current Windows user. The original error is now logged before rollback.
+- Rebuilt both installers with the corrected Package Studio engine and verified all payloads, shortcuts, upgrade, verification and registered uninstall in default-type and custom locations.
+- Removed private maintainer contact details, machine paths and project identifiers from public material, retained neutral guide examples and kept private authoring inputs local. Original upstream license and attribution remain intact.
+- Kept the application version and installer filenames unchanged; obtain a fresh installer to receive the correction.
+
 ## 1.0.0 build 1 - 2026-11-18
 
 - Released the Win32 and Win64 desktop editions with Windows file/product version 1.0.0.1 and Package Studio Pro installers containing the editor, SFTP workflow, illustrated guides and required notices.
@@ -40,7 +47,7 @@ The entries below retain their original milestone dates. Counts, local-only rest
 - Add page-aware undo/redo, unique page and block IDs, validated page paths and Home-page protection.
 - Include non-secret site settings in portable files, and export all pages with relative navigation in a ZIP. Disable premature publication in experimental mode.
 
-- Rename the GitHub fork to `DelphiWebStudio/DelphiWebStudio`, retaining its OpenPage upstream relationship and history.
+- Rename the GitHub fork to `DelphiWebStudio`, retaining its OpenPage upstream relationship and history.
 
 - Start M1 behind VITE_WEBSTUDIO_PROJECTS: portable schema-2 JSON Open/Save, lossless unknown-content preservation, input/path validation and five-page fixture.
 - Preserve imported document metadata in independent local drafts; assign UUIDs for project creation/duplication and fresh portable identity to duplicates.

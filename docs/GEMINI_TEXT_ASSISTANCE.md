@@ -32,7 +32,7 @@ Sources: https://ai.google.dev/gemini-api/docs/pricing#gemini-3.5-flash-lite and
 
 ## Validation — 2026-11-16
 
-The complete pre-change fallback ZIP is `D:\Backups\DelphiWebStudioPro-v1.0-working-version-complete-pre-Gemini-stage1-20261116-230130-UTC.zip`. It contains all 13,300 project files (including dependencies, saved projects, executables and Git history), is 1,062,962,196 bytes, passed ZIP CRC verification, and has SHA-256 `[private fingerprint omitted]`.
+The complete pre-change fallback ZIP contains all 13,300 project files, including dependencies, saved projects, executables and Git history. The 1,062,962,196-byte archive passed ZIP CRC verification; its private location and fingerprint are omitted from this public record.
 
 TypeScript, the production build and lint for the changed TypeScript files passed. The regression suite passed **398 tests**; two existing integration tests were skipped. Both final desktop applications were rebuilt in `bin\Win32` and `bin\Win64`.
 
@@ -40,4 +40,4 @@ The production UI in both desktop architectures passed isolated tests for Previe
 
 **Live Gemini validation passed in both desktop builds on 2026-11-16.** Each compiled application read the real saved Windows credential and made one request to `gemini-3.5-flash-lite` using only a synthetic selected passage and a spelling-correction instruction. Gemini returned the corrected wording, Preview left the document unchanged, Apply changed the selection, and Undo restored the exact original rich text. Both runs also passed the nine simulated-request interaction checks, with no page runtime errors. No user project text, media or key contents were logged or included in test results. The owner confirmed that the key's Google project is Free tier with billing disabled; the application does not independently verify billing status. These checks verify connectivity and the selected-text workflow, not the factual accuracy or quality of every future response. The test runner uses `WEBSTUDIO_LIVE_GEMINI=1` for this explicitly authorized live check. Both disposable test applications were closed and their profiles removed.
 
-The saved projects were preserved: `Sample Website` remained SHA-256 `[private fingerprint omitted]`; `Sample Website` remained `[private fingerprint omitted]`. No website was published and no GitHub push was made during that November 16 milestone. Its temporary no-push instruction has since been superseded by authorization for the v1.0 application release.
+The saved projects were preserved and their fingerprints remained unchanged. No website was published and no GitHub push was made during that November 16 milestone. Its temporary no-push instruction has since been superseded by authorization for the v1.0 application release.

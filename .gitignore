@@ -28,6 +28,8 @@ GTM.md
 WORKPLAN-*.md
 
 # Secrets and generated/user-owned content
+/Projects/
+/Website Test/
 .env
 .env.*
 !.env.example

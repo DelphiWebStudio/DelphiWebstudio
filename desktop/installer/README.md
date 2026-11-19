@@ -13,7 +13,7 @@ From the repository root, rebuild the stages before packaging:
 & '.\tools\package-release.ps1'
 ```
 
-The packaging script defaults to `C:\Development\Package Studio Pro`. Its complete authoring inputs are saved under `MySetups\DelphiWebStudioPro-1.0.0.1` there:
+The packaging script expects `Package Studio Pro` beside the Web Studio source folder by default; use `-PackageStudioRoot <path>` for another location. Its complete authoring inputs are saved under `MySetups\DelphiWebStudioPro-1.0.0.1` there:
 
 - `DelphiWebStudioPro-1.0.0.1-Win32.wiproj`
 - `DelphiWebStudioPro-1.0.0.1-Win64.wiproj`
