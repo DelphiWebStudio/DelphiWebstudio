@@ -8,6 +8,106 @@ export interface SiteIssue {
   pageName: string
   blockId: string
   message: string
+  section?: number
+  objectId?: string
+}
+
+export interface ExternalSiteLink {
+  url: string
+  locations: { pageId: string; pageName: string; blockId: string; label: string }[]
+}
+
+/** Only explicit, public-web destinations are offered to the optional status check. */
+export function siteExternalLinks(config: SiteConfig): ExternalSiteLink[] {
+  const links = new Map<string, ExternalSiteLink>()
+  for (const page of validateProjectConfig(config).pages!) {
+    if (page.webstudioArticle?.status === 'draft') continue
+    for (const block of page.blocks) visitBlockLinks(block, (destination, label) => {
+      if (!/^https?:\/\//i.test(destination) || /[\\\p{Cc}]/u.test(destination)) return
+      try {
+        const url = new URL(destination)
+        if (url.username || url.password) return
+        url.hash = ''
+        const key = url.href
+        const link = links.get(key) ?? { url: key, locations: [] }
+        if (!link.locations.some(location => location.pageId === page.id && location.blockId === block.id && location.label === label)) {
+          link.locations.push({ pageId: page.id, pageName: page.name, blockId: block.id, label })
+        }
+        links.set(key, link)
+      } catch { /* Invalid destinations are left for the local link checks. */ }
+    })
+  }
+  return [...links.values()]
+}
+
+/** WCAG relative luminance for the six-digit opaque colors supported by the editor. */
+export function textContrastRatio(foreground: unknown, background: unknown): number | null {
+  if (typeof foreground !== 'string' || typeof background !== 'string' || !/^#[0-9a-f]{6}$/i.test(foreground) || !/^#[0-9a-f]{6}$/i.test(background)) return null
+  const luminance = (color: string) => {
+    const linear = [1, 3, 5].map(offset => {
+      const value = parseInt(color.slice(offset, offset + 2), 16) / 255
+      return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+    })
+    return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722
+  }
+  const values = [luminance(foreground), luminance(background)].sort((a, b) => b - a)
+  return (values[0] + 0.05) / (values[1] + 0.05)
+}
+
+/** Conservative color checks: image/gradient backgrounds and inherited/overridden styles need visual review. */
+export function checkSiteReadability(config: SiteConfig): SiteIssue[] {
+  const issues: SiteIssue[] = []
+  for (const page of validateProjectConfig(config).pages!) {
+    if (page.webstudioArticle?.status === 'draft' || page.webstudioCustomCode?.css || page.webstudioCustomCode?.html || page.webstudioCustomCode?.js) continue
+    for (const block of page.blocks) {
+      const props = block.props
+      const add = (foreground: unknown, background: unknown, size: unknown, bold: boolean, label: string, section?: number, objectId?: string) => {
+        const ratio = textContrastRatio(foreground, background)
+        if (ratio === null) return
+        const fontSize = Number(size)
+        const knownSize = size !== undefined && size !== null && size !== '' && Number.isFinite(fontSize) && fontSize >= 6 && fontSize <= 200
+        const large = knownSize && (fontSize >= 24 || (bold && fontSize >= 18.67))
+        const minimum = large ? 3 : 4.5
+        if (ratio >= minimum) return
+        const explanation = knownSize && !bold && fontSize >= 18.67 && fontSize < 24 && ratio >= 3
+          ? 'Normal-weight text at this size needs 4.5:1; sufficiently bold text may use 3:1. Check the actual weight.'
+          : knownSize ? `The minimum for this text size is ${minimum}:1.` : ratio < 3 ? 'Even large text needs at least 3:1.' : 'Normal-size text needs 4.5:1; check the actual size and weight.'
+        issues.push({ pageId: page.id, pageName: page.name, blockId: block.id, section, objectId, message: `${label} contrast is ${ratio.toFixed(2)}:1. ${explanation} Review the text and background colors.` })
+      }
+      const richOverrides = Object.entries(props).some(([key, value]) => key.endsWith('Rich') && Array.isArray(value) && value.some(run => run && typeof run === 'object' && (typeof run.color === 'string' || run.size !== undefined || run.bold !== undefined)))
+      const adjustedText = props.textAdjustments && typeof props.textAdjustments === 'object' && Object.keys(props.textAdjustments).length > 0
+      const firstSectionObjects = props.section1Objects
+      const layeredPhoto = Array.isArray(firstSectionObjects) && firstSectionObjects.some(item => item && typeof item === 'object' && (item.type === 'image' || item.type === 'collage' || (item.type === 'panel' && item.src)))
+      const flatText = ['content', 'panel', 'hero', 'banner', 'cta'].includes(block.type) && !props.heroImage && !props.src && !richOverrides && !adjustedText && !layeredPhoto
+      const hasText = ['headline', 'subheadline', 'title', 'body', 'text', 'description'].some(key => typeof props[key] === 'string' && String(props[key]).trim())
+      if (flatText && hasText) add(props.textColor, props.blockBackgroundColor, props.textSize, false, 'Block text')
+      const hasButton = (buttonLinks[block.type] ?? []).some(([key]) => typeof props[key] === 'string' && String(props[key]).trim())
+      if (hasButton && !adjustedText) add(props.buttonTextColor, props.buttonBackgroundColor, undefined, false, 'Button text')
+      const count = Math.min(4, Math.max(1, Math.floor(Number(props.sectionCount) || 1)))
+      for (let section = 1; section <= count; section++) {
+        const background = section === 1 ? props.blockBackgroundColor : props[`section${section}Panel`] === true ? props[`section${section}Color`] : undefined
+        const imageBackground = section === 1 && !!props.heroImage
+        if (imageBackground) continue
+        if (section > 1 && typeof props[`section${section}Text`] === 'string' && String(props[`section${section}Text`]).trim() && !richOverrides) {
+          add(props.textColor, background, props.textSize, false, `Section ${section} text`, section)
+        }
+        const sectionObjects = props[`section${section}Objects`]
+        const objects = Array.isArray(sectionObjects) ? sectionObjects as Record<string, unknown>[] : []
+        const hasPhoto = objects.some(item => item && (item.type === 'image' || item.type === 'collage' || (item.type === 'panel' && item.src)))
+        for (const item of objects) {
+          if (!item || typeof item !== 'object' || !['text', 'button'].includes(String(item.type))) continue
+          if (item.type === 'text' && hasPhoto) continue
+          const rich = props[`sectionObject_${item.id}Rich`]
+          if (Array.isArray(rich) && rich.some(run => run && typeof run === 'object' && (run.color || run.size !== undefined || run.bold !== undefined))) continue
+          const parent = item.parentId ? objects.find(candidate => candidate?.id === item.parentId && candidate.type === 'panel') : undefined
+          const itemBackground = item.type === 'button' ? item.backgroundColor : parent?.color ?? background
+          const text = typeof item.text === 'string' && item.text.trim() || typeof props[`sectionObject_${item.id}`] === 'string' && String(props[`sectionObject_${item.id}`]).trim()
+          if (text) add(item.textColor ?? props.textColor, itemBackground, item.fontSize ?? props.textSize, false, `Section ${section} ${item.type}`, section, typeof item.id === 'string' ? item.id : undefined)
+        }
+      }
+    }
+  }
+  return issues
 }
 
 /** Local, limited checks. External URLs and arbitrary extension content are not inspected. */
@@ -94,6 +194,12 @@ export function checkSite(config: SiteConfig, settings?: { seoTitle?: string; se
         if (!label && url) add(urlKey + ': the link has no visible label.')
       }
       visitBlockLinks(block, (url, label) => {
+        if (/^https?:\/\//i.test(url)) {
+          try {
+            const destination = new URL(url)
+            if (destination.username || destination.password) { add(label + ': remove the username or password from this link address.'); return }
+          } catch { add(label + ': this web address is not valid.'); return }
+        }
         if (/[\\\p{Cc}]/u.test(url) || url.startsWith('//') || (/^[a-z][a-z\d+.-]*:/i.test(url) && !/^(https?:|mailto:|tel:)/i.test(url))) {
           add(label + ': unsupported link address; it will be shown as text in the export.')
           return

@@ -1,6 +1,6 @@
 # Known limitations
 
-Current release review November 18, 2026 - version 1.0.0 build 1.
+Current release review November 19, 2026 - version 1.0.0 build 2.
 
 - The owner tested installation/startup on existing Windows systems, including Win32 on a genuine 32-bit Windows 10 22H2 computer and both editions on a newer Windows 10 x64 computer. The old machine took about 4 minutes 33 seconds to load, although the editing tried afterward worked. Newer-machine observations are in [Compatibility](COMPATIBILITY.md). These are not minimum specifications or a clean-Windows test; startup depends on the machine and its WebView2 environment.
 - The application and installers are unsigned, so Windows can show publisher/reputation warnings. Microsoft Edge WebView2 Runtime, the browser engine embedded in the editor, is required. SFTP additionally needs Windows OpenSSH Client, the optional secure-shell tools; ordinary editing and export remain available without it.
@@ -12,6 +12,14 @@ Current release review November 18, 2026 - version 1.0.0 build 1.
 - Imported source, custom code and external media need independent review. The lightweight site checker detects selected descriptions, heading and navigation issues; it does not certify accessibility, every external link or overall safety. A banner's Page heading field supplies an H1 for assistive technology, but the author must avoid duplicating a main heading already on the page.
 - Portable project/save sizes and SFTP scan/backup limits are documented in the guides. Local draft storage is not a substitute for separately saved and verified project files. Retained legacy credentials require explicit removal.
 - Add to dictionary saves a word in the current Windows user's spelling dictionary. WebView2 can retain a cached spelling result for an already checked paragraph; reopen the editor if it continues to underline a newly accepted word. Newly checked text and subsequent sessions recognize the saved word. This command does not change project text or formatting.
+
+## Current maintenance checks
+
+Build 2 adds permanent local test-folder refresh and optional Windows external-link checking. Folder refresh manages the files listed for that project and leaves unrelated files alone; its confirmation summarizes the operation and shows bounded filename examples. Keep the verified pre-refresh ZIPs until the refreshed output has been reviewed. If another editor changes a file during a failed refresh, automatic recovery preserves the newer edit and reports the ZIP for manual recovery instead of claiming that every previous byte was restored.
+
+External checking reports response-header status, not the correctness or safety of the destination's content. Only HTTP/HTTPS standard ports and public network addresses are checked. Sign-in requirements, rate limits, timeouts and unsupported Windows networking options can produce an unverified result even for a working site. Closing Check site stops later batches and ignores late replies; the current bounded native batch can finish in the background. A 404 or 410 is reported as a missing page. Browser-only editing does not bypass cross-origin restrictions to manufacture a status result.
+
+Contrast findings cover determinable explicit solid colors, with size/weight qualifications where needed. Photos, gradients, inherited styles, rich formatting and custom code still need visual review. Keyboard use, form labels and mobile layouts have guided review steps; passing the limited checker is not an accessibility certification. Page-address updates cover supported project links, not arbitrary custom code, full external URLs or old public bookmarks.
 
 ## Historical M0 findings
 

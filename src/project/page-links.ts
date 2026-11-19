@@ -1,4 +1,4 @@
-import type { BlockConfig } from '@/blocks/types'
+import type { BlockConfig, SiteConfig } from '@/blocks/types'
 
 export const buttonLinks: Partial<Record<BlockConfig['type'], [string, string][]>> = {
   hero: [['primaryCta', 'primaryCtaUrl'], ['secondaryCta', 'secondaryCtaUrl']],
@@ -9,6 +9,21 @@ export const buttonLinks: Partial<Record<BlockConfig['type'], [string, string][]
 
 export function pageLinkPath(destination: string): string {
   return destination.split(/[?#]/, 1)[0].replace(/\/$/, '') || '/'
+}
+
+/** The same address plan drives the review and the single undoable edit. */
+export function planPageAddressChange(config: SiteConfig, pageId: string, address: string, includeChildPages = false): { pageId: string; from: string; to: string }[] {
+  const page = config.pages?.find(item => item.id === pageId)
+  if (!page) throw new Error('Page no longer exists.')
+  const entered = address.trim()
+  const path = (entered.startsWith('/') ? entered : `/${entered}`).replace(/\/$/, '') || '/'
+  if (page.path === '/' && path !== '/') throw new Error('The Home page address cannot be changed.')
+  if (page.path === path) return []
+  return [
+    { pageId: page.id, from: page.path, to: path },
+    ...(includeChildPages ? config.pages!.filter(item => item.id !== page.id && item.path.startsWith(`${page.path}/`))
+      .map(item => ({ pageId: item.id, from: item.path, to: path + item.path.slice(page.path.length) })) : []),
+  ]
 }
 
 export function visitBlockLinks(block: BlockConfig, visit: (destination: string, label: string) => string | void): void {

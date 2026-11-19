@@ -7,6 +7,92 @@ type NativeWebView = {
   removeEventListener(type: 'message', listener: (event: MessageEvent) => void): void
 }
 
+export interface ExternalLinkCheckResult {
+  url: string
+  status: 'ok' | 'broken' | 'unverified' | 'blocked'
+  httpStatus?: number
+  message: string
+}
+
+/** User-requested, read-only website header checks in the Windows host. */
+export function requestExternalLinkChecks(urls: string[]): Promise<ExternalLinkCheckResult[]> {
+  const webview = (window as unknown as { chrome?: { webview?: NativeWebView } }).chrome?.webview
+  if (window.location.origin !== 'https://webstudio.local' || !webview) return Promise.reject(new Error('External link checks require the Windows desktop application.'))
+  if (!urls.length || urls.length > 20 || urls.some(url => typeof url !== 'string' || url.length > 2048)) return Promise.reject(new Error('Check between one and twenty website links at a time.'))
+  const token = crypto.randomUUID()
+  return new Promise((resolve, reject) => {
+    function finish(error?: Error, results?: ExternalLinkCheckResult[]) {
+      window.clearTimeout(timeout)
+      webview!.removeEventListener('message', receive)
+      if (error) reject(error)
+      else resolve(results ?? [])
+    }
+    function receive(event: MessageEvent) {
+      const reply = event.data as NativeMessage | null
+      if (reply?.version !== 1 || reply.kind !== 'site.links.result' || reply.token !== token) return
+      if (reply.ok !== true || !Array.isArray(reply.results) || reply.results.length !== urls.length || reply.results.some((value, index) => !value || typeof value !== 'object' || value.url !== urls[index] || !['ok', 'broken', 'unverified', 'blocked'].includes(value.status) || typeof value.message !== 'string' || (value.httpStatus !== undefined && (!Number.isInteger(value.httpStatus) || value.httpStatus < 100 || value.httpStatus > 599)))) {
+        finish(new Error(typeof reply.message === 'string' ? reply.message : 'The external link check returned an invalid result.'))
+        return
+      }
+      finish(undefined, reply.results as ExternalLinkCheckResult[])
+    }
+    const timeout = window.setTimeout(() => finish(new Error('The external link check timed out. Check these links in your browser.')), 120000)
+    webview.addEventListener('message', receive)
+    try { webview.postMessage({ version: 1, kind: 'site.links.check', token, urls }) }
+    catch { finish(new Error('The external link check could not start.')) }
+  })
+}
+
+export interface LocalWebsiteResult {
+  folder: string
+  backup?: string
+  cancelled?: boolean
+  message?: string
+}
+
+/** Folder selection and refresh stay local to this Windows profile. */
+export function requestLocalWebsite(action: 'get' | 'choose' | 'prepare' | 'open', projectId: string, download?: (token: string) => void): Promise<LocalWebsiteResult> {
+  const webview = (window as unknown as { chrome?: { webview?: NativeWebView } }).chrome?.webview
+  if (window.location.origin !== 'https://webstudio.local' || !webview) return Promise.reject(new Error('Local test folders require the Windows desktop application.'))
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$/.test(projectId)) return Promise.reject(new Error('Open a project first.'))
+  const token = crypto.randomUUID()
+  return new Promise((resolve, reject) => {
+    let settled = false
+    let downloadStarted = false
+    function finish(error?: Error, result?: LocalWebsiteResult) {
+      if (settled) return
+      settled = true
+      window.clearTimeout(timeout)
+      webview!.removeEventListener('message', receive)
+      if (error && action === 'prepare') {
+        try { webview!.postMessage({ version: 1, kind: 'site.local.cancel', token, projectId }) }
+        catch { /* A closed host has no remaining preparation to release. */ }
+      }
+      if (error) reject(error)
+      else resolve(result ?? { folder: '' })
+    }
+    function receive(event: MessageEvent) {
+      const reply = event.data as NativeMessage | null
+      if (reply?.version !== 1 || reply.token !== token) return
+      if (reply.kind === 'site.local.ready' && action === 'prepare') {
+        if (downloadStarted) return
+        downloadStarted = true
+        try { if (!download) throw new Error('Review the website files before refreshing.'); download(token) }
+        catch (error) { finish(error instanceof Error ? error : new Error('The website ZIP could not be prepared.')) }
+        return
+      }
+      if (reply.kind !== 'site.local.result') return
+      if (reply.cancelled === true) { finish(undefined, { folder: typeof reply.folder === 'string' ? reply.folder : '', cancelled: true }); return }
+      if (reply.ok !== true || typeof reply.folder !== 'string') { finish(new Error(typeof reply.message === 'string' ? reply.message : 'The local website operation failed.')); return }
+      finish(undefined, { folder: reply.folder, backup: typeof reply.backup === 'string' ? reply.backup : undefined, message: typeof reply.message === 'string' ? reply.message : undefined })
+    }
+    const timeout = window.setTimeout(() => finish(new Error('The local website operation timed out. Review the folder and try again.')), action === 'choose' || action === 'prepare' ? 600000 : 15000)
+    webview.addEventListener('message', receive)
+    try { webview.postMessage({ version: 1, kind: `site.local.${action}`, token, projectId }) }
+    catch { finish(new Error('The local website operation could not start.')) }
+  })
+}
+
 export async function chooseWindowsColor(color: string): Promise<string | null> {
   const webview = (window as unknown as { chrome?: { webview?: NativeWebView } }).chrome?.webview
   if (window.location.origin !== 'https://webstudio.local' || !webview || !/^#[0-9a-f]{6}$/i.test(color)) throw new Error('The Windows color dialog is unavailable.')

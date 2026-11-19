@@ -5,9 +5,9 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $builder = Join-Path $PackageStudioRoot 'bin\WIPBuild.exe'
 if (-not (Test-Path -LiteralPath $builder)) { throw 'Build the repaired Package Studio Pro first.' }
-$releaseFolder = Join-Path $projectRoot 'export\release-1.0.0.1'
+$releaseFolder = Join-Path $projectRoot 'export\release-1.0.0.2'
 New-Item -ItemType Directory -Path $releaseFolder -Force | Out-Null
-$savedProjects = Join-Path $PackageStudioRoot 'MySetups\DelphiWebStudioPro-1.0.0.1'
+$savedProjects = Join-Path $PackageStudioRoot 'MySetups\DelphiWebStudioPro-1.0.0.2'
 New-Item -ItemType Directory -Path $savedProjects -Force | Out-Null
 $workRoot = Join-Path $projectRoot ('test-results\package-release-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $workRoot | Out-Null
@@ -19,7 +19,7 @@ try {
     New-Item -ItemType Directory -Path $payload -Force | Out-Null
     $binaryFolder = Join-Path $projectRoot "bin\$platform"
     $exe = Get-Item -LiteralPath (Join-Path $binaryFolder 'DelphiWebStudioPro.exe')
-    if ($exe.VersionInfo.FileVersion -ne '1.0.0.1') { throw 'Rebuild version 1.0.0.1 before packaging.' }
+    if ($exe.VersionInfo.FileVersion -ne '1.0.0.2') { throw 'Rebuild version 1.0.0.2 before packaging.' }
     foreach ($name in @('DelphiWebStudioPro.exe', 'WebView2Loader.dll', 'editor')) {
       Copy-Item -LiteralPath (Join-Path $binaryFolder $name) -Destination $payload -Recurse
     }
@@ -31,7 +31,7 @@ try {
     foreach ($folder in @('guides', 'pdf')) {
       Copy-Item -LiteralPath (Join-Path $projectRoot "docs\$folder") -Destination $docs -Recurse
     }
-    foreach ($name in @('PRIVACY.md', 'RECOVERY.md', 'KNOWN_LIMITATIONS.md', 'COMPATIBILITY.md', 'RELEASE_1_0_REVIEW.md', 'THIRD_PARTY_LICENSE_TEXTS.txt', 'WEBVIEW2_SDK_LICENSE.txt', 'GEMINI_ASSISTANT.md', 'GEMINI_TEXT_ASSISTANCE.md', 'GEMINI_PAGE_ASSISTANCE.md', 'WEBSITE_TRANSLATION.md')) {
+    foreach ($name in @('PRIVACY.md', 'RECOVERY.md', 'KNOWN_LIMITATIONS.md', 'COMPATIBILITY.md', 'RELEASE_1_0_REVIEW.md', 'THIRD_PARTY_LICENSE_TEXTS.txt', 'WEBVIEW2_SDK_LICENSE.txt', 'GEMINI_ASSISTANT.md', 'GEMINI_TEXT_ASSISTANCE.md', 'GEMINI_PAGE_ASSISTANCE.md', 'WEBSITE_TRANSLATION.md', 'LOCAL_SITE_TESTING.md', 'PAGE_ADDRESSES.md')) {
       Copy-Item -LiteralPath (Join-Path $projectRoot "docs\$name") -Destination $docs
     }
     # Retain complete build inputs as deliverables, independently of temporary output.
@@ -64,7 +64,7 @@ try {
       schema = 'PackageStudioPro.Project.v1'
       productName = "Delphi Web Studio Pro ($bits-bit)"
       publisher = 'DelphiWebStudio'
-      version = '1.0.0.1'
+      version = '1.0.0.2'
       installFolder = "{localappdata}\Programs\Delphi Web Studio Pro\$platform"
       licenseText = [IO.File]::ReadAllText((Join-Path $projectRoot 'LICENSE'))
       files = $packageFiles
@@ -74,14 +74,14 @@ try {
       features = @('Core|Required|Windows editor, SFTP tools, guides and notices')
       signingEnabled = $false; signingCertificatePath = ''; signToolPath = ''; timestampUrl = ''
     }
-    $projectFile = Join-Path $savedProjects "DelphiWebStudioPro-1.0.0.1-$platform.wiproj"
+    $projectFile = Join-Path $savedProjects "DelphiWebStudioPro-1.0.0.2-$platform.wiproj"
     $config | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $projectFile -Encoding utf8
     $output = Join-Path $workRoot "$platform\output"
     & $builder $projectFile $output
     if ($LASTEXITCODE -ne 0) { throw "Package Studio failed for $platform." }
     $setup = @(Get-ChildItem -LiteralPath $output -File -Filter '*Setup.exe')
     if ($setup.Count -ne 1) { throw 'Expected one self-contained setup executable.' }
-    $destination = Join-Path $releaseFolder "DelphiWebStudioPro-1.0.0.1-$platform-Setup.exe"
+    $destination = Join-Path $releaseFolder "DelphiWebStudioPro-1.0.0.2-$platform-Setup.exe"
     Copy-Item -LiteralPath $setup[0].FullName -Destination $destination -Force
     $hash = Get-FileHash -LiteralPath $destination -Algorithm SHA256
     "$($hash.Hash.ToLower())  $([IO.Path]::GetFileName($destination))" | Set-Content -LiteralPath "$destination.sha256" -Encoding ascii

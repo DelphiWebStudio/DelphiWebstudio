@@ -14,6 +14,12 @@ The editor canvas and its toolbar Preview retain the original wording. The exter
 
 The downloaded website ZIP includes the selector on ordinary pages, nested pages and generated article/search pages. Keep its assets folder with the pages when copying the export to a server. To remove translation, clear the option, export again and replace the deployed files with that new export. Clearing the option in a project does not alter a site that was already deployed.
 
+## Built in languages
+
+The preset offers the following 35 languages. The visitor sees English and native names together, sorted alphabetically. The website owner does not choose or maintain this list. Chinese Simplified and Chinese Traditional are separate choices; the Filipino entry uses the provider's `tl` code.
+
+Arabic, Bangla, Bulgarian, Chinese Simplified, Chinese Traditional, Croatian, Czech, English, Filipino, Finnish, French, German, Greek, Hebrew, Hindi, Hungarian, Indonesian, Italian, Japanese, Korean, Pashto, Persian, Polish, Portuguese, Romanian, Russian, Serbian, Slovak, Spanish, Swedish, Thai, Turkish, Ukrainian, Urdu and Vietnamese.
+
 ## Service requirements and limits
 
 GTranslate loads its widget and processes page text through online translation services, so translation needs an internet connection and JavaScript. The original content remains readable if the service cannot load. Translations are machine-generated and can contain mistakes; visitors can return to the original language. Text inside photographs or scanned PDF documents is not translated by the webpage selector.

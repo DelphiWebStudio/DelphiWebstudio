@@ -2,7 +2,7 @@ unit WebStudio.WebsitePreview;
 
 interface
 
-uses System.Classes, System.Zip, IdContext, IdHTTPServer, IdCustomHTTPServer;
+uses System.Classes, System.Zip, System.Generics.Collections, IdContext, IdHTTPServer, IdCustomHTTPServer;
 
 type
   TWebsitePreview = class
@@ -14,10 +14,14 @@ type
     FPrefix: string;
     FHost: string;
     FWebsiteTranslation: Boolean;
+    FFolder: string;
+    FFolderFiles: TDictionary<string, Boolean>;
+    procedure StartServer(const Token: string);
     procedure Serve(Context: TIdContext; Request: TIdHTTPRequestInfo;
       Response: TIdHTTPResponseInfo);
   public
     constructor Create(const FileName, Token: string);
+    constructor CreateFolder(const Folder, Token: string; const Files: TArray<string>);
     destructor Destroy; override;
     function Address: string;
   end;
@@ -41,6 +45,23 @@ begin
   TranslationIndex := FArchive.IndexOf('assets/translation-selector.js');
   if TranslationIndex >= 0 then
     FWebsiteTranslation := FArchive.FileName[TranslationIndex] = 'assets/translation-selector.js';
+  StartServer(Token);
+end;
+
+constructor TWebsitePreview.CreateFolder(const Folder, Token: string; const Files: TArray<string>);
+begin
+  inherited Create;
+  FFolder := ExcludeTrailingPathDelimiter(TPath.GetFullPath(Folder));
+  FFolderFiles := TDictionary<string, Boolean>.Create;
+  for var FileName in Files do FFolderFiles.AddOrSetValue(FileName, True);
+  if not FFolderFiles.ContainsKey('index.html') then
+    raise EArgumentException.Create('The refreshed local website does not contain index.html.');
+  FWebsiteTranslation := FFolderFiles.ContainsKey('assets/translation-selector.js');
+  StartServer(Token);
+end;
+
+procedure TWebsitePreview.StartServer(const Token: string);
+begin
   FPrefix := '/' + Token + '/';
   FServer := TIdHTTPServer.Create(nil);
   FServer.DefaultPort := 0;
@@ -60,6 +81,7 @@ end;
 destructor TWebsitePreview.Destroy;
 begin
   FServer.Free;
+  FFolderFiles.Free;
   FArchive.Free;
   FFile.Free;
   if (FHandle <> 0) and (FHandle <> INVALID_HANDLE_VALUE) then CloseHandle(FHandle);
@@ -74,10 +96,11 @@ end;
 procedure TWebsitePreview.Serve(Context: TIdContext; Request: TIdHTTPRequestInfo;
   Response: TIdHTTPResponseInfo);
 var
-  FileName, Extension: string;
+  FileName, Extension, FolderPath, Current: string;
   Index: Integer;
   Bytes: TBytes;
   Header: TZipHeader;
+  Attributes: Cardinal;
 begin
   Response.ResponseNo := 404;
   Response.CustomHeaders.Values['Cache-Control'] := 'no-store';
@@ -98,6 +121,18 @@ begin
   if FileName = '' then FileName := 'index.html';
   for var Segment in FileName.Split(['/']) do
     if (Segment = '') or (Segment = '.') or (Segment = '..') or Segment.Contains('\') then Exit;
+  if FFolder <> '' then begin
+    if not FFolderFiles.ContainsKey(FileName) then Exit;
+    FolderPath := TPath.GetFullPath(TPath.Combine(FFolder, FileName.Replace('/', '\')));
+    if not FolderPath.StartsWith(FFolder + '\', True) or not TFile.Exists(FolderPath) then Exit;
+    Current := FolderPath;
+    while Length(Current) >= Length(FFolder) do begin
+      Attributes := GetFileAttributes(PChar(Current));
+      if (Attributes = INVALID_FILE_ATTRIBUTES) or ((Attributes and FILE_ATTRIBUTE_REPARSE_POINT) <> 0) then Exit;
+      Current := ExcludeTrailingPathDelimiter(ExtractFileDir(Current));
+    end;
+    if TFile.GetSize(FolderPath) > 256 * 1024 * 1024 then Exit;
+  end;
   Extension := LowerCase(TPath.GetExtension(FileName));
   if Extension = '.html' then Response.ContentType := 'text/html; charset=utf-8'
   else if Extension = '.css' then Response.ContentType := 'text/css; charset=utf-8'
@@ -115,6 +150,15 @@ begin
   else if Extension = '.wav' then Response.ContentType := 'audio/wav'
   else if Extension = '.xml' then Response.ContentType := 'application/xml'
   else Response.ContentType := 'application/octet-stream';
+  if FFolder <> '' then begin
+    if Request.Command = 'GET' then begin
+      Response.ContentStream := TFileStream.Create(FolderPath, fmOpenRead or fmShareDenyWrite);
+      Response.FreeContentStream := True;
+      Response.ContentLength := Response.ContentStream.Size;
+    end else Response.ContentLength := TFile.GetSize(FolderPath);
+    Response.ResponseNo := 200;
+    Exit;
+  end;
   TMonitor.Enter(FArchive);
   try
     Index := FArchive.IndexOf(FileName);

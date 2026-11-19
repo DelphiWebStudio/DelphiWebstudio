@@ -2,6 +2,12 @@
 
 ## Current editor controls
 
+Build 2 makes page maintenance available through **Page tools → Page settings** and a page-tab right click. Review the page name, current and proposed address, exported filename and supported link updates before saving. Related child addresses change only when explicitly selected. The whole operation supports one Undo/Redo step; [page names and addresses](PAGE_ADDRESSES.md) gives the procedure and explains which links require manual review.
+
+**Check site** now adds conservative checks of explicit solid text/background colors and can open, scroll to and focus the affected object. The Windows edition offers a separate, user-started external-link status check. Confirmed missing pages are separated from blocked or unverified responses. Expand **Keyboard and form review** for a guided browser review of focus, controls and narrow layouts; these steps complement the automated findings without claiming complete accessibility testing.
+
+**Export → Local test folder** keeps a permanent set of visitor files for repeated local testing. Choose a dedicated folder, prepare a current review, confirm the refresh file list and use **Open local site**. A verified ZIP protects existing affected files before replacement, while unrelated files stay untouched. See [local site testing](LOCAL_SITE_TESTING.md).
+
 The canvas is the page displayed for visual editing. A block is a page section such as a banner, navigation bar or gallery; independent objects, such as text boxes and images, can sit inside sections or panels. The Navbar block supplies visitor navigation, while the Footer is the closing section at the bottom of a page. JSON (JavaScript Object Notation) is the structured text describing these components. HTML describes the exported page structure, CSS controls its appearance and JavaScript supplies programmed behavior.
 
 The [illustrated Editor Reference](pdf/Delphi%20Web%20Studio%20Pro%20Editor%20Reference.pdf) describes the current Windows interface. File, Edit, Insert, View, and Advanced collect the editor commands; Page tools holds Plan pages and Check site. The toolbar keeps project status, preview sizes, and common commands visible. Technical imports, JSON, and history live under Advanced.

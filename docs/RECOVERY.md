@@ -1,6 +1,6 @@
 # Project backup and recovery
 
-Last changed: 2026-11-15
+Last changed: 2026-11-19
 
 While you work, the editor keeps a local draft in its browser storage and can retain earlier revisions of that draft. A project file is the separate copy you save for reopening or transfer. Keep separate project files and backups. Local drafts and revisions are useful working copies, but they are not a substitute for a verified backup. Save a project, then reopen it as a separate copy and check its pages and media. Keep another copy on a separate drive.
 
@@ -15,3 +15,9 @@ If a save is interrupted, read the status message. During saving, a staged file 
 If a stored draft is unreadable, the dashboard can offer **Save unreadable draft data**. This saves whatever raw draft values are readable to a ZIP; it does not include media and cannot be opened directly as a project. The recovery ZIP can contain private data, so keep it private. If storage is inaccessible, the raw recovery download may not be available.
 
 Controlled tests have exercised several save and recovery paths. Power loss, every interruption point and every filesystem have not been proven safe. If recovery fails, preserve the original files and use a verified earlier backup.
+
+## Local test folder recovery
+
+Refreshing a local test folder is separate from saving the editable project. Before replacing or removing existing affected website files, the Windows editor creates and verifies a ZIP in a sibling folder named after the test folder with ` Backups` appended. The refresh result identifies that ZIP. Unrelated files remain untouched, and the prior management manifest is included when one existed.
+
+If writing fails, the editor restores files it can establish were changed by that operation. A newer manual edit is preserved rather than overwritten during rollback; in that case the message identifies the ZIP for separate recovery. Inspect the folder and backup before retrying. Restoring visitor files from this ZIP does not alter the saved project ZIP. Keep useful recovery ZIPs until the refreshed site has been checked, then remove only the backups you no longer need. See [local site testing](LOCAL_SITE_TESTING.md).

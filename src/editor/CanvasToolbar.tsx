@@ -21,7 +21,7 @@ import { toast } from 'sonner'
 import { useEditorStore, type Viewport, type EditorMode } from '@/store/editorStore'
 import { useConfigStore } from '@/store/configStore'
 import { useProjectsStore } from '@/store/projectsStore'
-import type { PageConfig } from '@/blocks/types'
+import type { PageConfig, SiteConfig } from '@/blocks/types'
 import { exportToHTML, downloadHTML, exportSiteZip } from '@/lib/export-html'
 import { EditorMenus } from './EditorMenus'
 import { ProjectFileCommands } from '@/project/ProjectFileCommands'
@@ -30,7 +30,7 @@ import { ProjectMediaLibrary } from '@/media/media-library'
 import { requestDesktopAction } from '@/desktop/native-bridge'
 import { PlanPages } from './PlanPages'
 import { SiteChecks } from './SiteChecks'
-import { pageLinkPath, visitBlockLinks } from '@/project/page-links'
+import { pageLinkPath, planPageAddressChange, visitBlockLinks } from '@/project/page-links'
 import { GeminiPageAssistant } from '@/ai/GeminiPageAssistant'
 
 const viewports: { value: Viewport; icon: typeof Monitor; label: string }[] = [
@@ -93,12 +93,13 @@ function AddPageDialog({ onAdd, onClose }: { onAdd: (name: string, path: string)
   )
 }
 
-function PageTab({ page, isActive, editing, onClick, onEdit, onRename, onCancel }: {
+function PageTab({ page, isActive, editing, onClick, onEdit, onSettings, onRename, onCancel }: {
   page: PageConfig
   isActive: boolean
   editing: boolean
   onClick: () => void
   onEdit: () => void
+  onSettings: () => void
   onRename: (name: string) => void
   onCancel: () => void
 }) {
@@ -148,6 +149,11 @@ function PageTab({ page, isActive, editing, onClick, onEdit, onRename, onCancel 
       aria-current={isActive ? 'page' : undefined}
       onClick={onClick}
       onDoubleClick={onEdit}
+      onContextMenu={event => { event.preventDefault(); onSettings() }}
+      onKeyDown={event => {
+        if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) { event.preventDefault(); onSettings() }
+      }}
+      aria-haspopup="dialog"
       className={`shrink-0 whitespace-nowrap rounded px-2 py-1 text-xs transition-colors ${
         isActive ? 'bg-bg-3 text-text-0' : 'text-text-3 hover:text-text-1 hover:bg-bg-2'
       }`}
@@ -176,20 +182,62 @@ function EditPageSeoDialog({ page, onCancel, onSave }: { page: PageConfig; onCan
   </dialog>
 }
 
-function EditPagePathDialog({ page, onCancel, onSave }: { page: PageConfig; onCancel: () => void; onSave: (path: string, updateLinks: boolean) => void }) {
+function EditPagePathDialog({ page, config, onCancel, onSave }: { page: PageConfig; config: SiteConfig; onCancel: () => void; onSave: (name: string, path: string, updateLinks: boolean, includeChildPages: boolean) => void }) {
   const dialog = useRef<HTMLDialogElement>(null)
+  const [name, setName] = useState(page.name)
   const [path, setPath] = useState(page.path)
   const [error, setError] = useState('')
   const [updateLinks, setUpdateLinks] = useState(true)
+  const [includeChildPages, setIncludeChildPages] = useState(false)
+  const childPages = page.path === '/' ? [] : (config.pages ?? []).filter(item => item.id !== page.id && item.path.startsWith(`${page.path}/`))
+  const changes = planPageAddressChange(config, page.id, path, includeChildPages)
+  const destinations = new Set(changes.flatMap(change => [change.from, encodeURI(change.from)]))
+  const linkedPages = (config.pages ?? []).map(item => {
+    let count = 0
+    for (const block of item.blocks) visitBlockLinks(block, destination => {
+      if (/^\/(?!\/)/.test(destination) && destinations.has(pageLinkPath(destination))) count++
+    })
+    return { page: item, count }
+  }).filter(item => item.count > 0)
+  let reusableCount = 0
+  for (const section of config.webstudioReusableSections ?? []) visitBlockLinks(section.block, destination => {
+    if (/^\/(?!\/)/.test(destination) && destinations.has(pageLinkPath(destination))) reusableCount++
+  })
+  const previewPath = changes[0]?.to ?? page.path
+  const filename = previewPath === '/' ? 'index.html' : `${previewPath.slice(1)}.html`
   useEffect(() => { const element = dialog.current; element?.showModal(); return () => { if (element?.open) element.close() } }, [])
-  return <dialog ref={dialog} onCancel={event => { event.preventDefault(); onCancel() }} aria-labelledby="page-path-title" className="w-[min(92vw,32rem)] rounded-xl border border-border-default bg-bg-1 p-5 text-text-0 shadow-xl backdrop:bg-black/60">
-    <h2 id="page-path-title" className="text-lg font-semibold">Change address for {page.name}</h2>
-    <p className="mt-2 text-sm text-text-2">External bookmarks and links in unsupported content may stop working. You can undo this change.</p>
-    <label htmlFor="page-path" className="mt-4 block text-sm">Page address</label>
-    <input id="page-path" value={path} onChange={event => { setPath(event.target.value); setError('') }} className="mt-1 w-full rounded border border-border-default bg-bg-2 px-3 py-2 text-sm" />
-    <label className="mt-3 flex items-start gap-2 text-sm"><input type="checkbox" checked={updateLinks} onChange={event => setUpdateLinks(event.target.checked)} /> Update Content text links and known Hero, CTA, Banner, Navbar and Footer links to this page.</label>
-    {error && <p role="alert" className="mt-2 text-sm text-status-red">{error}</p>}
-    <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={onCancel} className="rounded border border-border-default px-3 py-2 text-sm">Cancel</button><button type="button" onClick={() => { try { onSave(path.trim(), updateLinks) } catch (cause) { setError(cause instanceof Error ? cause.message : 'Address could not be changed.') } }} className="rounded bg-green px-3 py-2 text-sm font-semibold text-black">Save address</button></div>
+  return <dialog ref={dialog} onCancel={event => { event.preventDefault(); onCancel() }} aria-labelledby="page-path-title" className="w-[min(92vw,38rem)] max-h-[85vh] overflow-auto rounded-xl border border-border-default bg-bg-1 p-5 text-text-0 shadow-xl backdrop:bg-black/60">
+    <h2 id="page-path-title" className="text-lg font-semibold">Page settings for {page.name}</h2>
+    <p className="mt-2 text-sm text-text-2">The page name identifies it in the editor. Its address determines the exported filename. Your content and design stay in place.</p>
+    <form onSubmit={event => { event.preventDefault(); try { onSave(name, path, updateLinks, includeChildPages) } catch (cause) { setError(cause instanceof Error ? cause.message : 'Page settings could not be saved.') } }}>
+      <label htmlFor="page-settings-name" className="mt-4 block text-sm">Page name</label>
+      <input id="page-settings-name" value={name} onChange={event => { setName(event.target.value); setError('') }} className="mt-1 w-full rounded border border-border-default bg-bg-2 px-3 py-2 text-sm" />
+      <p className="mt-3 text-sm">Current address: <span className="break-all font-mono">{page.path}</span></p>
+      <label htmlFor="page-path" className="mt-3 block text-sm">Page address</label>
+      <input id="page-path" value={path} readOnly={page.path === '/'} aria-describedby="page-address-hint" onChange={event => { setPath(event.target.value); setError('') }} className="mt-1 w-full rounded border border-border-default bg-bg-2 px-3 py-2 text-sm read-only:opacity-70" />
+      <p id="page-address-hint" className="mt-1 text-xs text-text-2">{page.path === '/' ? 'Home keeps the address / and exports as index.html.' : 'Use an address such as /about-us. The leading slash is added if you leave it out. Use hyphens between words.'}</p>
+      <dl className="mt-3 rounded border border-border-default bg-bg-2 p-3 text-sm">
+        <div><dt className="inline">Resulting address: </dt><dd className="inline break-all font-mono" data-page-address-preview>{previewPath}</dd></div>
+        <div className="mt-1"><dt className="inline">Exported filename: </dt><dd className="inline break-all font-mono">{filename}</dd></div>
+      </dl>
+      {childPages.length > 0 && <div className="mt-3 text-sm">
+        <label className="flex items-start gap-2"><input type="checkbox" checked={includeChildPages} onChange={event => { setIncludeChildPages(event.target.checked); setError('') }} /> Also change related page addresses ({childPages.length})</label>
+        <p className="mt-1 text-xs text-text-2">Leave this clear to keep related addresses unchanged. Submenu labels and grouping are not changed.</p>
+        {includeChildPages && changes.length > 1 && <ul aria-label="Related address changes" className="mt-2 max-h-28 overflow-auto rounded bg-bg-2 p-2 text-xs">{changes.slice(1).map(change => <li key={change.pageId} className="break-all">{change.from} → {change.to}</li>)}</ul>}
+      </div>}
+      {changes.length > 0 && <div className="mt-4 rounded border border-border-default p-3 text-sm">
+        <label className="flex items-start gap-2"><input type="checkbox" checked={updateLinks} onChange={event => setUpdateLinks(event.target.checked)} /> Update links within this website</label>
+        <p className="mt-2 text-xs text-text-2">Supported text, image, button, navigation and footer links retain their anchors and query details. Menu wording is left as you wrote it.</p>
+        <details className="mt-2"><summary className="cursor-pointer">Review {linkedPages.reduce((sum, item) => sum + item.count, 0) + reusableCount} link references</summary>
+          {linkedPages.length || reusableCount ? <ul className="mt-1 max-h-32 overflow-auto pl-3 text-xs">{linkedPages.map(item => <li key={item.page.id}>{item.page.name}: {item.count}</li>)}{reusableCount > 0 && <li>Saved reusable sections: {reusableCount}</li>}</ul> : <p className="mt-1 text-xs">No supported project links point to the addresses being changed.</p>}
+        </details>
+        {!updateLinks && linkedPages.length > 0 && <p className="mt-2 text-xs text-status-red">These links will keep their old destinations. Review them before exporting.</p>}
+        <p className="mt-2 text-xs text-text-2">Links in custom code, full website URLs and external bookmarks need separate review. Saving here does not redirect the old address on a published website.</p>
+      </div>}
+      <p className="mt-3 text-xs text-text-2">Use Undo to reverse the saved page settings and link updates together. Export or refresh your local site to see the new filenames.</p>
+      {error && <p role="alert" className="mt-2 text-sm text-status-red">{error}</p>}
+      <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={onCancel} className="rounded border border-border-default px-3 py-2 text-sm">Cancel</button><button type="submit" disabled={!name.trim() || !path.trim()} className="rounded bg-green px-3 py-2 text-sm font-semibold text-black disabled:opacity-50">Save page settings</button></div>
+    </form>
   </dialog>
 }
 
@@ -235,7 +283,7 @@ export function CanvasToolbar({ settingsOpen = false, onOpenSettings }: { settin
   const removePage = useConfigStore((s) => s.removePage)
   const duplicatePage = useConfigStore((s) => s.duplicatePage)
   const renamePage = useConfigStore((s) => s.renamePage)
-  const changePagePath = useConfigStore((s) => s.changePagePath)
+  const updatePageSettings = useConfigStore((s) => s.updatePageSettings)
   const updatePageSeo = useConfigStore((s) => s.updatePageSeo)
   const projects = useProjectsStore((s) => s.projects)
   const configName = useConfigStore((s) => s.config.name)
@@ -298,7 +346,7 @@ export function CanvasToolbar({ settingsOpen = false, onOpenSettings }: { settin
     {showAiAssistant && <GeminiPageAssistant onClose={() => setShowAiAssistant(false)} />}
     {showSiteChecks && <SiteChecks onClose={() => setShowSiteChecks(false)} />}
     {pageToDelete && <DeletePageDialog page={pageToDelete} linkedPages={linkedPages} onCancel={() => setDeletingPage(null)} onConfirm={() => { removePage(pageToDelete.id); setDeletingPage(null) }} />}
-    {pageToEditPath && <EditPagePathDialog page={pageToEditPath} onCancel={() => setEditingPath(null)} onSave={(path, updateLinks) => { changePagePath(pageToEditPath.id, path, updateLinks); setEditingPath(null) }} />}
+    {pageToEditPath && <EditPagePathDialog page={pageToEditPath} config={config} onCancel={() => setEditingPath(null)} onSave={(name, path, updateLinks, includeChildPages) => { updatePageSettings(pageToEditPath.id, name, path, updateLinks, includeChildPages); setEditingPath(null) }} />}
     {pageToEditSeo && <EditPageSeoDialog page={pageToEditSeo} onCancel={() => setEditingSeo(null)} onSave={(title, description) => { updatePageSeo(pageToEditSeo.id, title, description); setEditingSeo(null) }} />}
     {portableProjectsEnabled && <div className="bg-bg-1 border-b border-border-default px-3 py-1"><div className="flex flex-wrap items-center justify-between gap-2"><EditorMenus /><ProjectFileCommands /></div></div>}
     <div className="studio-toolbar min-h-10 border-b border-border-default bg-bg-1 px-3 py-1">
@@ -327,6 +375,7 @@ export function CanvasToolbar({ settingsOpen = false, onOpenSettings }: { settin
               editing={page.id === renamingPage?.id && renamingPage.projectId === activeProjectId}
               onClick={() => setActivePage(page.id)}
               onEdit={() => setRenamingPage({ id: page.id, projectId: activeProjectId })}
+              onSettings={() => { setActivePage(page.id); setEditingPath({ id: page.id, projectId: activeProjectId }) }}
               onRename={(name) => renamePage(page.id, name)}
               onCancel={() => setRenamingPage(null)}
             />
@@ -343,7 +392,7 @@ export function CanvasToolbar({ settingsOpen = false, onOpenSettings }: { settin
             }} className={actionClass}><Copy size={12} /></button>
           <button type="button" disabled={!selectedPage} aria-label={`Search details for ${selectedName}`} title={`Search details for ${selectedName}`}
             onClick={() => setEditingSeo(selectedTarget)} className={actionClass}><Search size={12} /></button>
-          <button type="button" disabled={!canChangeAddress} aria-label={`Change address for ${selectedName}`} title={canChangeAddress ? `Change address for ${selectedName}` : 'Home address is fixed'}
+          <button type="button" disabled={!selectedPage} aria-label={`Page settings for ${selectedName}`} title={`Page settings for ${selectedName}`}
             onClick={() => setEditingPath(selectedTarget)} className={actionClass}><Link size={12} /></button>
           <button type="button" disabled={!canDelete} aria-label={`Delete ${selectedName}`} title={canDelete ? `Delete ${selectedName}` : 'Home cannot be deleted'}
             onClick={() => setDeletingPage(selectedTarget)} className={`${actionClass} hover:text-status-red`}><Trash2 size={12} /></button>
@@ -357,7 +406,7 @@ export function CanvasToolbar({ settingsOpen = false, onOpenSettings }: { settin
       <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1">
         {pages.length > 0 && <label className="flex shrink-0 items-center gap-1 text-xs text-text-1">
           Go to page
-          <select value={selectedPage?.id ?? ''} onChange={event => setActivePage(event.target.value)} className="max-w-48 rounded border border-border-default bg-bg-2 px-1 py-1 text-text-0">
+          <select aria-label="Go to page" value={selectedPage?.id ?? ''} onChange={event => setActivePage(event.target.value)} className="max-w-48 rounded border border-border-default bg-bg-2 px-1 py-1 text-text-0">
             {!selectedPage && <option value="" disabled>Choose a page</option>}
             {pages.map(page => <option key={page.id} value={page.id}>{page.name}</option>)}
           </select>
@@ -365,6 +414,7 @@ export function CanvasToolbar({ settingsOpen = false, onOpenSettings }: { settin
         {portableProjectsEnabled && <details className="studio-page-tools relative text-xs">
           <summary className="cursor-pointer rounded px-2 py-2">Page tools</summary>
           <div className="absolute top-full z-50 w-36 rounded border border-border-default bg-bg-1 p-1 shadow-xl">
+            <button type="button" disabled={!selectedPage} onClick={event => { event.currentTarget.closest('details')?.removeAttribute('open'); setEditingPath(selectedTarget) }} className="block w-full rounded px-2 py-1 text-left text-text-0 hover:bg-bg-3 disabled:opacity-50">Page settings</button>
             <button type="button" aria-haspopup="dialog" onClick={event => {
               const menu = event.currentTarget.closest('details')
               menu?.removeAttribute('open')
@@ -372,7 +422,7 @@ export function CanvasToolbar({ settingsOpen = false, onOpenSettings }: { settin
               setShowAddPage(true)
             }} className="block w-full rounded px-2 py-1 text-left text-text-0 hover:bg-bg-3">Add page</button>
             <button type="button" onClick={() => setShowPlanPages(true)} className="block w-full rounded px-2 py-1 text-left text-text-1 hover:bg-bg-3">Plan pages</button>
-            <button type="button" onClick={() => setShowSiteChecks(true)} className="block w-full rounded px-2 py-1 text-left text-text-1 hover:bg-bg-3">Check site</button>
+            <button type="button" onClick={event => { event.currentTarget.closest('details')?.removeAttribute('open'); setShowSiteChecks(true) }} className="block w-full rounded px-2 py-1 text-left text-text-1 hover:bg-bg-3">Check site</button>
           </div>
         </details>}
         <button type="button" aria-haspopup="dialog" className="rounded border border-blue-400 px-3 py-1 text-xs text-text-0 hover:bg-bg-3" onClick={() => setShowAiAssistant(true)}>AI assistant</button>

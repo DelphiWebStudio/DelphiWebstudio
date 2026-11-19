@@ -1,4 +1,35 @@
-# Release package validation — November 19, 2026
+# Release package validation
+
+## Build 2 on November 19 2026
+
+The current Win32 and Win64 installers contain **Delphi Web Studio Pro 1.0.0 build 2**, Windows file/product version **1.0.0.2**, published under **v1.0.0.2**. Earlier tags and packages remain historical releases.
+
+| Edition | Installer | Bytes | SHA-256 |
+| --- | --- | ---: | --- |
+| Win32 | DelphiWebStudioPro-1.0.0.2-Win32-Setup.exe | 24,794,498 | 5363c668419ca4fc7c5fab4b6f8c4fb98b9d34f9fa0f658a687c64704c1e385a |
+| Win64 | DelphiWebStudioPro-1.0.0.2-Win64-Setup.exe | 25,294,346 | 64562f263c35021415e508743c7a327771940bf4ba720794443928b72fb30bd5 |
+
+Each installer has a matching SHA-256 sidecar under export/release-1.0.0.2. Its embedded ZIP passed the corruption check. All **43 payload files per edition** matched the final source/build files and the retained Package Studio Pro payload, including all **14 reviewed guide files**. Those guides contain **165 visually reviewed pages** and **172 real linked dotted-leader TOC entries**.
+
+The executable, editor bundle and Microsoft WebView2 loader match the intended architecture. Both executables retain the seven icon sizes (16, 24, 32, 48, 64, 128 and 256 pixels), and both Microsoft loaders have valid signatures. The final frontend bundle is index-DghZumQS.js, SHA-256 1040da5f5a636b43d6de4fbb3ced7fa6af7bb3f6f9b5a5f4e88f643c19e9e856; it is byte-identical to the bundle exercised by the native GUI tests.
+
+The console installer runtime's non-resource PE sections match the repaired Package Studio Pro runtime. Its intentionally updated process manifest requests asInvoker; this resource update is why the whole runtime hash differs from the builder's source binary. Installer manifests use neutral publisher information and relative payload paths, with no signing-tool or certificate path.
+
+The complete authoring projects and current payloads are retained locally under Package Studio Pro's MySetups/DelphiWebStudioPro-1.0.0.2. Open the Win32 or Win64 .wiproj to build that edition. These machine-specific authoring files remain outside public source control; the reproducible packaging script is tools/package-release.ps1.
+
+### Validation and preservation
+
+The full regression suite passed **476 tests**, with two pre-existing optional checks skipped. Full lint and TypeScript passed; one earlier non-failing React cleanup warning remains. Elevated Release builds, three isolated browser workflows, **34 native unit checks per architecture** and **31 production-Main-form GUI checks per architecture** passed. The native tests used isolated synthetic profiles and test executables sharing production code; they are not a fresh-Windows VM installation claim.
+
+Package Studio's disposable lifecycle suite passed custom-folder install, current-user shortcuts, hash verification, upgrade, failed-upgrade rollback, unsafe-journal rejection, durable registered uninstall and unrelated-file preservation. The engine was not modified. A current registry advisory query covering all 322 locked package names and recorded versions, including development dependencies, returned zero advisories.
+
+Payload text and guide XML, links and metadata were checked for private identifiers. **115 protected files**, comprising the saved projects, existing local website and pre-existing local README edit, remained byte-identical to the pre-change ZIP. No user project, browser profile, credential or local website export was included in the packages. The exact local verification record is export/release-1.0.0.2/package-verification.json.
+
+No website was published, form submitted, production SFTP server contacted or DNS setting changed. A successful link response is not a security or accessibility certification. Earlier owner startup observations and current test limits are recorded in the [release review](RELEASE_1_0_REVIEW.md).
+
+## Earlier build 1 package record
+
+The following material is a dated historical record. Its hashes, counts and versions describe the earlier packages.
 
 The Win32 and Win64 installers contain Delphi Web Studio Pro **1.0.0 build 1**, with Windows file/product version **1.0.0.1**. The release tag is **v1.0.0.1**; the older v1.0.0 tag is preserved. Both applications were rebuilt after the page-heading and footer-checker corrections. All seven illustrated manuals and their companion PDFs are included.
 

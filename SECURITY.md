@@ -1,6 +1,6 @@
 # Security
 
-Last reviewed November 19, 2026 for the local review update to version 1.0.0 build 1.
+Last reviewed November 19, 2026 for version 1.0.0 build 2.
 
 The Windows desktop editor displays its interface in Microsoft Edge WebView2. A narrow communication bridge connects that interface to native operations such as file dialogs. The host checks the editor origin and uses session-scoped capabilities for native requests. It blocks navigation away from the local editor, cancels child-frame navigation and unsolicited new windows, and denies permission requests apart from the explicitly allowed local download case. Imports, project paths and recognized link protocols are validated. Imported source, custom code and external media still require review before use.
 
@@ -17,3 +17,9 @@ The optional legacy serverless `api` handlers are excluded from desktop installe
 Never commit credentials, private projects, keys, model weights or personal site exports. Report vulnerabilities privately to the repository owner and keep secrets and private project files out of public issues. Owner installation observations are recorded in the [release review](docs/RELEASE_1_0_REVIEW.md); no fresh-Windows VM test, independent security assessment or provider-specific public deployment was performed for this update.
 
 Optional website translation loads GTranslate only in exported pages and their separate browser review. No vendor script is added to the privileged WebView2 editor or its React canvas. Exports with the packaged translation helper receive a narrowly scoped local-review connection allowance for `https://translate-pa.googleapis.com`; other reviews retain `connect-src 'self'`. Local-review form submission and framing protections remain in place. The feature requires external service access, sends page text for translation and uses the provider's current terms; it does not use a saved Gemini key. See [website translation](docs/WEBSITE_TRANSLATION.md).
+
+Local test-folder refresh accepts a destination selected by the native Windows folder dialog. Reviewed website ZIPs are checked for traversal, collisions, reparse points, size limits and project ownership before use. Existing affected files are backed up and verified before replacement. Only previously managed files can become obsolete removals; unrelated files are preserved. Failed writes trigger recovery, while files changed concurrently by another editor require separate recovery rather than silent replacement. A folder preview serves a whitelist of visitor files over loopback and excludes its private manifest and unrelated contents. See [local site testing](docs/LOCAL_SITE_TESTING.md).
+
+The Windows external-link checker requests webpage response headers using HTTP or encrypted HTTPS. It resolves a destination's domain name through DNS (the Domain Name System), checks that the returned network addresses are public, then pins the validated address for the connection. DNS lookups and requests have time limits, and redirects receive the same address checks. Hostname and certificate verification remain enabled; unsupported Windows behavior produces an unverified result.
+
+The checker uses standard web ports without authentication or cookies and inspects only response headers. Confirmed missing pages are distinguished from restricted or inconclusive checks. A successful response does not establish that the destination's content is correct or safe, and these controls do not certify the editor as free of vulnerabilities.

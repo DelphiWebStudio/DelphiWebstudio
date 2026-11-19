@@ -4,7 +4,7 @@ import { produce } from 'immer'
 import { toast } from 'sonner'
 import type { BlockConfig, SiteConfig, ThemeConfig, PageConfig } from '@/blocks/types'
 import { validateProjectConfig } from '@/project/project-file'
-import { pageLinkPath, visitBlockLinks } from '@/project/page-links'
+import { pageLinkPath, planPageAddressChange, visitBlockLinks } from '@/project/page-links'
 import { normalizeGalleryBlock, normalizeGalleryConfig } from '@/blocks/gallery/gallery-photos'
 import { useEditorStore } from './editorStore'
 
@@ -59,6 +59,7 @@ interface ConfigState {
   removePage: (id: string) => void
   renamePage: (id: string, name: string) => void
   changePagePath: (id: string, path: string, updateLinks?: boolean) => void
+  updatePageSettings: (id: string, name: string, path: string, updateLinks?: boolean, includeChildPages?: boolean) => void
   updatePageSeo: (id: string, title: string, description: string) => void
   setTheme: (theme: Partial<ThemeConfig>) => void
   updateTheme: (partial: Partial<ThemeConfig>) => void
@@ -527,19 +528,32 @@ export const useConfigStore = create<ConfigState>()(
         return { ...pushUndo(state, 'Rename page'), config: changed }
       }),
 
-      changePagePath: (id, path, updateLinks = false) => set(state => {
+      changePagePath: (id, path, updateLinks = false) => {
+        const page = ensurePages(get().config).find(item => item.id === id)
+        if (!page || page.path === '/') throw new Error('The Home page address cannot be changed.')
+        get().updatePageSettings(id, page.name, path, updateLinks)
+      },
+
+      updatePageSettings: (id, name, path, updateLinks = true, includeChildPages = false) => set(state => {
         const pages = ensurePages(state.config)
         const page = pages.find(item => item.id === id)
-        if (!page || page.path === '/') throw new Error('The Home page address cannot be changed.')
-        if (page.path === path) return state
+        if (!page) throw new Error('Page no longer exists.')
+        const pageName = name.trim()
+        if (!pageName) throw new Error('Page name is required.')
+        if (!path.trim()) throw new Error('Page address is required.')
+        const addressChanges = planPageAddressChange({ ...state.config, pages }, id, path, includeChildPages)
+        if (page.name === pageName && !addressChanges.length) return state
         const changed = produce(withPages(state.config), draft => {
-          draft.pages!.find(item => item.id === id)!.path = path
+          draft.pages!.find(item => item.id === id)!.name = pageName
+          for (const change of addressChanges) draft.pages!.find(item => item.id === change.pageId)!.path = change.to
           if (updateLinks) {
-            const oldPaths = new Set([page.path, encodeURI(page.path)])
+            const replacements = new Map(addressChanges.flatMap<[string, string]>(change => [[change.from, change.to], [encodeURI(change.from), change.to]]))
             const rewrite = (destination: string) => {
-              if (!/^\/(?!\/)/.test(destination) || !oldPaths.has(pageLinkPath(destination))) return
+              if (!/^\/(?!\/)/.test(destination)) return
+              const replacement = replacements.get(pageLinkPath(destination))
+              if (replacement === undefined) return
               const suffix = destination.search(/[?#]/)
-              return path + (suffix < 0 ? '' : destination.slice(suffix))
+              return replacement + (suffix < 0 ? '' : destination.slice(suffix))
             }
             for (const item of draft.pages!) for (const block of item.blocks) visitBlockLinks(block, rewrite)
             for (const section of draft.webstudioReusableSections ?? []) visitBlockLinks(section.block, rewrite)
@@ -547,7 +561,7 @@ export const useConfigStore = create<ConfigState>()(
           draft.blocks = draft.pages!.find(item => item.path === '/')!.blocks
         })
         const config = validateProjectConfig(changed)
-        return { ...pushUndo(state, 'Change page address'), config }
+        return { ...pushUndo(state, page.name === pageName ? 'Change page address' : 'Update page settings'), config }
       }),
 
       updatePageSeo: (id, title, description) => set(state => {
