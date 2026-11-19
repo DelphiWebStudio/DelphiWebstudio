@@ -30,6 +30,7 @@ export interface ProjectSettings {
   siteDescription?: string
   faviconUrl?: string
   language?: string
+  websiteTranslation?: boolean
   seoTitle?: string
   seoDescription?: string
   siteBaseUrl?: string

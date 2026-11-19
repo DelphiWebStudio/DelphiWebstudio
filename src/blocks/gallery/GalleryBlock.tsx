@@ -36,6 +36,7 @@ function ImageCard({ image, tall, responsive, viewer }: { image: GalleryPhoto; t
           <ImageIcon size={24} className="text-text-3" />
         </div>
       )}
+      {canEnlarge && image.caption && <span data-ws-gallery-caption-source className="sr-only">{image.caption}</span>}
       {image.caption && !canEnlarge && (
         <div className={`${responsive ? 'w-0 min-w-full [overflow-wrap:anywhere] ' : ''}px-3 py-2 bg-bg-2 text-[11px] text-text-2`}>{image.caption}</div>
       )}

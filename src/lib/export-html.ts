@@ -10,6 +10,7 @@ import navbarSubmenuKeyboard from '@/blocks/navbar/navbar-submenu-keyboard.js?ra
 import calendarViewScript from '@/blocks/calendar/calendar-view.js?raw'
 import galleryViewerScript from '@/blocks/gallery/gallery-viewer.js?raw'
 import staffBiographiesScript from '@/blocks/team/staff-biographies.js?raw'
+import translationSelectorScript from './translation-selector.js?raw'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import JSZip from 'jszip'
@@ -25,6 +26,7 @@ export interface ExportSiteSettings {
   siteDescription?: string
   faviconUrl?: string
   language?: string
+  websiteTranslation?: boolean
   seoTitle?: string
   seoDescription?: string
   siteBaseUrl?: string
@@ -36,6 +38,7 @@ export interface ExportSiteSettings {
 
 export interface ExportSiteOptions {
   settings?: ExportSiteSettings
+  translationAssetPath?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -1337,6 +1340,23 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
   const gaId = (settings?.gaId || '').trim()
   const posthogKey = (settings?.posthogKey || '').trim()
   const lang = normalizeLanguage(settings?.language)
+  const translation = settings?.websiteTranslation === true
+    ? `<div class="gtranslate_wrapper notranslate" translate="no" aria-label="Website language"></div>
+<script data-ws-translation-settings>window.gtranslateSettings=${JSON.stringify({ default_language: lang, languages: ['ar', 'bg', 'bn', 'cs', 'de', 'el', 'en', 'es', 'fa', 'fi', 'tl', 'fr', 'he', 'hi', 'hr', 'hu', 'id', 'it', 'ja', 'ko', 'pl', 'ps', 'pt', 'ro', 'ru', 'sk', 'sr', 'sv', 'th', 'tr', 'uk', 'ur', 'vi', 'zh-CN', 'zh-TW'], native_language_names: true, detect_browser_language: true, wrapper_selector: '.gtranslate_wrapper', switcher_horizontal_position: 'right', alt_flags: { he: 'https://cdn.gtranslate.net/flags/svg/iw.svg' } })};</script>
+<script src="https://cdn.gtranslate.net/widgets/latest/float.js" defer data-ws-translation-vendor></script>
+${options?.translationAssetPath ? `<script src="${escapeHtml(options.translationAssetPath)}" defer data-ws-translation-helper></script>` : `<script data-ws-translation-helper>\n${translationSelectorScript}</script>`}
+<noscript>Website translation requires JavaScript and an internet connection.</noscript>`
+    : ''
+  const translationStyle = translation ? `<style data-ws-translation-style>
+.gtranslate_wrapper .gt_float_switcher, .gtranslate_wrapper .gt_float_switcher .gt_options { max-inline-size: calc(100vw - 20px); box-sizing: border-box; }
+.gtranslate_wrapper .gt_float_switcher .gt_options { max-block-size: min(60vh, 400px); overflow-y: auto; overflow-x: hidden; }
+.gtranslate_wrapper .gt_float_switcher .gt_options.gt-open { display: block !important; }
+.gtranslate_wrapper .gt_float_switcher .gt_options a[data-gt-lang] { white-space: normal; overflow-wrap: anywhere; }
+html[dir="rtl"] body { direction: rtl; text-align: right; }
+html[dir="rtl"] .notranslate, html[dir="rtl"] code { direction: ltr; unicode-bidi: isolate; }
+html[dir="rtl"] .gtranslate_wrapper a[data-gt-lang] { direction: auto; unicode-bidi: plaintext; }
+html[dir="rtl"] .skip-to-content { right: 8px; left: auto; }
+</style>` : ''
 
   const descriptionMeta = pageDescription
     ? `  <meta name="description" content="${escapeHtml(pageDescription)}" />\n`
@@ -1493,6 +1513,7 @@ ${ogDescriptionMeta}${ogImageMeta}${faviconLink}
   </style>
 ${gaScript}
 ${posthogScript}
+${translationStyle}
 </head>
 <body>
 <a class="skip-to-content" href="#main-content">Skip to main content</a>
@@ -1507,6 +1528,7 @@ ${localPdfNoticeScript}
 ${documentLibraryScript}
 ${faqScript}
 ${contactScript}
+${translation}
 </body>
 </html>`
 }
@@ -1552,6 +1574,8 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     throw new Error('Page paths produce conflicting file and folder names.')
   }
   const zip = new JSZip()
+  const translationAssetPath = options?.settings?.websiteTranslation === true ? 'assets/translation-selector.js' : undefined
+  if (translationAssetPath) zip.file(translationAssetPath, translationSelectorScript, { date: new Date('1980-01-01T00:00:00Z') })
   const siteBaseUrl = options?.settings?.siteBaseUrl?.trim()
   let canonicalBase: URL | undefined
   if (siteBaseUrl) {
@@ -1589,7 +1613,7 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
   if (articles.length) {
     const cards = articles.map(article => `<article class="p-4 rounded-lg border border-border-default"><h2 class="text-xl font-semibold"><a href="../${escapeHtml(encodeURI(paths[pages.indexOf(article)]))}" class="text-green hover:underline">${escapeHtml(article.name)}</a></h2>${article.webstudioArticle!.author ? `<p class="text-sm">By ${escapeHtml(article.webstudioArticle!.author)}</p>` : ''}${article.webstudioArticle!.summary ? `<p class="text-sm">${escapeHtml(article.webstudioArticle!.summary)}</p>` : ''}${article.webstudioArticle!.tags?.length ? `<p class="text-sm">Tags: ${article.webstudioArticle!.tags.map(escapeHtml).join(', ')}</p>` : ''}</article>`).join('')
     const content = `<main id="main-content" tabindex="-1" class="@container"><div class="max-w-3xl mx-auto px-6 py-12"><h1 class="text-3xl font-bold mb-4">Articles</h1><div class="space-y-4">${cards}</div>${siteBaseUrl ? '<p class="mt-4"><a href="../feed.xml" class="text-green hover:underline">RSS feed</a></p>' : ''}</div></main>`
-    const archive = exportSiteToHTML({ ...validated, name: 'Articles', blocks: [] }, { settings: { ...options?.settings, seoTitle: 'Articles' } }, generatedNavbars[0])
+    const archive = exportSiteToHTML({ ...validated, name: 'Articles', blocks: [] }, { settings: { ...options?.settings, seoTitle: 'Articles' }, translationAssetPath: translationAssetPath ? `../${translationAssetPath}` : undefined }, generatedNavbars[0])
       .replace('</head>', canonicalBase ? `  <link rel="canonical" href="${escapeHtml(new URL('articles/index.html', canonicalBase).href)}" />\n  <meta property="og:url" content="${escapeHtml(new URL('articles/index.html', canonicalBase).href)}" />\n</head>` : '</head>')
       .replace('<main id="main-content" tabindex="-1" class="@container"></main>', content)
     zip.file('articles/index.html', archive, { date: new Date('1980-01-01T00:00:00Z') })
@@ -1625,7 +1649,7 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
         matches.forEach(function(page) { var item = document.createElement('li'); var link = document.createElement('a'); link.href = page.href; link.textContent = page.title; link.className = 'text-green hover:underline'; item.appendChild(link); results.appendChild(item); });
       });
     </script>`
-    const searchPage = exportSiteToHTML({ ...validated, name: 'Search', blocks: [] }, { settings: { ...options.settings, seoTitle: 'Search' } }, generatedNavbars[1])
+    const searchPage = exportSiteToHTML({ ...validated, name: 'Search', blocks: [] }, { settings: { ...options.settings, seoTitle: 'Search' }, translationAssetPath }, generatedNavbars[1])
       .replace('</head>', '<meta name="robots" content="noindex" />\n</head>')
       .replace('<main id="main-content" tabindex="-1" class="@container"></main>', searchContent)
       .replace('</body>', `${searchScript}\n</body>`)
@@ -1651,6 +1675,7 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     .flatMap(block => (block.props.images as { src?: string }[]).map(image => image?.src))))
   const galleryThumbnails = new Map<string, { src: string; width: number; height: number }>()
   for (const path of referencedPaths) {
+    if (path === translationAssetPath) throw new Error('A media file uses the reserved website translation asset path. Rename or replace that media file before exporting.')
     const asset = media.find(item => item.path === path)
     if (!asset) throw new Error(`Missing media file: ${path}.`)
     if (!(asset.content instanceof Blob) || asset.content.size !== asset.size || !/^[a-f0-9]{64}$/i.test(asset.sha256)) throw new Error(`Media integrity check failed for ${asset.name}. Restore or replace the file before exporting.`)
@@ -1702,7 +1727,7 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
       })
       return { ...block, props: { ...block.props, images } }
     })
-    let html = exportSiteToHTML({ ...validated, name: page.name, blocks }, { settings: pageSettings })
+    let html = exportSiteToHTML({ ...validated, name: page.name, blocks }, { settings: pageSettings, translationAssetPath })
       .replace('</head>', canonicalBase ? `  <link rel="canonical" href="${escapeHtml(new URL(encodeURI(paths[index]), canonicalBase).href)}" />\n  <meta property="og:url" content="${escapeHtml(new URL(encodeURI(paths[index]), canonicalBase).href)}" />\n</head>` : '</head>')
       .replace('<main id="main-content" tabindex="-1" class="@container">', `<main id="main-content" tabindex="-1" class="@container">${articleHeader}`)
       .replace(/\b(src|href|data)="assets\//g, `$1="${prefix}assets/`)

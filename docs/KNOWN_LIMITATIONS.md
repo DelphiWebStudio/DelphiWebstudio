@@ -42,7 +42,7 @@ The numbered list records the original M0 baseline and is retained as historical
 14. Production JS chunk exceeds 500 kB. No performance budget established.
 15. License history is preserved; redistribution notices/fonts/media/models/native runtimes still need final packaging audit.
 
-No application/site was deployed in M0. Translation is deferred by owner instruction.
+No application/site was deployed in M0. Translation was deferred at that stage; the November 19, 2026 source update adds optional visitor translation to exported websites. See [website translation](WEBSITE_TRANSLATION.md) for current behavior and service limits.
 
 ## Historical M3 media increment (October 2026)
 

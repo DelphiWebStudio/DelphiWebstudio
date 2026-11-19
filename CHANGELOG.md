@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased website translation - 2026-11-19
+
+- Added one Website translation checkbox under Project settings. Existing projects remain off; enabling it adds the automatic floating selector to all exported pages without owner language configuration.
+- Reused the Atlas website's fixed 35-language preset, bilingual alphabetical labels and right-to-left support. Translation runs in the website browser and leaves project wording unchanged.
+- Kept the external service outside the privileged editor, packaged one local selector asset with nested/generated page paths, and limited local review connections to the translation endpoint when that asset is present.
+- Kept enlarged-photo captions and calendar month changes in the visitor's selected language, preserved the current month when switching languages, and bounded the language menu on narrow screens.
+- Updated the User and Engineering Guides and documented external-service requirements, provider terms, privacy and removal through re-export.
+
 ## Installer and privacy refresh - 2026-11-19
 
 - Corrected installation to writable custom folders by keeping Start Menu and Desktop shortcuts under the current Windows user. The original error is now logged before rollback.

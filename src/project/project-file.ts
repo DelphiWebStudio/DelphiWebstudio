@@ -259,6 +259,7 @@ export function parseProjectFile(contents: string): { project: SiteProjectFile; 
     if (source.settings !== undefined) {
       const settings = record(source.settings, 'Project settings')
       if ('deployAccessKey' in settings) throw new Error('Remove the deployment credential from the project file before opening it.')
+      if (settings.websiteTranslation !== undefined && typeof settings.websiteTranslation !== 'boolean') throw new Error('Website translation must be true or false.')
     }
     return {
       project: { ...structuredClone(source), format: 'webstudio', schemaVersion: 2, projectId, config: validateProjectConfig(source.config) },
@@ -274,6 +275,7 @@ export function serializeProjectFile(project: SiteProjectFile): string {
   if (project.settings !== undefined && 'deployAccessKey' in record(project.settings, 'Project settings')) {
     throw new Error('Deployment credentials cannot be saved in a project file.')
   }
+  if (project.settings?.websiteTranslation !== undefined && typeof project.settings.websiteTranslation !== 'boolean') throw new Error('Website translation must be true or false.')
   inspectContent(project)
   return JSON.stringify({ ...project, config: validateProjectConfig(project.config) }, null, 2) + '\n'
 }

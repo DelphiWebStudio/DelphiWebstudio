@@ -53,7 +53,7 @@ Retain React and upstream layout. Introduce a portable versioned project and loc
 
 Delphi forms use design-time .fmx/.dfm components and Object Inspector settings. Embedded React canvas is the owner-approved runtime UI exception. Prefer FMX Windows x64; validate an actual WebView2 binding before selecting it. Document any VCL fallback decision.
 
-Owner folders are additive: bin, dcu, docs/guides, docs/pdf, export, help, images and icons, samples, source distributions, tools. Retain src/api/public/tests where upstream expects them. Ignore generated/personal content. GTranslate is deferred until the main application is written.
+Owner folders are additive: bin, dcu, docs/guides, docs/pdf, export, help, images and icons, samples, source distributions, tools. Retain src/api/public/tests where upstream expects them. Ignore generated/personal content. GTranslate was deferred in this original baseline. The November 19, 2026 source update now supports optional visitor translation in exports; see [website translation](WEBSITE_TRANSLATION.md) and the current Engineering Guide.
 
 ## M1 first increment
 
