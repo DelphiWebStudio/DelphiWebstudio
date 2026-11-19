@@ -31,7 +31,7 @@ try {
     foreach ($folder in @('guides', 'pdf')) {
       Copy-Item -LiteralPath (Join-Path $projectRoot "docs\$folder") -Destination $docs -Recurse
     }
-    foreach ($name in @('PRIVACY.md', 'RECOVERY.md', 'KNOWN_LIMITATIONS.md', 'COMPATIBILITY.md', 'RELEASE_1_0_REVIEW.md', 'THIRD_PARTY_LICENSE_TEXTS.txt', 'WEBVIEW2_SDK_LICENSE.txt', 'GEMINI_ASSISTANT.md', 'GEMINI_TEXT_ASSISTANCE.md', 'GEMINI_PAGE_ASSISTANCE.md')) {
+    foreach ($name in @('PRIVACY.md', 'RECOVERY.md', 'KNOWN_LIMITATIONS.md', 'COMPATIBILITY.md', 'RELEASE_1_0_REVIEW.md', 'THIRD_PARTY_LICENSE_TEXTS.txt', 'WEBVIEW2_SDK_LICENSE.txt', 'GEMINI_ASSISTANT.md', 'GEMINI_TEXT_ASSISTANCE.md', 'GEMINI_PAGE_ASSISTANCE.md', 'WEBSITE_TRANSLATION.md')) {
       Copy-Item -LiteralPath (Join-Path $projectRoot "docs\$name") -Destination $docs
     }
     # Retain complete build inputs as deliverables, independently of temporary output.

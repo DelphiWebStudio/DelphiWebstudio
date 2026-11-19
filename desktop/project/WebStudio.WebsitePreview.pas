@@ -13,6 +13,7 @@ type
     FHandle: THandle;
     FPrefix: string;
     FHost: string;
+    FWebsiteTranslation: Boolean;
     procedure Serve(Context: TIdContext; Request: TIdHTTPRequestInfo;
       Response: TIdHTTPResponseInfo);
   public
@@ -26,6 +27,7 @@ implementation
 uses Winapi.Windows, System.SysUtils, System.IOUtils, IdGlobal;
 
 constructor TWebsitePreview.Create(const FileName, Token: string);
+var TranslationIndex: Integer;
 begin
   inherited Create;
   FHandle := CreateFile(PChar(FileName), GENERIC_READ or _DELETE, FILE_SHARE_READ or FILE_SHARE_DELETE,
@@ -36,6 +38,9 @@ begin
   FArchive.Open(FFile, zmRead);
   if (FArchive.FileCount > 10000) or (FArchive.IndexOf('index.html') < 0) then
     raise EArgumentException.Create('The preview package must contain a website index.');
+  TranslationIndex := FArchive.IndexOf('assets/translation-selector.js');
+  if TranslationIndex >= 0 then
+    FWebsiteTranslation := FArchive.FileName[TranslationIndex] = 'assets/translation-selector.js';
   FPrefix := '/' + Token + '/';
   FServer := TIdHTTPServer.Create(nil);
   FServer.DefaultPort := 0;
@@ -80,6 +85,9 @@ begin
   Response.CustomHeaders.Values['Referrer-Policy'] := 'no-referrer';
   Response.CustomHeaders.Values['Content-Security-Policy'] :=
     'form-action ''none''; connect-src ''self''; frame-ancestors ''self''';
+  if FWebsiteTranslation then
+    Response.CustomHeaders.Values['Content-Security-Policy'] :=
+      'form-action ''none''; connect-src ''self'' https://translate-pa.googleapis.com; frame-ancestors ''self''';
   if not SameText(Request.RawHeaders.Values['Host'], FHost) or
     not Request.Document.StartsWith(FPrefix) then Exit;
   if (Request.Command <> 'GET') and (Request.Command <> 'HEAD') then begin

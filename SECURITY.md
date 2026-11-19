@@ -1,6 +1,6 @@
 # Security
 
-Last reviewed November 18, 2026 for version 1.0.0 build 1.
+Last reviewed November 19, 2026 for the local review update to version 1.0.0 build 1.
 
 The Windows desktop editor displays its interface in Microsoft Edge WebView2. A narrow communication bridge connects that interface to native operations such as file dialogs. The host checks the editor origin and uses session-scoped capabilities for native requests. It blocks navigation away from the local editor, cancels child-frame navigation and unsolicited new windows, and denies permission requests apart from the explicitly allowed local download case. Imports, project paths and recognized link protocols are validated. Imported source, custom code and external media still require review before use.
 
@@ -15,3 +15,5 @@ On November 18, full source/API/test lint, TypeScript, Vite, both native Release
 The optional legacy serverless `api` handlers are excluded from desktop installers and exported websites. Hosting them requires separate authentication, authorization, quotas and service credentials. Copying this repository to a public server does not provide those controls. The site checker reports specific content and link findings; it does not certify accessibility or overall site safety.
 
 Never commit credentials, private projects, keys, model weights or personal site exports. Report vulnerabilities privately to the repository owner and keep secrets and private project files out of public issues. Owner installation observations are recorded in the [release review](docs/RELEASE_1_0_REVIEW.md); no fresh-Windows VM test, independent security assessment or provider-specific public deployment was performed for this update.
+
+Optional website translation loads GTranslate only in exported pages and their separate browser review. No vendor script is added to the privileged WebView2 editor or its React canvas. Exports with the packaged translation helper receive a narrowly scoped local-review connection allowance for `https://translate-pa.googleapis.com`; other reviews retain `connect-src 'self'`. Local-review form submission and framing protections remain in place. The feature requires external service access, sends page text for translation and uses the provider's current terms; it does not use a saved Gemini key. See [website translation](docs/WEBSITE_TRANSLATION.md).

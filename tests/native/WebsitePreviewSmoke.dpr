@@ -7,7 +7,7 @@ uses
   WebStudio.WebsitePreview in '..\..\desktop\project\WebStudio.WebsitePreview.pas';
 
 var
-  ArchivePath, Root: string;
+  ArchivePath, Root, Policy: string;
   Archive: TZipFile;
   Preview: TWebsitePreview;
   Client: TIdHTTP;
@@ -41,6 +41,10 @@ begin
           raise Exception.Create('PDF content type was incorrect.');
         if Pos('form-action', Client.Response.RawHeaders.Values['Content-Security-Policy']) = 0 then
           raise Exception.Create('Preview form protection is missing.');
+        Policy := Client.Response.RawHeaders.Values['Content-Security-Policy'];
+        if (Pos('connect-src ''self'';', Policy) = 0) or
+          (Pos('googleapis.com', Policy) > 0) then
+          raise Exception.Create('A website without translation gained external connection access.');
         Rejected := False;
         try Client.Get(StringReplace(Preview.Address, '/test-token/', '/wrong/', []))
         except on E: EIdHTTPProtocolException do Rejected := E.ErrorCode = 404 end;
@@ -48,7 +52,26 @@ begin
       finally Client.Free end;
     finally Preview.Free end;
     if TFile.Exists(ArchivePath) then raise Exception.Create('Preview archive was retained.');
-    Writeln('Website preview smoke passed.');
+    Archive := TZipFile.Create;
+    try
+      Archive.Open(ArchivePath, zmWrite);
+      Archive.Add(TEncoding.UTF8.GetBytes('<h1>Translation preview</h1>'), 'index.html');
+      Archive.Add(TEncoding.UTF8.GetBytes('// Translation selector fixture'), 'assets/translation-selector.js');
+    finally Archive.Free end;
+    Preview := TWebsitePreview.Create(ArchivePath, 'translation-test');
+    try
+      Client := TIdHTTP.Create(nil);
+      try
+        Client.Get(Preview.Address);
+        Policy := Client.Response.RawHeaders.Values['Content-Security-Policy'];
+        if (Pos('connect-src ''self'' https://translate-pa.googleapis.com;', Policy) = 0) or
+          (Pos('form-action ''none'';', Policy) = 0) or
+          (Pos('frame-ancestors ''self''', Policy) = 0) or (Pos('*', Policy) > 0) then
+          raise Exception.Create('Translation preview connection policy is incorrect.');
+      finally Client.Free end;
+    finally Preview.Free end;
+    if TFile.Exists(ArchivePath) then raise Exception.Create('Translation preview archive was retained.');
+    Writeln('Website preview smoke passed, including opt-in translation connection policy.');
   finally
     if TFile.Exists(ArchivePath) then TFile.Delete(ArchivePath);
   end;

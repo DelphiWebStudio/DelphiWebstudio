@@ -28,10 +28,10 @@ function useSettingsState() {
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const data: Record<string, string> = Object.fromEntries(
-    Object.entries(projectSettings).map(([k, v]) => [k, v || ''])
+    Object.entries(projectSettings).map(([k, v]) => [k, typeof v === 'string' ? v : ''])
   )
 
-  const update = (key: string, value: string) => {
+  const update = (key: string, value: string | boolean) => {
     if (activeProjectId) {
       updateProjectSettings(activeProjectId, { [key]: value } as Partial<ProjectSettings>)
     }
@@ -44,7 +44,7 @@ function useSettingsState() {
     return () => { if (savedTimer.current) clearTimeout(savedTimer.current) }
   }, [])
 
-  return { data, update, showSaved }
+  return { data, update, showSaved, websiteTranslation: projectSettings.websiteTranslation === true }
 }
 
 function FieldGroup({ label, children }: { label: string; children: React.ReactNode }) {
@@ -107,6 +107,20 @@ function GeneralPanel({ settings }: { settings: ReturnType<typeof useSettingsSta
           <option>English</option><option>German</option><option>Spanish</option><option>French</option>
         </select>
       </FieldGroup>
+      <div className="mb-5 rounded-lg border border-border-default bg-bg-2 p-4">
+        <label className="flex items-start gap-2.5 text-[13px] font-medium text-text-0">
+          <input type="checkbox" checked={settings.websiteTranslation}
+            onChange={event => settings.update('websiteTranslation', event.target.checked)}
+            aria-describedby="website-translation-description"
+            className="mt-0.5 accent-green" />
+          Website translation
+        </label>
+        <div id="website-translation-description" className="ml-6 mt-2 space-y-2 text-[12px] leading-relaxed text-text-2">
+          <p>Add the floating language selector to every exported page. It automatically detects the visitor’s browser language and offers a built-in list of languages. No language setup is needed.</p>
+          <p>GTranslate processes displayed page text online; your saved wording stays unchanged. Free use is limited to qualifying noncommercial sites. See the User Guide for service terms.</p>
+          <p>To try the translator, use Export → Review files → Open reviewed site in browser. The editor’s Preview shows your original content.</p>
+        </div>
+      </div>
     </div>
   )
 }

@@ -24,6 +24,7 @@ SFTP, the SSH File Transfer Protocol, uploads exported website files through an 
 - Format text, clean pasted wording, adjust paragraph spacing, use Windows spelling suggestions and add words to a personal dictionary.
 - Ask Gemini to improve selected wording, create an editable page or section, or propose changes to existing components; review, refine, apply and undo the result.
 - Save portable projects with their media, check page descriptions and heading structure, export independent HTML pages with their assets, and review the website locally before publishing.
+- Offer visitors an optional floating language selector throughout the exported website, with automatic browser-language detection and a built-in language list.
 
 A project is the editable source of your website. JSON (JavaScript Object Notation) is the structured text format that describes its content and layout; a project ZIP can package that description together with imported media. A website export contains the visitor pages and their supporting files. Saving or exporting does not publish a site. See [project files](docs/PROJECT_FILES.md), [editor experience](docs/EDITOR_EXPERIENCE.md) and [media library](docs/MEDIA_LIBRARY.md).
 
@@ -52,6 +53,8 @@ The assistant starts with a choice of Create or Edit existing content. Selected 
 Add a short description under each page's Search details; a site-wide description supplies a fallback. A page's main heading is marked H1 in the generated website, while H2 introduces a subordinate section. If a banner image contains the page title, its Page heading field can provide that main heading to assistive technology without adding duplicate visible lettering.
 
 Run Check site, then open Export and choose Review files. Resolve the findings that apply, download the reviewed ZIP, and use Open reviewed site in browser to test the generated pages locally. Keep the editor running for this temporary preview and choose Stop local preview when finished. Contact/address columns in a footer are ordinary information; intended navigation labels still need working destinations. The checker helps find specific omissions but does not certify accessibility, external links or security.
+
+For visitor translation, enable **Website translation** under Settings → Project settings before preparing the export. GTranslate is the online service that supplies the floating language selector. The built-in preset detects the visitor's browser language automatically and offers 35 languages with English and native names. No language list needs configuring. The original project wording stays unchanged; use the reviewed website in a browser to try translation. Existing projects keep this option off. This feature is part of the November 19 source/local review update; earlier published installers do not include it. See [website translation](docs/WEBSITE_TRANSLATION.md) for the procedure, service requirements and limits.
 
 ## Development and release checks
 

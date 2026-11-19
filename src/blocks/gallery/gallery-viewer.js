@@ -16,7 +16,8 @@ export function connectGalleryViewer(gallery) {
 
     event.preventDefault()
     event.stopPropagation()
-    const text = thumbnail.dataset.wsGalleryCaption?.trim() ?? ''
+    const source = thumbnail.parentElement?.querySelector('[data-ws-gallery-caption-source]')
+    const text = source?.textContent?.trim() || thumbnail.dataset.wsGalleryCaption?.trim() || ''
     caption.textContent = text
     caption.hidden = !text
     caption.parentElement.dataset.caption = String(!!text)

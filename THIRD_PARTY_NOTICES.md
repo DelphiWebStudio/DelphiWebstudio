@@ -1,6 +1,6 @@
 # Third party inventory and notices
 
-Reviewed November 15, 2026 for Delphi Web Studio Pro 1.0.0 build 1.
+Dependency inventory reviewed November 15, 2026 for Delphi Web Studio Pro 1.0.0 build 1. Optional translation service notice added November 19, 2026.
 
 OpenPage copyright (c) 2026 Federico De Ponte is preserved under the repository MIT license. Keep LICENSE and the attribution with redistributed software.
 
@@ -9,6 +9,8 @@ The desktop payload contains the native executable, its architecture-matched Mic
 `docs/THIRD_PARTY_LICENSE_TEXTS.txt` contains the license/notice texts from installed non-development packages, including conservative build/optional entries. JSZip is used under its offered MIT license. PDF.js is Apache-2.0; its included license text is retained. No additional font files or AI model weights are included in this release payload.
 
 Both architecture-matched WebView2 loaders have valid Microsoft signatures. The SDK license is included as `docs/WEBVIEW2_SDK_LICENSE.txt`; the separately installed Runtime has its own terms. Windows OpenSSH is an optional Windows feature and is not copied into the installer. The native application links the Delphi runtime rather than shipping development tools or BPL packages; the owner's RAD Studio redistribution terms still apply.
+
+Optional website translation uses the externally hosted GTranslate widget. Its vendor runtime is loaded by the visitor's browser when translation is enabled; it is not copied into the editor or distributed under this repository's MIT license. The exported local selector asset configures the widget and its language labels. GTranslate's [service terms](https://gtranslate.io/terms) and [privacy policy](https://gtranslate.io/privacy-policy) apply to that online service; free use is restricted to qualifying noncommercial activities. See [website translation](docs/WEBSITE_TRANSLATION.md).
 
 | Package | Version | Declared license | Lockfile scope |
 | --- | --- | --- | --- |

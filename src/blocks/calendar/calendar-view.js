@@ -4,11 +4,16 @@ export function connectCalendar(calendar) {
   const days = calendar.querySelector('[data-ws-calendar-days]')
   const agenda = calendar.querySelector('[data-ws-calendar-events]')
   const empty = calendar.querySelector('[data-ws-calendar-empty]')
-  const formatMonth = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' })
   const today = new Date()
   let month = new Date(today.getFullYear(), today.getMonth(), 1)
 
   function displayMonth() {
+    let formatMonth
+    try {
+      formatMonth = new Intl.DateTimeFormat(document.documentElement.dataset.translationLanguage || 'en-US', { month: 'long', year: 'numeric' })
+    } catch {
+      formatMonth = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' })
+    }
     label.textContent = formatMonth.format(month)
     const year = month.getFullYear()
     const index = month.getMonth()
@@ -53,13 +58,17 @@ export function connectCalendar(calendar) {
     displayMonth()
   }
 
-  const observer = new MutationObserver(displayMonth)
+  const observer = new MutationObserver(changes => {
+    if (changes.some(change => change.type === 'attributes' || change.target === agenda)) displayMonth()
+  })
   observer.observe(agenda, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-ws-event-date'] })
   monthPanel.addEventListener('click', changeMonth)
+  window.addEventListener('webstudio.translationchange', displayMonth)
   displayMonth()
   monthPanel.hidden = false
   return () => {
     observer.disconnect()
     monthPanel.removeEventListener('click', changeMonth)
+    window.removeEventListener('webstudio.translationchange', displayMonth)
   }
 }

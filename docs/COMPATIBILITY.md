@@ -1,6 +1,6 @@
 # Compatibility contract
 
-Reviewed November 18, 2026 for version 1.0.0 build 1.
+Reviewed November 19, 2026 for the local review update to version 1.0.0 build 1.
 
 The desktop editions are a 32-bit Windows application (Win32) and a 64-bit application (Win64). They target Windows 10/11 and display the editor through Microsoft Edge WebView2 Runtime. Win32 also runs on Windows x64; choose Win64 for a 64-bit system. Native forms remain editable in RAD Studio 37.0, the Delphi development environment. React supplies the visual canvas, the owner-approved runtime interface.
 
@@ -13,5 +13,7 @@ Website export produces independent HTML pages with referenced assets and suppor
 Page descriptions supply search-result summaries, with a site description as fallback. H1 denotes the main page heading and H2 a subordinate section. An Image block's Page heading supplies a clipped H1 for banner artwork without adding visible lettering; Footer column headings use H2 with their existing appearance. Plain contact/address columns are not navigation, while intended legacy navigation labels still need destinations. These semantics are shared by editor rendering and website export.
 
 Optional Gemini assistance requires internet access and the Windows-saved Google key for a Free-tier project with billing disabled. The app cannot verify billing status. Accepted components remain ordinary project content, and exported websites do not depend on Gemini. Optional local AI and serverless API endpoints have separate requirements. SFTP uses Windows OpenSSH Client and a compatible host with the user's account/key and trusted-host details.
+
+Optional Website translation adds the fixed GTranslate floating selector throughout exported pages. It detects browser language automatically and requires an internet connection. Editor Preview retains original wording; use the reviewed website browser for actual translation. Existing projects remain off, and disabling it removes translation from subsequent exports. See [website translation](WEBSITE_TRANSLATION.md) for provider terms and limits.
 
 Preserve the upstream MIT license and attribution. New features must keep editor, Preview, saved project and exported-site behavior consistent. See the illustrated guides and [release review](RELEASE_1_0_REVIEW.md) for exact validation evidence and its limits.

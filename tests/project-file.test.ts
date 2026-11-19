@@ -181,6 +181,23 @@ describe('portable project files', () => {
     expect(() => parseProjectFile(JSON.stringify({ ...project, settings: { deployAccessKey: 'secret' } }))).toThrow('credential')
   })
 
+  it('preserves the website translation choice without enabling it for older projects', () => {
+    const project = createProjectFile(legacy as SiteConfig, 'translation-project')
+    const older = parseProjectFile(serializeProjectFile(project)).project
+    expect(older.settings?.websiteTranslation).toBeUndefined()
+    for (const enabled of [true, false]) {
+      const settings = { websiteTranslation: enabled, webmasterEmail: 'contact@nowhere.com', future: { retained: true } }
+      const reopened = parseProjectFile(serializeProjectFile({ ...project, settings })).project
+      expect(reopened.settings).toEqual(settings)
+      expect(reopened.config).toEqual(project.config)
+    }
+    for (const invalid of ['true', 'on', 1, null]) {
+      const invalidProject = { ...project, settings: { websiteTranslation: invalid } }
+      expect(() => serializeProjectFile(invalidProject)).toThrow('Website translation must be true or false')
+      expect(() => parseProjectFile(JSON.stringify(invalidProject))).toThrow('Website translation must be true or false')
+    }
+  })
+
   it('rejects missing, mismatched, or duplicate media references before open or save', () => {
     const assets = [{ id: 'one', path: 'assets/one-image.png' }, { id: 'two', path: 'assets/two-image.png' }]
     const config = { name: 'Media', blocks: [{ id: 'img', type: 'image', variant: 'grid', props: { assetId: 'one', src: 'assets/one-image.png', images: [{ src: 'assets/two-image.png' }] } }] } as SiteConfig

@@ -1,6 +1,6 @@
 # Delphi Web Studio Pro privacy notice
 
-Last changed: 2026-11-16
+Last changed: 2026-11-19
 
 This notice describes Delphi Web Studio Pro 1.0.0 build 1 for Windows. Third-party services, browser builds, and future versions fall outside its scope.
 
@@ -19,6 +19,10 @@ Local AI uses a model, the software that generates suggestions, on this computer
 **Open reviewed site in browser** serves the reviewed website ZIP to a browser on this computer over a temporary loopback address. The preview can load external resources referenced by the site. The temporary ZIP is removed when you stop the preview or close the editor. The Microsoft Edge WebView2 Runtime may collect and send diagnostic information as described in [Microsoft's WebView2 data and privacy documentation](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/data-privacy).
 
 The optional **AI assistant** creates pages and sections and proposes edits to existing components. Creation sends the request, supplied facts, a bounded text extract from one reference page, selected theme values and page names/addresses. Existing-edit mode sends the selected target's listed properties and text, page names/addresses, and up to six recent requests/results with their review states. Selecting the whole page includes that page's components. With separate catalog permission, filenames, logical folders, types, dimensions and asset IDs are included so existing media can be selected. Original media bytes, local paths, other pages' body text, raw HTML, credentials and saved connection settings are excluded. Selected content can still contain private wording; review the sharing statement before sending it. The saved key authenticates in a header. Preview leaves the project unchanged; Apply commits a reviewed, undoable transaction. Conversation and proposals stay in memory in the window. This command cannot execute generated code, publish, upload files or send email. See [Gemini assistant](GEMINI_ASSISTANT.md) for controls and limits.
+
+The optional **Website translation** setting adds GTranslate's floating language selector to the exported website. GTranslate is a separate online website translation service; it detects the visitor's browser language and processes webpage text through its translation service. It loads an external widget from `cdn.gtranslate.net` and currently makes translation requests to `translate-pa.googleapis.com`. This service runs in the reviewed website browser and deployed site, not inside the editing canvas. It does not use the editor's Gemini credential or rewrite the saved project. Visitors' browser language and the service's stored language preference can influence the displayed language. Review [GTranslate's privacy policy](https://gtranslate.io/privacy-policy) before enabling it. Existing projects keep translation off unless selected.
+
+Clearing Website translation removes the service from the next export. A deployed copy continues using the files previously uploaded until the owner replaces them. The app does not remove a visitor's stored browser preferences remotely.
 
 ## Retention and removal
 
