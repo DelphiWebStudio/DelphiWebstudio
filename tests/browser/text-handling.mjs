@@ -31,7 +31,7 @@ try {
     assert.match(native, /^http:\/\/127\.0\.0\.1:\d+$/);
     browser = await chromium.connectOverCDP(native);
   } else {
-    vite = await createServer({ server: { host: '127.0.0.1', port: 0 }, appType: 'spa', ssr: { noExternal: ['pdfjs-dist'] } });
+    vite = await createServer({ server: { host: '127.0.0.1', port: 0, watch: { ignored: ['**/bin/**', '**/dcu/**', '**/docs/**', '**/export/**', '**/Projects/**', '**/Website Test/**', '**/test-results/**', '**/*.tmp'] } }, appType: 'spa', ssr: { noExternal: ['pdfjs-dist'] } });
     await vite.listen();
     browser = await chromium.launch({ executablePath: process.env.WEBSTUDIO_EDGE, headless: true });
   }
@@ -73,9 +73,10 @@ try {
   }
   await select('Visit our'); await context();
   const menu = page.getByRole('menu', { name: 'Text context menu' });
-  assert((await fits(menu, true)).height < 300, 'Default context menu stays compact');
+  await fits(menu, true);
+  assert.equal(await menu.locator('details:not([open])').count(), 0, 'Ordinary text commands are not hidden behind a disclosure');
+  assert(await menu.getByRole('menuitem', { name: 'Keep source formatting', exact: true }).isVisible(), 'Paste formatting choices appear immediately');
   await menu.screenshot({ path: path.join(output, `${native ? 'desktop' : 'browser'}-context.png`) });
-  await menu.getByText('Paste options', { exact: true }).click();
   await fits(menu);
   await page.keyboard.press('Escape');
   await select('Visit our', true); await context();
@@ -146,7 +147,6 @@ try {
   // Mock only this test page's Clipboard API; never overwrite the user's clipboard.
   await page.evaluate(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { read: async () => [{ types: ['text/html', 'text/plain'], getType: async type => new Blob([type === 'text/html' ? '<h2 style="font-size:44px;color:#ff0000">Source&nbsp;&nbsp;heading <a href="/visit">visit</a></h2>' : 'Source  heading visit'], { type }) }] } }));
   await select('This paragraph stays unchanged.'); await context();
-  await menu.getByText('Paste options', { exact: true }).click();
   await menu.getByRole('menuitem', { name: 'Keep source formatting', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('[data-rich-editor="body"]')?.textContent.includes('Source'));
   assert.match(await editor.innerHTML(), /44px/);
@@ -159,7 +159,7 @@ try {
   await select('Source'); await context();
   if (!native) {
     await page.setViewportSize({ width: 600, height: 420 }); await fits(menu);
-    await menu.getByText('Paste options', { exact: true }).click(); await fits(menu);
+    await fits(menu);
     await menu.getByRole('menuitem', { name: 'Paragraph settings…' }).click(); await fits(dialog);
   }
   await page.keyboard.press('Escape');
@@ -182,7 +182,7 @@ try {
   await fits(page.getByRole('menu', { name: 'Object actions' }), true);
   await page.keyboard.press('Escape');
   assert.deepEqual(errors, [], 'No runtime errors');
-  console.log(`PASS ${native ? 'desktop' : 'browser'}: compact/upward menu, paragraph scope/spacing/indents, undo/redo/cancel, match/source/plain paste, reset with links${native ? '' : ', saved-project round trip and export at desktop/tablet/phone'}.`);
+  console.log(`PASS ${native ? 'desktop' : 'browser'}: full/upward menu, paragraph scope/spacing/indents, undo/redo/cancel, match/source/plain paste, reset with links${native ? '' : ', saved-project round trip and export at desktop/tablet/phone'}.`);
 } finally {
   await browser?.close(); await vite?.close();
   await rm(fixture, { force: true });

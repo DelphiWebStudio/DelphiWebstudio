@@ -2,7 +2,16 @@
 
 ## Current editor controls
 
-Build 2 makes page maintenance available through **Page tools → Page settings** and a page-tab right click. Review the page name, current and proposed address, exported filename and supported link updates before saving. Related child addresses change only when explicitly selected. The whole operation supports one Undo/Redo step; [page names and addresses](PAGE_ADDRESSES.md) gives the procedure and explains which links require manual review.
+Last changed: November 20, 2026. Current application version: 1.0.0 build 3.
+
+A text box is an independent object that you can position within a section or panel. Choose **Add text** from the left panel or the canvas right-click menu, then click where it belongs; both commands use the same placement mode. If the destination cannot be used, placement remains active and explains where to click instead of creating content elsewhere. Press Escape to cancel. An empty page receives its initial content section when you place the first object.
+
+New text is ready for typing. To move its box, drag the visible blue **Move** control; you do not have to leave text editing first. Pending wording is saved before the move. Click the wording to continue editing, or use the box's resize handles to change its dimensions. A move to another valid section keeps the moved object selected.
+
+Right-click editable wording to see the ordinary text actions and the three paste choices immediately. **Text settings** and **Paragraph settings** still open their respective formatting controls. The menu stays within the screen and scrolls when necessary; Windows spelling suggestions and the personal dictionary remain available through the native spelling menu.
+
+
+Page maintenance is available through **Page tools → Page settings** and a page-tab right click. Review the page name, current and proposed address, exported filename and supported link updates before saving. Related child addresses change only when explicitly selected. The whole operation supports one Undo/Redo step; [page names and addresses](PAGE_ADDRESSES.md) gives the procedure and explains which links require manual review.
 
 **Check site** now adds conservative checks of explicit solid text/background colors and can open, scroll to and focus the affected object. The Windows edition offers a separate, user-started external-link status check. Confirmed missing pages are separated from blocked or unverified responses. Expand **Keyboard and form review** for a guided browser review of focus, controls and narrow layouts; these steps complement the automated findings without claiming complete accessibility testing.
 

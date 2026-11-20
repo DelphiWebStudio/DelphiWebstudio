@@ -1,6 +1,6 @@
 # Known limitations
 
-Current release review November 19, 2026 - version 1.0.0 build 2.
+Current release review November 20, 2026 - version 1.0.0 build 3.
 
 - The owner tested installation/startup on existing Windows systems, including Win32 on a genuine 32-bit Windows 10 22H2 computer and both editions on a newer Windows 10 x64 computer. The old machine took about 4 minutes 33 seconds to load, although the editing tried afterward worked. Newer-machine observations are in [Compatibility](COMPATIBILITY.md). These are not minimum specifications or a clean-Windows test; startup depends on the machine and its WebView2 environment.
 - The application and installers are unsigned, so Windows can show publisher/reputation warnings. Microsoft Edge WebView2 Runtime, the browser engine embedded in the editor, is required. SFTP additionally needs Windows OpenSSH Client, the optional secure-shell tools; ordinary editing and export remain available without it.
@@ -15,7 +15,7 @@ Current release review November 19, 2026 - version 1.0.0 build 2.
 
 ## Current maintenance checks
 
-Build 2 adds permanent local test-folder refresh and optional Windows external-link checking. Folder refresh manages the files listed for that project and leaves unrelated files alone; its confirmation summarizes the operation and shows bounded filename examples. Keep the verified pre-refresh ZIPs until the refreshed output has been reviewed. If another editor changes a file during a failed refresh, automatic recovery preserves the newer edit and reports the ZIP for manual recovery instead of claiming that every previous byte was restored.
+The Windows edition supports permanent local test-folder refresh and optional external-link checking. Folder refresh manages the files listed for that project and leaves unrelated files alone; its confirmation summarizes the operation and shows bounded filename examples. Keep the verified pre-refresh ZIPs until the refreshed output has been reviewed. If another editor changes a file during a failed refresh, automatic recovery preserves the newer edit and reports the ZIP for manual recovery instead of claiming that every previous byte was restored.
 
 External checking reports response-header status, not the correctness or safety of the destination's content. Only HTTP/HTTPS standard ports and public network addresses are checked. Sign-in requirements, rate limits, timeouts and unsupported Windows networking options can produce an unverified result even for a working site. Closing Check site stops later batches and ignores late replies; the current bounded native batch can finish in the background. A 404 or 410 is reported as a missing page. Browser-only editing does not bypass cross-origin restrictions to manufacture a status result.
 

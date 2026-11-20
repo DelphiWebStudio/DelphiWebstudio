@@ -130,6 +130,66 @@ export function Canvas() {
           }
           return
         }
+        if (textPlacement && event.button === 0) {
+          event.preventDefault(); event.stopPropagation()
+          suppressCanvasClick.current = true
+          const editor = useEditorStore.getState()
+          const isPanel = textPlacement.kind === 'panel'
+          const isLine = textPlacement.kind === 'divider'
+          const kind = isLine ? 'line' : isPanel ? 'panel' : 'text'
+          if (textPlacement.projectId !== editor.activeProjectId || textPlacement.pageId !== useConfigStore.getState().activePageId) {
+            editor.setTextPlacement(null); toast.error(`The page changed. Select Add ${kind} again.`); return
+          }
+          const activeBlocks = useConfigStore.getState().getActivePageBlocks()
+          const targetBlock = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-webstudio-block-id]') : null
+          let section = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-editor-section]') : null
+          if (!section && targetBlock) {
+            const sections = Array.from(targetBlock.querySelectorAll<HTMLElement>('[data-editor-section]')).filter(element => element.closest('[data-webstudio-block-id]') === targetBlock)
+            section = sections.find(element => {
+              const bounds = element.getBoundingClientRect()
+              return event.clientX >= bounds.left && event.clientX <= bounds.right && event.clientY >= bounds.top && event.clientY <= bounds.bottom
+            }) ?? (sections.length === 1 ? sections[0] : null)
+          }
+          const sectionNumber = Number(section?.dataset.editorSection)
+          const blockId = section?.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id')
+          const block = activeBlocks.find(item => item.id === blockId)
+          const area = section?.querySelector<HTMLElement>(`[data-section-object-area="${sectionNumber}"]`)
+          if (!block || !area || sectionNumber < 1 || sectionNumber > 4) {
+            if (activeBlocks.length) { toast(`Click inside the section or panel where you want the ${kind}. Press Escape to cancel.`); return }
+            const meta = blockMetadata.find(item => item.type === 'content')
+            if (!meta) return
+            const id = `object-${crypto.randomUUID()}`, newBlockId = `block-${crypto.randomUUID()}`
+            const bounds = event.currentTarget.getBoundingClientRect()
+            const x = bounds.width ? Math.max(0, Math.min(70, (event.clientX - bounds.left) / bounds.width * 100)) : 0
+            const y = Math.max(0, event.clientY - bounds.top)
+            useConfigStore.getState().addBlock({ id: newBlockId, type: 'content', variant: meta.variants[0], props: { ...structuredClone(meta.defaultProps), title: '', body: '', section1Objects: [{ id, type: isLine ? 'divider' : isPanel ? 'panel' : 'text', text: isPanel ? 'Panel' : isLine ? '' : textPlacement.text || 'Text', color: isPanel ? '#b9aeb6' : '', textColor: '#000000', fontSize: textPlacement.fontSize || '', x, y, width: isLine && textPlacement.lineOrientation === 'vertical' ? 5 : 30, height: isLine ? (textPlacement.lineOrientation === 'vertical' ? 140 : 24) : isPanel ? 160 : 80, layer: 1, ...(isLine ? { lineOrientation: textPlacement.lineOrientation, lineStyle: textPlacement.lineStyle, lineThickness: textPlacement.lineThickness } : {}) }] } })
+            editor.setTextPlacement(null); selectBlock(newBlockId); editor.selectSection(1)
+            if (isPanel || isLine) editor.selectSectionObject({ blockId: newBlockId, section: 1, id })
+            else editor.setNewTextObjectId(id)
+            return
+          }
+          const bounds = area.getBoundingClientRect()
+          if (!bounds.width) { toast(`That section is not ready. Choose another location for the ${kind}.`); return }
+          const key = `section${sectionNumber}Objects`
+          const items = Array.isArray(block.props[key]) ? block.props[key] as Array<Record<string, unknown>> : []
+          const hitId = event.target instanceof Element ? event.target.closest('[data-section-object]')?.getAttribute('data-section-object') : null
+          const parent = items.find(item => item.id === hitId && item.type === 'panel') ?? [...items].filter(item => item.type === 'panel' && typeof item.id === 'string').sort((a, b) => (Number(b.layer) || 0) - (Number(a.layer) || 0)).find(item => {
+            const bounds = area.querySelector<HTMLElement>(`[data-section-object="${item.id}"]`)?.getBoundingClientRect()
+            return bounds && event.clientX >= bounds.left && event.clientX <= bounds.right && event.clientY >= bounds.top && event.clientY <= bounds.bottom
+          })
+          const id = `object-${crypto.randomUUID()}`
+          const left = !isPanel && parent ? Math.max(0, Number(parent.x) || 0) : 0
+          const right = !isPanel && parent ? Math.min(100, left + Math.max(5, Number(parent.width) || 30)) : 100
+          const x = Math.max(left, Math.min(right - 5, (event.clientX - bounds.left) / bounds.width * 100))
+          const width = Math.max(5, Math.min(isLine && textPlacement.lineOrientation === 'vertical' ? 5 : 30, right - x))
+          const y = Math.max(!isPanel && parent ? Number(parent.y) || 0 : 0, event.clientY - bounds.top)
+          const layer = Math.max(0, ...items.map(item => Number(item.layer) || 0)) + 1
+          useConfigStore.getState().updateBlockProps(block.id, { [key]: [...items, { id, type: isLine ? 'divider' : isPanel ? 'panel' : 'text', text: isPanel ? 'Panel' : isLine ? '' : textPlacement.text || 'Text', color: isPanel ? '#b9aeb6' : '', textColor: '#000000', fontSize: textPlacement.fontSize || '', x, y, width, height: isLine ? (textPlacement.lineOrientation === 'vertical' ? 140 : 24) : isPanel ? 160 : 80, layer, ...(!isPanel && parent ? { parentId: parent.id } : {}), ...(isLine ? { lineOrientation: textPlacement.lineOrientation, lineStyle: textPlacement.lineStyle, lineThickness: textPlacement.lineThickness } : {}) }] })
+          editor.setTextPlacement(null); selectBlock(block.id); editor.selectSection(sectionNumber)
+          if (isPanel || isLine) editor.selectSectionObject({ blockId: block.id, section: sectionNumber, id })
+          else editor.setNewTextObjectId(id)
+          return
+        }
         if (event.button === 0 && event.target instanceof Element && !event.target.closest('button,[contenteditable="true"]')) {
           const object = event.target.closest<HTMLElement>('[data-section-object]')
           const blockId = object?.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id')
@@ -204,49 +264,7 @@ export function Canvas() {
           } catch (error) { editor.setMovingCollage(null); toast.error(error instanceof Error ? error.message : 'The collage could not be moved.') }
           return
         }
-        if (!textPlacement || event.button !== 0) return
-        event.preventDefault(); event.stopPropagation()
-        useEditorStore.getState().setTextPlacement(null)
-        const isPanel = textPlacement.kind === 'panel'
-        const isLine = textPlacement.kind === 'divider'
-        if (textPlacement.projectId !== useEditorStore.getState().activeProjectId || textPlacement.pageId !== useConfigStore.getState().activePageId) { toast.error(`The page changed. Select Add ${isLine ? 'line' : isPanel ? 'panel' : 'text'} again.`); return }
-        const section = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-editor-section]') : null
-        const sectionNumber = Number(section?.dataset.editorSection)
-        const blockId = section?.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id')
-        const block = useConfigStore.getState().getActivePageBlocks().find(item => item.id === blockId)
-        const area = section?.querySelector<HTMLElement>(`[data-section-object-area="${sectionNumber}"]`)
-        if (!block || !area || sectionNumber < 1 || sectionNumber > 4) {
-          const meta = blockMetadata.find(item => item.type === 'content')
-          if (!meta) return
-          const id = `object-${crypto.randomUUID()}`
-          const newBlockId = `block-${crypto.randomUUID()}`
-          const bounds = event.currentTarget.getBoundingClientRect()
-          const x = bounds.width ? Math.max(0, Math.min(70, (event.clientX - bounds.left) / bounds.width * 100)) : 0
-          useConfigStore.getState().addBlock({ id: newBlockId, type: 'content', variant: meta.variants[0], props: { ...structuredClone(meta.defaultProps), title: '', body: '', section1Objects: [{ id, type: isLine ? 'divider' : isPanel ? 'panel' : 'text', text: isPanel ? 'Panel' : isLine ? '' : textPlacement.text || 'Text', color: isPanel ? '#b9aeb6' : '', textColor: '#000000', fontSize: textPlacement.fontSize || '', x, y: 0, width: isLine && textPlacement.lineOrientation === 'vertical' ? 5 : 30, height: isLine ? (textPlacement.lineOrientation === 'vertical' ? 140 : 24) : isPanel ? 160 : 80, layer: 1, ...(isLine ? { lineOrientation: textPlacement.lineOrientation, lineStyle: textPlacement.lineStyle, lineThickness: textPlacement.lineThickness } : {}) }] } })
-          selectBlock(newBlockId)
-          useEditorStore.getState().selectSection(1)
-          if (isPanel || isLine) useEditorStore.getState().selectSectionObject({ blockId: newBlockId, section: 1, id })
-          else useEditorStore.getState().setNewTextObjectId(id)
-          return
-        }
-        const bounds = area.getBoundingClientRect()
-        if (!bounds.width) return
-        const key = `section${sectionNumber}Objects`
-        const items = Array.isArray(block.props[key]) ? block.props[key] as Array<Record<string, unknown>> : []
-        const hitId = event.target instanceof Element ? event.target.closest('[data-section-object]')?.getAttribute('data-section-object') : null
-        const parent = items.find(item => item.id === hitId && item.type === 'panel') ?? [...items].filter(item => item.type === 'panel' && typeof item.id === 'string').sort((a, b) => (Number(b.layer) || 0) - (Number(a.layer) || 0)).find(item => {
-          const bounds = area.querySelector<HTMLElement>(`[data-section-object="${item.id}"]`)?.getBoundingClientRect()
-          return bounds && event.clientX >= bounds.left && event.clientX <= bounds.right && event.clientY >= bounds.top && event.clientY <= bounds.bottom
-        })
-        const id = `object-${crypto.randomUUID()}`
-        const x = Math.max(0, Math.min(70, (event.clientX - bounds.left) / bounds.width * 100))
-        const y = Math.max(0, event.clientY - bounds.top)
-        const layer = Math.max(0, ...items.map(item => Number(item.layer) || 0)) + 1
-        useConfigStore.getState().updateBlockProps(block.id, { [key]: [...items, { id, type: isLine ? 'divider' : isPanel ? 'panel' : 'text', text: isPanel ? 'Panel' : isLine ? '' : textPlacement.text || 'Text', color: isPanel ? '#b9aeb6' : '', textColor: '#000000', fontSize: textPlacement.fontSize || '', x, y, width: isLine && textPlacement.lineOrientation === 'vertical' ? 5 : 30, height: isLine ? (textPlacement.lineOrientation === 'vertical' ? 140 : 24) : isPanel ? 160 : 80, layer, ...(!isPanel && parent ? { parentId: parent.id } : {}), ...(isLine ? { lineOrientation: textPlacement.lineOrientation, lineStyle: textPlacement.lineStyle, lineThickness: textPlacement.lineThickness } : {}) }] })
-        selectBlock(block.id)
-        useEditorStore.getState().selectSection(sectionNumber)
-        if (isPanel || isLine) useEditorStore.getState().selectSectionObject({ blockId: block.id, section: sectionNumber, id })
-        else useEditorStore.getState().setNewTextObjectId(id)
+
       }}
       onPointerMove={event => {
         const group = groupDrag.current

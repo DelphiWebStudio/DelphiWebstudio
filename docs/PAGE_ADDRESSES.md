@@ -1,6 +1,6 @@
 # Changing page names and addresses
 
-Last changed: November 19, 2026. Version 1.0.0 build 2.
+Last changed: November 20, 2026. Version 1.0.0 build 3.
 
 A page name identifies the page in the editor. Its address identifies the destination used by website links and determines its exported filename. These values can be changed together in **Page settings** while keeping the page's content and design in place. Search descriptions remain under the separate **Search details** command.
 

@@ -1,8 +1,30 @@
 # Release package validation
 
-## Build 2 on November 19 2026
+## Build 3 on November 20 2026
 
-The current Win32 and Win64 installers contain **Delphi Web Studio Pro 1.0.0 build 2**, Windows file/product version **1.0.0.2**, published under **v1.0.0.2**. Earlier tags and packages remain historical releases.
+The current Win32 and Win64 installers contain **Delphi Web Studio Pro 1.0.0 build 3**, with Windows file/product version **1.0.0.3** and release tag **v1.0.0.3**. This release corrects text placement, dragging and context-menu visibility. Previous releases remain historical.
+
+| Edition | Installer | Bytes | SHA-256 |
+| --- | --- | ---: | --- |
+| Win32 | DelphiWebStudioPro-1.0.0.3-Win32-Setup.exe | 24,775,326 | cdbee08bf11dbc2db40d26a09b2d498c2cbc1c123f7b1df04c76abd2d3b9d43a |
+| Win64 | DelphiWebStudioPro-1.0.0.3-Win64-Setup.exe | 25,275,174 | 90700f492cd6804f87d95719b9917f5ecd7a4b657d7c789387aea99d99ce1887 |
+
+Both actual production executables passed **53 focused UI checks per architecture** in isolated synthetic profiles. The checks covered both Add text entry points, exact click placement after scrolling, panel sizing, no append-after-footer fallback, visible Move controls, wording preservation after typing, movement between panels and sections, invalid-drop recovery, Undo/Redo, full-menu bounds, spelling integration and project reopening. A separate browser run passed **49 checks**. The expanded text-handling regression covered paragraph formatting, all paste modes, links, project round trips and responsive export. No system clipboard or dictionary content was changed.
+
+The full regression suite passed **476 tests**, with two pre-existing optional integration checks skipped. TypeScript and full lint passed; the existing non-failing Gemini cleanup warning remains. Both elevated native builds report version **1.0.0.3**. The exact frontend fetched in each native acceptance run is index-T4S99YCo.js, SHA-256 6d74ef8152b56231186c6e3cc20f3b8798c3d29e20ea6e232375aa5b4edaf3fa.
+
+Each installer has its SHA-256 sidecar under export/release-1.0.0.3. Both embedded ZIPs passed corruption checks. All **43 payload files per edition** matched the source/build files and the retained Package Studio Pro authoring payloads, including all **14 reviewed guide files**. The guides contain **165 visually reviewed pages** and **172 real linked dotted-leader TOC entries** with correct page targets. The executable and loaded editor bundle match the bytes exercised by the native acceptance checks.
+
+Both editions retain icon sizes 16, 24, 32, 48, 64, 128 and 256 pixels; both Microsoft WebView2 loaders have valid signatures. The installer runtime's non-resource PE sections match the unchanged Package Studio Pro engine, and its process manifest requests asInvoker. Package manifests retain neutral publisher data, relative payload paths and empty signing-tool/certificate paths. These checks do not claim a new installer-engine lifecycle run or a fresh-Windows VM installation.
+
+Complete Win32 and Win64 authoring projects and payloads are retained under Package Studio Pro/MySetups/DelphiWebStudioPro-1.0.0.3. Machine-specific authoring inputs remain private; tools/package-release.ps1 reproduces them from the staged release files.
+
+The saved projects and existing local website (**114 files**), original draft profile (**2,611 files**) and pre-existing local README edit remained byte-identical to the verified pre-change ZIP. Payload text, guide XML and metadata passed privacy checks; user projects, credentials, browser profiles, local website files and test outputs are excluded. No user site was published or refreshed, no live Gemini request or contact submission was made, and no production SFTP or DNS setting changed. The compact local package proof is export/release-1.0.0.3/package-verification.json.
+
+
+## Earlier build 2 on November 19 2026
+
+The build-2 Win32 and Win64 installers contained **Delphi Web Studio Pro 1.0.0 build 2**, Windows file/product version **1.0.0.2**, published under **v1.0.0.2**. Earlier tags and packages remain historical releases.
 
 | Edition | Installer | Bytes | SHA-256 |
 | --- | --- | ---: | --- |

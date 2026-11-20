@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.0 build 3 - 2026-11-20
+
+- Unified the left-panel and canvas-menu Add text commands: choose the command, then click the destination section or panel. Invalid destinations retain placement mode instead of silently inserting at the top-left or after the footer.
+- Recognized the visible outer space of single-section blocks when placing or moving objects, while avoiding guesses between multiple sections.
+- Replaced the hidden text-box move strip with a visible Move control that works while typing; pending wording is saved before moving, and cross-section moves retain selection.
+- Exposed ordinary text and paste commands immediately in the context menu, while retaining separate formatting windows, bounded menu placement and Windows spelling support.
+- Updated the illustrated guides, Win32/Win64 executables, Windows file/product version and Package Studio Pro installer inputs to 1.0.0.3.
+
 ## 1.0.0 build 2 - 2026-11-19
 
 - Added a permanent local test folder workflow: choose a folder, review exported files, refresh with a verified pre-change ZIP and open the exact managed files through a loopback browser server. Unrelated files and saved projects stay separate.

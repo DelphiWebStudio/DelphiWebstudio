@@ -1,6 +1,24 @@
 # Delphi Web Studio Pro release review
 
-## Build 2 review
+## Build 3 review
+
+Reviewed November 20, 2026. Application version **1.0.0 build 3**; Windows file/product version **1.0.0.3**; release tag **v1.0.0.3**.
+
+Both Add text commands now wait for the same destination click. Placement recognizes the visible space of single-section blocks and fits new text within a panel without shifting it away from the chosen point. An invalid destination leaves placement active instead of silently using the top-left corner or appending content after the footer. The first object on an empty page still creates its initial content section.
+
+A visible Move control replaces the hidden text-box move strip. Pending wording is saved before moving, valid cross-section moves retain selection, and invalid drops restore the original object and panel-child preview positions. Ordinary text actions and all paste choices appear immediately; Text settings and Paragraph settings retain their separate formatting controls. The native spelling integration is unchanged.
+
+The full regression suite passed **476 tests**, with **two pre-existing optional integration checks skipped**. TypeScript and full lint passed; the earlier non-failing Gemini cleanup warning remains. The release guides explain the corrected placement, movement and menu behavior. Current native acceptance, guide-page counts and exact package hashes are recorded in the companion release package validation record.
+
+Both actual production executables passed **53 focused UI checks per architecture** using isolated synthetic profiles. A separate browser run passed **49 checks**, and the expanded text-handling regression covered paragraph formatting, paste modes, links, Undo/Redo, project reopening and responsive export. The tests fetched the loaded editor bundle and recorded its hash alongside each executable hash. Native spelling integration remained enabled; no dictionary or clipboard content was changed.
+
+All seven DOCX/PDF pairs were refreshed with current captures from the rebuilt Win64 application. Their **165 pages** were reviewed, and all **172 linked TOC entries** have real dotted right tabs and page targets matching the companion PDFs. Exact file hashes bind the reviewed guides to the installer payloads. Both installers retain the tested application files, architecture-matched Microsoft loaders and all seven icon sizes. These checks are not a fresh-Windows VM installation or a new installer-engine lifecycle test.
+
+The saved projects and existing local website (**114 files**), the original draft profile (**2,611 files**) and the pre-existing local README edit were compared with the verified pre-change ZIP and remained unchanged. Private data, profiles and machine-specific package authoring files are excluded from public payloads.
+
+No user website was published or refreshed, and no live Gemini request, contact submission, production SFTP operation or DNS change was made for this release.
+
+## Earlier build 2 review
 
 Reviewed November 19, 2026. Application version **1.0.0 build 2**; Windows file/product version **1.0.0.2**; release tag **v1.0.0.2**.
 
