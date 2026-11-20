@@ -6,10 +6,12 @@ The current Win32 and Win64 installers contain **Delphi Web Studio Pro 1.0.0 bui
 
 | Edition | Installer | Bytes | SHA-256 |
 | --- | --- | ---: | --- |
-| Win32 | DelphiWebStudioPro-1.0.0.2-Win32-Setup.exe | 24,794,498 | 5363c668419ca4fc7c5fab4b6f8c4fb98b9d34f9fa0f658a687c64704c1e385a |
-| Win64 | DelphiWebStudioPro-1.0.0.2-Win64-Setup.exe | 25,294,346 | 64562f263c35021415e508743c7a327771940bf4ba720794443928b72fb30bd5 |
+| Win32 | DelphiWebStudioPro-1.0.0.2-Win32-Setup.exe | 24,803,963 | 5acfbb4777ce7425ce4bfe6778f33e554f903258b1d77da461ad76122b021bf4 |
+| Win64 | DelphiWebStudioPro-1.0.0.2-Win64-Setup.exe | 25,303,811 | 2ea15ab2667be7ec4390841dd806b6583cec5098ee6b28b74d2ade823dbeb169 |
 
-Each installer has a matching SHA-256 sidecar under export/release-1.0.0.2. Its embedded ZIP passed the corruption check. All **43 payload files per edition** matched the final source/build files and the retained Package Studio Pro payload, including all **14 reviewed guide files**. Those guides contain **165 visually reviewed pages** and **172 real linked dotted-leader TOC entries**.
+Each installer has a matching SHA-256 sidecar under export/release-1.0.0.2. Its embedded ZIP passed the corruption check. All **43 payload files per edition** matched the final source/build files and the retained Package Studio Pro payload, including all **14 reviewed guide files**. Those guides contain **164 visually reviewed pages** and **172 real linked dotted-leader TOC entries**.
+
+These packages refresh the translation wording in the included guides and notices. TAtlas website translation uses the Atlas site's floating GTranslate widget for website visitors; it does not translate the editor interface or provide application language packs. Both application executables, the editor bundle and the working website translation configuration remain byte-identical to the original build-2 release. Package fingerprints change because the documentation changed. The original release tag remains a historical source snapshot; current default-branch documentation and release descriptions contain the correction.
 
 The executable, editor bundle and Microsoft WebView2 loader match the intended architecture. Both executables retain the seven icon sizes (16, 24, 32, 48, 64, 128 and 256 pixels), and both Microsoft loaders have valid signatures. The final frontend bundle is index-DghZumQS.js, SHA-256 1040da5f5a636b43d6de4fbb3ced7fa6af7bb3f6f9b5a5f4e88f643c19e9e856; it is byte-identical to the bundle exercised by the native GUI tests.
 

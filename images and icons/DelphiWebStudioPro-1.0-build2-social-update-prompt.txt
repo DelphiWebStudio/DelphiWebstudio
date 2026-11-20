@@ -1,0 +1,22 @@
+Generator: built-in image_gen tool
+Asset: Delphi Web Studio Pro 1.0 build 2 Facebook and LinkedIn update graphic
+
+Final prompt:
+Create a polished landscape social-media announcement graphic for Facebook and LinkedIn, approximately 1.91:1 wide composition. Professional Windows software product update announcement, sophisticated navy (#102B4A), vivid royal blue (#1769CA), warm orange (#F28A25), and crisp white. Tasteful light geometric curves, clean structured layout, restrained glow, strong typography, generous spacing, carefully balanced visual hierarchy, excellent legibility on a phone. This should look attractive and established, not gaudy, not crowded, not plain.
+
+Exact prominent product text:
+"Delphi Web Studio Pro"
+"1.0 build 2"
+
+Supporting headline:
+"Build. Refine. Share."
+
+Three clearly readable update features, each in a clean spacious row with a small elegant simple icon:
+"TAtlas website translation"
+"Local testing & site checks"
+"Easier page editing"
+
+Small but still readable bottom text:
+"Updated guides • 32-bit & 64-bit Windows"
+
+Visual composition: left/main area provides the large white product title with orange version accent and these concise feature rows. Right area contains an elegant stylized browser window illustration with blue and white website blocks, an orange navigation accent, a small globe symbol suggesting WEBSITE translation and a subtle check-mark motif. The browser illustration is conceptual; do not create a fake detailed app screenshot. Use airy margins and a high-quality editorial design. Include only the exact text above, spelled perfectly. Do not add a language count, flags, personal names, URLs, unrelated logos, or any additional text. Opaque full-bleed background.

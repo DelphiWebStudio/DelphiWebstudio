@@ -24,6 +24,6 @@ The folder choice is kept in Windows-local preferences, not in the portable proj
 
 ## Translation and other online content
 
-To try visitor translation, enable **Website translation** in **Settings → Project settings** before preparing the export. The floating GTranslate selector appears in the browser view, detects the browser language and lets the visitor choose another language. Internet access is required for translation, but the editable English source is unchanged. The complete built-in language list is in [website translation](WEBSITE_TRANSLATION.md).
+To try TAtlas website translation, enable **Website translation** in **Settings → Project settings** before preparing the export. This uses the same floating GTranslate website widget as the Atlas website. Its selector appears in the browser view, detects the browser language and lets the visitor choose another language. Internet access is required for translation, while the editable English source and editor interface stay unchanged. See [website translation](WEBSITE_TRANSLATION.md) for visitor instructions and service requirements.
 
 External links and remotely hosted content can still use the internet. Local review blocks form submission; do not treat it as an end-to-end test of a live contact service. Check desktop, tablet and phone widths and use [Check site](EDITOR_EXPERIENCE.md) before preparing a public upload. Reviewing and refreshing locally never performs that upload.
