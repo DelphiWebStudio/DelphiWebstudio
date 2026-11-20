@@ -17,7 +17,9 @@ This update includes automatic visitor translation, permanent local test-folder 
 
 ### Guides and installer engine
 
-All seven DOCX/PDF pairs were updated and all **165 pages** were visually reviewed. All **172 real linked table-of-contents entries** have right-aligned dot leaders and page numbers matching their companion PDFs. Current screenshots, the build-2 release diagram and the complete **35-language** preset are included. Document text, links, illustrations and metadata were checked for private project information and maintainer contact details.
+All seven DOCX/PDF pairs were updated and all **164 pages** were visually reviewed. All **172 real linked table-of-contents entries** have right-aligned dot leaders and page numbers matching their companion PDFs. Current screenshots, the build-2 release diagram and instructions for TAtlas website translation are included. The translation instructions describe the Atlas site's floating GTranslate widget for website visitors; this feature does not translate the editor interface or provide application language packs. Document text, links, illustrations and metadata were checked for private project information and maintainer contact details.
+
+The translation wording was subsequently clarified across the current guides, reference documents and release description. This documentation correction leaves both application executables and the working website translation configuration unchanged. The current installers include the corrected guides; the original release tag remains a historical source snapshot, with corrected documentation available on the default branches.
 
 Package Studio's existing disposable acceptance suite passed custom-folder installation, current-user shortcuts, hash verification, upgrade, failed-upgrade rollback, unsafe-journal rejection, durable registered uninstall, self-cleanup and unrelated-file preservation. The installer engine itself was not modified for this update. Exact new package hashes and payload checks are recorded separately in [release package validation](RELEASE_PACKAGE_VALIDATION.md).
 

@@ -14,7 +14,7 @@ Last changed: 2026-10-29. Each numbered milestone below is a group of planned wo
 | M7 | Design-time Delphi shell, WebView2 bridge, native saves/credentials, installer | Clean Windows create/import/edit/AI/export without Node |
 | M8 | Static HTML/WordPress import, security/accessibility/performance, docs/release | Regression/license audits, recovery/docs and beta tests; no silent data loss |
 
-Use small feature branches and PRs. M0 includes docs/evidence/CI and minimal lint fixes. M1 project controls are enabled by default, and its specified five-page exit scenario has passed isolated testing. The browser prototype does not complete the required Delphi product. Visitor translation was deferred at that milestone. Optional site-wide GTranslate export is implemented in the November 19, 2026 source update; editor-interface translation remains separate. Formal guides/help remain separate requested deliverables.
+Use small feature branches and PRs. M0 includes docs/evidence/CI and minimal lint fixes. M1 project controls are enabled by default, and its specified five-page exit scenario has passed isolated testing. The browser prototype does not complete the required Delphi product. Visitor translation was deferred at that milestone. Optional TAtlas website translation, using the Atlas site's floating GTranslate widget, is implemented in the November 19, 2026 source update; it does not translate the editor interface. Formal guides/help remain separate requested deliverables.
 
 M2's specified no-code build-and-export scenario passed an automated browser check using the current editor; independent testing by a nontechnical user has not been observed. The desktop app does not currently preview custom HTML/CSS inside its blocked frame.
 

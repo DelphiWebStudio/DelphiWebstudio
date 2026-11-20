@@ -1,8 +1,10 @@
-# Automatic website translation
+# TAtlas website translation
 
 Last changed: November 19, 2026.
 
-Website translation gives visitors a floating language selector on every exported page. It uses GTranslate, the online website translation service already used by the VCL2FMXConverter Atlas website. The preset automatically detects the visitor's browser language and offers 35 languages. English names and native names appear together in an alphabetically sorted list, and right-to-left languages receive the appropriate page direction.
+TAtlas website translation gives visitors a floating language selector on every exported page, using the same GTranslate website widget as the VCL2FMXConverter Atlas website. It automatically detects the visitor's browser language and lets visitors choose another language. English names and native names appear together in an alphabetically sorted list, and right-to-left languages receive the appropriate page direction.
+
+This feature translates website pages for visitors. It does not translate the Web Studio editor or add interface language packs. The website owner does not install language packs or configure a language list.
 
 ## Enable it once for the website
 
@@ -14,11 +16,9 @@ The editor canvas and its toolbar Preview retain the original wording. The exter
 
 The downloaded website ZIP includes the selector on ordinary pages, nested pages and generated article/search pages. Keep its assets folder with the pages when copying the export to a server. To remove translation, clear the option, export again and replace the deployed files with that new export. Clearing the option in a project does not alter a site that was already deployed.
 
-## Built in languages
+## Choosing a language as a visitor
 
-The preset offers the following 35 languages. The visitor sees English and native names together, sorted alphabetically. The website owner does not choose or maintain this list. Chinese Simplified and Chinese Traditional are separate choices; the Filipino entry uses the provider's `tl` code.
-
-Arabic, Bangla, Bulgarian, Chinese Simplified, Chinese Traditional, Croatian, Czech, English, Filipino, Finnish, French, German, Greek, Hebrew, Hindi, Hungarian, Indonesian, Italian, Japanese, Korean, Pashto, Persian, Polish, Portuguese, Romanian, Russian, Serbian, Slovak, Spanish, Swedish, Thai, Turkish, Ukrainian, Urdu and Vietnamese.
+Open the floating selector in the website browser to see its available choices. Select a language to translate the page, or choose English to return to an English project's original wording. The selector displays English and native names together so visitors can recognize their language. Follow a link to another page to confirm that the chosen language continues through the site.
 
 ## Service requirements and limits
 

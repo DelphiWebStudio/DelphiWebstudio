@@ -5,13 +5,13 @@
 - Added a permanent local test folder workflow: choose a folder, review exported files, refresh with a verified pre-change ZIP and open the exact managed files through a loopback browser server. Unrelated files and saved projects stay separate.
 - Expanded Check site with explicit solid-color contrast findings, guided keyboard/form/mobile review and optional Windows external-link status checks. Findings open and focus the affected page, block or object; blocked and unverified responses are distinguished from confirmed missing pages.
 - Made Page settings available from Page tools, the page controls and a page-tab right click. Review address and filename previews, supported link updates and optional related-address changes, then undo or redo the whole operation together.
-- Updated all seven illustrated DOCX/PDF guide pairs and added the complete built-in translation-language list.
+- Updated all seven illustrated DOCX/PDF guide pairs with instructions for TAtlas website translation, local testing, site checks and page addresses.
 - Updated the Win32 and Win64 application, Windows file/product version and Package Studio Pro installer inputs to 1.0.0.2.
 
 ### Website translation included in build 2
 
 - Added one Website translation checkbox under Project settings. Existing projects remain off; enabling it adds the automatic floating selector to all exported pages without owner language configuration.
-- Reused the Atlas website's fixed 35-language preset, bilingual alphabetical labels and right-to-left support. Translation runs in the website browser and leaves project wording unchanged.
+- Added TAtlas website translation using the Atlas site's floating GTranslate widget, with automatic browser-language detection, bilingual alphabetical labels and right-to-left support. Translation runs in the website browser and leaves project wording and the editor interface unchanged.
 - Kept the external service outside the privileged editor, packaged one local selector asset with nested/generated page paths, and limited local review connections to the translation endpoint when that asset is present.
 - Kept enlarged-photo captions and calendar month changes in the visitor's selected language, preserved the current month when switching languages, and bounded the language menu on narrow screens.
 - Updated the User and Engineering Guides and documented external-service requirements, provider terms, privacy and removal through re-export.
