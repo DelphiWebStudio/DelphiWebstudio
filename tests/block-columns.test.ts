@@ -7,14 +7,18 @@ import { blockMetadata } from '../src/lib/block-metadata'
 import { useEditorStore } from '../src/store/editorStore'
 
 describe('editor section guides', () => {
-  it('shows resize handles and a move cursor without a visible Move button', () => {
+  it('shows a visible accessible Move control and resize handles only while editing', () => {
     const block = { id: 'move-test', type: 'content' as const, variant: 'prose', props: { section1Objects: [{ id: 'label', type: 'text', text: 'Example', x: 5, y: 10, width: 30, height: 80, layer: 1 }] } }
     useEditorStore.getInitialState().selectedSectionObject = { blockId: block.id, section: 1, id: 'label' }
     try {
       const html = renderToStaticMarkup(createElement(BlockColumns, { block, editable: true }))
       expect(html).toContain('cursor:move')
       expect(html).toContain('Resize object se')
-      expect(html).not.toContain('>Move</button>')
+      expect(html).toContain('aria-label="Move text box"')
+      expect(html).toContain('>Move</button>')
+      const preview = renderToStaticMarkup(createElement(BlockColumns, { block }))
+      expect(preview).not.toContain('data-text-move-handle')
+      expect(preview).not.toContain('Resize object')
     } finally { useEditorStore.getInitialState().selectedSectionObject = null }
   })
   it('starts strips blank and preserves their resized height and positioned divider', () => {

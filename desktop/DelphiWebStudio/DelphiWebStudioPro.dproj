@@ -33,8 +33,8 @@
         <VerInfo_MajorVer>1</VerInfo_MajorVer>
         <VerInfo_MinorVer>0</VerInfo_MinorVer>
         <VerInfo_Release>0</VerInfo_Release>
-        <VerInfo_Build>2</VerInfo_Build>
-        <VerInfo_Keys>FileVersion=1.0.0.2;ProductVersion=1.0.0.2;FileDescription=Delphi Web Studio Pro;InternalName=DelphiWebStudioPro;OriginalFilename=DelphiWebStudioPro.exe;ProductName=Delphi Web Studio Pro</VerInfo_Keys>
+        <VerInfo_Build>3</VerInfo_Build>
+        <VerInfo_Keys>FileVersion=1.0.0.3;ProductVersion=1.0.0.3;FileDescription=Delphi Web Studio Pro;InternalName=DelphiWebStudioPro;OriginalFilename=DelphiWebStudioPro.exe;ProductName=Delphi Web Studio Pro</VerInfo_Keys>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
         <BT_BuildType>Release</BT_BuildType>

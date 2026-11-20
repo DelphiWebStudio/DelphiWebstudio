@@ -1,6 +1,6 @@
 # Delphi Web Studio Pro installers
 
-Last changed: November 19, 2026. Current release: 1.0.0 build 2; Windows file/product version 1.0.0.2.
+Last changed: November 20, 2026. Current release: 1.0.0 build 3; Windows file/product version 1.0.0.3.
 
 ## Current Package Studio Pro workflow
 
@@ -13,17 +13,17 @@ From the repository root, rebuild the stages before packaging:
 & '.\tools\package-release.ps1'
 ```
 
-The packaging script expects `Package Studio Pro` beside the Web Studio source folder by default; use `-PackageStudioRoot <path>` for another location. Its complete authoring inputs are saved under `MySetups\DelphiWebStudioPro-1.0.0.2` there:
+The packaging script expects `Package Studio Pro` beside the Web Studio source folder by default; use `-PackageStudioRoot <path>` for another location. Its complete authoring inputs are saved under `MySetups\DelphiWebStudioPro-1.0.0.3` there:
 
-- `DelphiWebStudioPro-1.0.0.2-Win32.wiproj`
-- `DelphiWebStudioPro-1.0.0.2-Win64.wiproj`
+- `DelphiWebStudioPro-1.0.0.3-Win32.wiproj`
+- `DelphiWebStudioPro-1.0.0.3-Win64.wiproj`
 
-Each project points to its corresponding retained payload and can be opened and built in Package Studio Pro. If source, binaries or manuals change, rerun the staging and packaging scripts so those payloads are refreshed. The distributable files under `export\release-1.0.0.2` are:
+Each project points to its corresponding retained payload and can be opened and built in Package Studio Pro. If source, binaries or manuals change, rerun the staging and packaging scripts so those payloads are refreshed. The distributable files under `export\release-1.0.0.3` are:
 
-- `DelphiWebStudioPro-1.0.0.2-Win32-Setup.exe`
-- `DelphiWebStudioPro-1.0.0.2-Win64-Setup.exe`
+- `DelphiWebStudioPro-1.0.0.3-Win32-Setup.exe`
+- `DelphiWebStudioPro-1.0.0.3-Win64-Setup.exe`
 
-Send the matching Setup executable to the target computer. It contains the application, architecture-matched WebView2 loader, local editor assets, SFTP workflow, seven updated DOCX/PDF guides, local-test and page-address instructions, privacy/recovery documents and license notices. Build 2 includes the automatic website language selector, permanent local test-folder refresh, expanded Check site and easier page settings. It excludes private projects, browser profiles, credentials, test outputs, development tools, optional local AI runtimes/models and serverless API handlers. Package hashes and final payload evidence belong in [release package validation](../../docs/RELEASE_PACKAGE_VALIDATION.md).
+Send the matching Setup executable to the target computer. It contains the application, architecture-matched WebView2 loader, local editor assets, SFTP workflow, seven updated DOCX/PDF guides, local-test and page-address instructions, privacy/recovery documents and license notices. Build 3 corrects text placement and dragging and shows the full ordinary text context menu. It also includes TAtlas website translation for visitors, permanent local test-folder refresh, expanded Check site and easier page settings. It excludes private projects, browser profiles, credentials, test outputs, development tools, optional local AI runtimes/models and serverless API handlers. Package hashes and final payload evidence belong in [release package validation](../../docs/RELEASE_PACKAGE_VALIDATION.md).
 
 ## Target computer requirements and preservation
 

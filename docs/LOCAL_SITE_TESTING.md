@@ -1,6 +1,6 @@
 # Refreshing a local website folder
 
-Last changed: November 19, 2026. Version 1.0.0 build 2.
+Last changed: November 20, 2026. Version 1.0.0 build 3.
 
 A local test folder contains the visitor-facing website files, including `index.html`, other pages and their assets. It is separate from the saved project ZIP, which contains the editable source. The Windows edition can refresh this folder and serve its contents in your browser without publishing or uploading the website. Python and other development tools are not required.
 

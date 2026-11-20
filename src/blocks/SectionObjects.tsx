@@ -21,7 +21,15 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
   const multiSelection = useEditorStore(state => state.selectedSectionObjects)
   const selected = objectSelection?.blockId === block.id && objectSelection.section === section ? objectSelection.id : null
   const setSelected = (id: string | null) => useEditorStore.getState().selectSectionObject(id ? { blockId: block.id, section, id } : null)
+  const areaElement = useRef<HTMLDivElement>(null)
   const [editing, setEditing] = useState<string | null>(null)
+  useEffect(() => {
+    if (!editing || selected === editing) return
+    const text = Array.from(areaElement.current?.querySelectorAll<HTMLElement>('[data-section-object]') ?? []).find(element => element.dataset.sectionObject === editing)?.querySelector<HTMLElement>('[contenteditable="true"]')
+    text?.dispatchEvent(new Event('webstudio-flush-text'))
+    text?.blur()
+    setEditing(null)
+  }, [editing, selected])
   const newTextObjectId = useEditorStore(state => state.newTextObjectId)
   useEffect(() => {
     if (!newTextObjectId || !objects.some(item => item.id === newTextObjectId)) return
@@ -30,9 +38,9 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
       setEditing(newTextObjectId)
       useEditorStore.getState().setNewTextObjectId(null)
       requestAnimationFrame(() => {
-      const element = document.querySelector<HTMLElement>(`[data-section-object="${newTextObjectId}"] [contenteditable="true"]`)
+      const element = Array.from(areaElement.current?.querySelectorAll<HTMLElement>('[data-section-object]') ?? []).find(object => object.dataset.sectionObject === newTextObjectId)?.querySelector<HTMLElement>('[contenteditable="true"]')
       if (!element) return
-      element.focus()
+      element.focus({ preventScroll: true })
       const selection = window.getSelection()
       const range = document.createRange()
       range.selectNodeContents(element)
@@ -160,20 +168,35 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
       if (!state.resize && element && current && (state.group?.length ?? 0) < 2) {
         const previous = element.style.pointerEvents
         element.style.pointerEvents = 'none'
-        const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('[data-editor-section]')
+        const hit = document.elementFromPoint(event.clientX, event.clientY)
+        let target = hit?.closest<HTMLElement>('[data-editor-section]') ?? null
+        if (!target) {
+          const shell = hit?.closest<HTMLElement>('[data-webstudio-block-id]')
+          const sections = shell ? Array.from(shell.querySelectorAll<HTMLElement>('[data-editor-section]')).filter(candidate => candidate.closest('[data-webstudio-block-id]') === shell) : []
+          target = sections.find(candidate => { const bounds = candidate.getBoundingClientRect(); return event.clientX >= bounds.left && event.clientX <= bounds.right && event.clientY >= bounds.top && event.clientY <= bounds.bottom }) ?? (sections.length === 1 ? sections[0] : null)
+        }
         element.style.pointerEvents = previous
         const targetSection = Number(target?.dataset.editorSection)
         const targetBlock = target?.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id')
         const area = target?.querySelector<HTMLElement>(`[data-section-object-area="${targetSection}"]`)
+        const destinationBlock = useConfigStore.getState().getActivePageBlocks().find(value => value.id === targetBlock)
         const moving = saved.find(item => item.id === state.id)
-        if (moving && area && targetBlock && targetSection >= 1 && targetSection <= 4 && (targetBlock !== block.id || targetSection !== section)) {
-          const bounds = area.getBoundingClientRect()
-          const nextWidth = bounds.width ? Math.max(5, Math.min(100, width * state.parentWidth / bounds.width)) : width
-          const nextX = bounds.width ? Math.max(0, Math.min(100 - nextWidth, (event.clientX - state.grabX - bounds.left) / bounds.width * 100)) : 0
+        const bounds = area?.getBoundingClientRect()
+        if (!moving || !area || !destinationBlock || !targetBlock || !bounds?.width || targetSection < 1 || targetSection > Math.min(4, Math.max(1, Number(destinationBlock.props.sectionCount) || 1))) {
+          Object.assign(element.style, { left: `${state.x}%`, top: `${state.y}px`, width: `${state.width}%`, height: moving?.type === 'text' ? 'auto' : `${state.height}px` })
+          for (const child of saved.filter(item => item.parentId === state.id)) {
+            const node = Array.from(areaElement.current?.querySelectorAll<HTMLElement>('[data-section-object]') ?? []).find(object => object.dataset.sectionObject === child.id)
+            if (node) Object.assign(node.style, { left: `${child.x}%`, top: `${child.y}px` })
+          }
+          return
+        }
+        if (targetBlock !== block.id || targetSection !== section) {
+          const nextWidth = Math.max(5, Math.min(100, width * state.parentWidth / bounds.width))
+          const nextX = Math.max(0, Math.min(100 - nextWidth, (event.clientX - state.grabX - bounds.left) / bounds.width * 100))
           useConfigStore.getState().moveSectionObject(block.id, section, targetBlock, targetSection, state.id, nextX, Math.max(0, event.clientY - state.grabY - bounds.top), nextWidth, height)
           useEditorStore.getState().selectBlock(targetBlock)
           useEditorStore.getState().selectSection(targetSection)
-          setSelected(null)
+          useEditorStore.getState().selectSectionObject({ blockId: targetBlock, section: targetSection, id: state.id })
           return
         }
       }
@@ -187,6 +210,7 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
         parentId = saved.find(item => item.id === hitId && item.type === 'panel')?.id
       }
       useConfigStore.getState().updateBlockProps(block.id, { [key]: saved.map(item => item.id === state.id ? { ...item, x, y, width, height, ...(parentId ? { parentId } : { parentId: undefined }) } : !state.resize && (state.group?.includes(item.id) || (item.parentId && state.group?.includes(item.parentId)) || (moving?.type === 'panel' && item.parentId === state.id)) ? { ...item, x: Math.max(0, Math.min(100 - item.width, item.x + x - state.x)), y: Math.max(0, item.y + y - state.y) } : item) })
+      if (moving?.type === 'text' && element) element.style.height = 'auto'
     }
   }
   const visibleObjects = objects.filter(item => item && typeof item.id === 'string' && ['text', 'image', 'button', 'panel', 'collage', 'divider'].includes(item.type))
@@ -255,9 +279,9 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
         onKeyDown={event => { if (!editable || event.target !== event.currentTarget) return; const current = useConfigStore.getState().getActivePageBlocks().find(value => value.id === block.id); const saved = Array.isArray(current?.props[key]) ? current.props[key] as SectionObject[] : []; if (event.key === 'Enter' && item.type === 'image' && current) { const spaceKey = `section${section}ExtraSpace`; useConfigStore.getState().updateBlockProps(block.id, { [spaceKey]: Math.min(4000, Math.max(0, Number(current.props[spaceKey]) || 0) + 32) }); event.preventDefault(); event.stopPropagation(); return }; if (event.key === 'Delete' || ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'd')) { const index = saved.findIndex(value => value.id === item.id); if (index >= 0) useConfigStore.getState().editBlockItems(block.id, key, index, index, event.key === 'Delete' ? 'remove' : 'duplicate'); if (event.key === 'Delete') setSelected(null); event.preventDefault(); event.stopPropagation(); return }; if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return; event.preventDefault(); event.stopPropagation(); const step = event.shiftKey ? 10 : 1; const area = event.currentTarget.closest<HTMLElement>('[data-section-object-area]'); const horizontal = area?.clientWidth ? step / area.clientWidth * 100 : 0; useConfigStore.getState().updateBlockProps(block.id, { [key]: saved.map(value => { const nextX = Math.max(0, Math.min(100 - width, x + (event.key === 'ArrowRight' ? horizontal : event.key === 'ArrowLeft' ? -horizontal : 0))); const nextY = Math.max(0, y + (event.key === 'ArrowDown' ? step : event.key === 'ArrowUp' ? -step : 0)); return value.id === item.id ? { ...value, x: nextX, y: nextY } : item.type === 'panel' && value.parentId === item.id ? { ...value, x: value.x + nextX - x, y: value.y + nextY - y } : value }) }) }}
         onPointerDown={event => {
           if (!editable || event.button !== 0 || (event.target instanceof Element && event.target.closest('[data-rich-menu]'))) return
-          const text = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-rich-text]') : null
-          if (selected === item.id && editing === item.id && text?.isContentEditable) return
           const moveHandle = event.target instanceof Element && event.target.closest('[data-text-move-handle]')
+          const text = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-rich-text]') : null
+          if (selected === item.id && editing === item.id && text?.isContentEditable && !moveHandle) return
           const editOnClick = !event.ctrlKey && !event.metaKey && !event.altKey && !moveHandle && (item.type === 'text' || (item.type === 'panel' && !!text?.textContent?.trim()))
           const textMenu = document.querySelector<HTMLButtonElement>('[aria-label="Close text settings"]')
           if (item.type === 'panel' && textMenu) { textMenu.click(); setEditing(null) }
@@ -269,7 +293,8 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
           }
           const area = event.currentTarget.closest<HTMLElement>('[data-section-object-area]'); if (!area?.clientWidth) return
           const group = useEditorStore.getState().selectedSectionObjects.filter(value => value.blockId === block.id && value.section === section).map(value => value.id)
-          const bounds = event.currentTarget.getBoundingClientRect(); event.preventDefault(); event.stopPropagation(); event.currentTarget.focus({ preventScroll: true }); useEditorStore.getState().selectBlock(block.id); useEditorStore.getState().selectSection(section); if (!group.includes(item.id)) setSelected(item.id); setEditing(null); drag.current = { id: item.id, startX: event.clientX, startY: event.clientY, grabX: event.clientX - bounds.left, grabY: event.clientY - bounds.top, x, y, width, height, parentWidth: area.clientWidth, resize: false, group: group.includes(item.id) ? group : undefined, editOnClick }; event.currentTarget.setPointerCapture(event.pointerId)
+          event.currentTarget.querySelector<HTMLElement>('[contenteditable="true"]')?.dispatchEvent(new Event('webstudio-flush-text'))
+          const bounds = event.currentTarget.getBoundingClientRect(); event.preventDefault(); event.stopPropagation(); event.currentTarget.focus({ preventScroll: true }); useEditorStore.getState().selectBlock(block.id); useEditorStore.getState().selectSection(section); if (!group.includes(item.id)) setSelected(item.id); setEditing(null); drag.current = { id: item.id, startX: event.clientX, startY: event.clientY, grabX: event.clientX - bounds.left, grabY: event.clientY - bounds.top, x, y, width, height: item.type === 'text' ? Math.max(height, bounds.height) : height, parentWidth: area.clientWidth, resize: false, group: group.includes(item.id) ? group : undefined, editOnClick }; event.currentTarget.setPointerCapture(event.pointerId)
         }} onPointerMove={event => move(event)} onPointerUp={event => move(event, true)} onPointerCancel={() => { drag.current = null; setGuides({}) }}>
         {(item.type === 'image' || item.type === 'panel') && item.src && (item.type === 'image' && link
           ? <a href={link} onClick={editable ? event => event.preventDefault() : undefined} style={{ display: 'block', width: '100%', height: '100%' }}><img src={item.src} alt={item.alt || ''} style={{ width: '100%', height: '100%', objectFit: 'contain' }} draggable={false} /></a>
@@ -280,11 +305,11 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
         {item.type === 'divider' && <div aria-label={item.lineOrientation === 'vertical' ? 'Vertical line' : 'Horizontal line'} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}><div style={item.lineOrientation === 'vertical' ? { height: '100%', borderLeft: `${Math.max(1, Math.min(20, Number(item.lineThickness) || 1))}px ${['solid', 'dashed', 'dotted', 'double'].includes(item.lineStyle || '') ? item.lineStyle : 'solid'} ${/^#[0-9a-f]{6}$/i.test(item.textColor || '') ? item.textColor : '#808080'}` } : { width: '100%', borderTop: `${Math.max(1, Math.min(20, Number(item.lineThickness) || 1))}px ${['solid', 'dashed', 'dotted', 'double'].includes(item.lineStyle || '') ? item.lineStyle : 'solid'} ${/^#[0-9a-f]{6}$/i.test(item.textColor || '') ? item.textColor : '#808080'}` }} /></div>}
         {(item.type === 'text' || item.type === 'panel') && <RichText blockId={block.id} field={`sectionObject_${item.id}`} text={typeof block.props[`sectionObject_${item.id}`] === 'string' ? block.props[`sectionObject_${item.id}`] as string : item.text || ''} value={block.props[`sectionObject_${item.id}Rich`]} editable={editable && editing === item.id} multiline onDeleteBox={item.type === 'text' ? () => { const current = useConfigStore.getState().getActivePageBlocks().find(value => value.id === block.id); const saved = Array.isArray(current?.props[key]) ? current.props[key] as SectionObject[] : []; const index = saved.findIndex(value => value.id === item.id); if (index >= 0) useConfigStore.getState().editBlockItems(block.id, key, index, index, 'remove'); setEditing(null); setSelected(null) } : undefined} />}
         {item.type === 'button' && (link ? <a data-ws-object-button href={link} style={buttonStyle} onClick={editable ? event => event.preventDefault() : undefined} className="inline-block rounded border px-4 py-2">{item.text || 'Button'}</a> : <span data-ws-object-button style={buttonStyle} className="inline-block rounded border px-4 py-2">{item.text || 'Button'}</span>)}
-        {editable && selected === item.id && <div aria-hidden="true" data-text-move-handle title="Drag to move" style={{ position: 'absolute', left: 6, right: 6, top: 0, height: 7, zIndex: 1, cursor: 'move', touchAction: 'none' }} />}
+        {editable && selected === item.id && <button type="button" data-text-move-handle aria-label={`Move ${item.type === 'text' ? 'text box' : item.type}`} title={`Drag to move the ${item.type === 'text' ? 'text box' : item.type}. Click its text to edit; use arrow keys after selecting to adjust its position.`} onClick={event => { event.preventDefault(); event.stopPropagation(); event.currentTarget.parentElement?.focus({ preventScroll: true }) }} style={{ position: 'absolute', left: y >= 28 ? 8 : undefined, right: y < 28 ? 0 : undefined, top: y >= 28 ? -26 : 0, minHeight: 24, padding: '2px 8px', border: '1px solid white', borderRadius: 4, background: '#1769ca', color: 'white', fontSize: 12, lineHeight: '18px', whiteSpace: 'nowrap', zIndex: 3, cursor: 'move', touchAction: 'none' }}>Move</button>}
         {editable && selected === item.id && (['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const).map(direction => <button key={direction} type="button" aria-label={`Resize object ${direction}`} style={{ position: 'absolute', left: direction.includes('w') ? -6 : direction.includes('e') ? 'calc(100% - 6px)' : 'calc(50% - 6px)', top: direction.includes('n') ? -6 : direction.includes('s') ? 'calc(100% - 6px)' : 'calc(50% - 6px)', width: 12, height: 12, zIndex: 2, background: 'white', border: '1px solid black', cursor: `${direction}-resize`, touchAction: 'none' }} onPointerDown={event => { const parent = event.currentTarget.closest<HTMLElement>('[data-section-object-area]'); if (!parent?.clientWidth) return; event.preventDefault(); event.stopPropagation(); const object = event.currentTarget.parentElement; const image = item.type === 'image' ? object?.querySelector<HTMLImageElement>('img') : null; const aspect = image?.naturalWidth && image.naturalHeight ? image.naturalWidth / image.naturalHeight : undefined; let startX = x, startY = y, startWidth = width, startHeight = height; if (aspect && object) { const bounds = object.getBoundingClientRect(); const visibleWidth = Math.min(bounds.width, bounds.height * aspect); const visibleHeight = visibleWidth / aspect; startX += (bounds.width - visibleWidth) / 2 / parent.clientWidth * 100; startY += (bounds.height - visibleHeight) / 2; startWidth = visibleWidth / parent.clientWidth * 100; startHeight = visibleHeight }; drag.current = { id: item.id, startX: event.clientX, startY: event.clientY, grabX: 0, grabY: 0, x: startX, y: startY, width: startWidth, height: startHeight, parentWidth: parent.clientWidth, resize: direction, imageAspect: aspect }; event.currentTarget.setPointerCapture(event.pointerId) }} onPointerMove={event => move(event)} onPointerUp={event => move(event, true)} onPointerCancel={() => { drag.current = null }} />)}
       </div>] as const
     }))
-  return <><div data-section-object-area={section} data-ws-has-right={objects.some(item => item && Number(objects.find(value => value?.id === item.parentId && value.type === 'panel')?.x ?? item.x) >= 60) ? 'true' : undefined} className="ws-stack-mobile" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+  return <><div ref={areaElement} data-section-object-area={section} data-ws-has-right={objects.some(item => item && Number(objects.find(value => value?.id === item.parentId && value.type === 'panel')?.x ?? item.x) >= 60) ? 'true' : undefined} className="ws-stack-mobile" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
     {responsiveRows.map((columns, rowIndex) => <div key={rowIndex} data-ws-responsive-row style={{ display: 'contents', '--ws-row-columns': columns.map(column => `minmax(0, ${Math.max(1, column.right - column.left)}fr)`).join(' ') } as CSSProperties}>
     {columns.map((column, columnIndex) => <div key={columnIndex} data-ws-responsive-column={columnIndex} style={{ display: 'contents' }}>
       {column.groups.sort((a, b) => a.top - b.top || a.left - b.left).map(({ item }) => {
