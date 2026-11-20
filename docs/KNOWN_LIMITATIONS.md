@@ -1,6 +1,6 @@
 # Known limitations
 
-Current release review November 20, 2026 - version 1.0.0 build 3.
+Current release review November 20, 2026 - version 1.0.0 build 4.
 
 - The owner tested installation/startup on existing Windows systems, including Win32 on a genuine 32-bit Windows 10 22H2 computer and both editions on a newer Windows 10 x64 computer. The old machine took about 4 minutes 33 seconds to load, although the editing tried afterward worked. Newer-machine observations are in [Compatibility](COMPATIBILITY.md). These are not minimum specifications or a clean-Windows test; startup depends on the machine and its WebView2 environment.
 - The application and installers are unsigned, so Windows can show publisher/reputation warnings. Microsoft Edge WebView2 Runtime, the browser engine embedded in the editor, is required. SFTP additionally needs Windows OpenSSH Client, the optional secure-shell tools; ordinary editing and export remain available without it.

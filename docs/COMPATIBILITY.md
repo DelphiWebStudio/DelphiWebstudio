@@ -1,6 +1,6 @@
 # Compatibility contract
 
-Reviewed November 20, 2026 for version 1.0.0 build 3.
+Reviewed November 20, 2026 for version 1.0.0 build 4.
 
 The desktop editions are a 32-bit Windows application (Win32) and a 64-bit application (Win64). They target Windows 10/11 and display the editor through Microsoft Edge WebView2 Runtime. Win32 also runs on Windows x64; choose Win64 for a 64-bit system. Native forms remain editable in RAD Studio 37.0, the Delphi development environment. React supplies the visual canvas, the owner-approved runtime interface.
 

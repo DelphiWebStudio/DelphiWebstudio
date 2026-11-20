@@ -6,10 +6,10 @@ This application extends [OpenPage](https://github.com/buildingopen/openpage), t
 
 ## Download and install
 
-Get the [v1.0.0.3 release](https://github.com/DelphiWebStudio/DelphiWebstudio/releases/tag/v1.0.0.3), application version **1.0.0 build 3**, Windows file/product version **1.0.0.3**:
+Get the [v1.0.0.4 release](https://github.com/DelphiWebStudio/DelphiWebstudio/releases/tag/v1.0.0.4), application version **1.0.0 build 4**, Windows file/product version **1.0.0.4**:
 
-- [Win64 installer](https://github.com/DelphiWebStudio/DelphiWebstudio/releases/download/v1.0.0.3/DelphiWebStudioPro-1.0.0.3-Win64-Setup.exe) for 64-bit Windows.
-- [Win32 installer](https://github.com/DelphiWebStudio/DelphiWebstudio/releases/download/v1.0.0.3/DelphiWebStudioPro-1.0.0.3-Win32-Setup.exe) for 32-bit Windows; it also runs on 64-bit Windows.
+- [Win64 installer](https://github.com/DelphiWebStudio/DelphiWebstudio/releases/download/v1.0.0.4/DelphiWebStudioPro-1.0.0.4-Win64-Setup.exe) for 64-bit Windows.
+- [Win32 installer](https://github.com/DelphiWebStudio/DelphiWebstudio/releases/download/v1.0.0.4/DelphiWebStudioPro-1.0.0.4-Win32-Setup.exe) for 32-bit Windows; it also runs on 64-bit Windows.
 
 Both editions target Windows 10/11 and use Microsoft Edge WebView2 Runtime, the browser engine embedded in the desktop window. Setup checks for the Runtime and offers Microsoft's download address if it is absent. Local editing does not need Node.js, development tools or a cloud account. The installers include the editor, SFTP workflow, seven illustrated guides and third-party notices; private website projects, profiles and credentials are excluded.
 
@@ -78,7 +78,7 @@ On November 18, 2026, the full regression run passed **447 tests**, with two pre
 
 The November 19 build-2 validation passed **476 regression tests**, with two pre-existing optional checks skipped, and both native Release builds. Each architecture passed 34 native local-site checks and 31 Main-form GUI checks in isolated profiles. All seven revised guide pairs, totaling 165 pages and 172 real dotted TOC entries, were visually and structurally checked. The dated scope and limits are in the [release review](docs/RELEASE_1_0_REVIEW.md).
 
-Run `tools/build-release.ps1 -NodeExe <full-node-path>` to rebuild both stages, then `tools/package-release.ps1` to assemble the installers with Package Studio Pro. Its complete authoring projects and payloads are retained under `Package Studio Pro/MySetups/DelphiWebStudioPro-1.0.0.3`; open the matching Win32 or Win64 `.wiproj` to build it there. [Installer instructions](desktop/installer/README.md) explain the package inputs. Optional serverless API endpoints are outside the desktop payload and require separate operator configuration. Earlier implementation requirements are retained in the [upstream baseline](docs/UPSTREAM_BASELINE.md) and [milestone handoff](docs/WEBSTUDIO_CODEX_HANDOFF.md).
+Run `tools/build-release.ps1 -NodeExe <full-node-path>` to rebuild both stages, then `tools/package-release.ps1` to assemble the installers with Package Studio Pro. Its complete authoring projects and payloads are retained under `Package Studio Pro/MySetups/DelphiWebStudioPro-1.0.0.4`; open the matching Win32 or Win64 `.wiproj` to build it there. [Installer instructions](desktop/installer/README.md) explain the package inputs. Optional serverless API endpoints are outside the desktop payload and require separate operator configuration. Earlier implementation requirements are retained in the [upstream baseline](docs/UPSTREAM_BASELINE.md) and [milestone handoff](docs/WEBSTUDIO_CODEX_HANDOFF.md).
 
 ## Attribution
 

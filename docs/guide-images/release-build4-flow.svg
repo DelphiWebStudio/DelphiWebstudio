@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="760" viewBox="0 0 1600 760">
+  <rect width="1600" height="760" fill="#ffffff"/>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10Z" fill="#31577a"/></marker>
+  </defs>
+  <g font-family="Segoe UI, Arial, sans-serif" fill="#15324c">
+    <text x="60" y="65" font-size="38">How a release becomes an installable application</text>
+    <g fill="#f0f5f9" stroke="#31577a" stroke-width="3">
+      <rect x="60" y="125" width="665" height="155" rx="14"/>
+      <rect x="865" y="125" width="665" height="155" rx="14"/>
+      <rect x="60" y="395" width="665" height="155" rx="14"/>
+      <rect x="865" y="395" width="665" height="155" rx="14"/>
+    </g>
+    <g fill="#ed8a23"><rect x="60" y="125" width="9" height="155"/><rect x="865" y="125" width="9" height="155"/><rect x="60" y="395" width="9" height="155"/><rect x="865" y="395" width="9" height="155"/></g>
+    <g fill="none" stroke="#31577a" stroke-width="3" marker-end="url(#arrow)"><path d="M725 202H850"/><path d="M392 280V380"/><path d="M1197 280V380"/><path d="M725 472H850"/></g>
+    <g font-size="34" font-weight="600"><text x="96" y="180">Versioned source</text><text x="901" y="180">Browser editor bundle</text><text x="96" y="450">Two Windows applications</text><text x="901" y="450">Package Studio Pro installers</text></g>
+    <g font-size="27"><text x="96" y="230">Delphi project options · Pascal and DFM forms</text><text x="901" y="230">TypeScript check · Vite build · local editor files</text><text x="96" y="500">Win32 and Win64 · file version 1.0.0.4</text><text x="901" y="500">Application · loader · editor · guides · notices</text></g>
+    <g font-size="27"><text x="60" y="640">WebView2 is checked before installation. SFTP uses the Windows OpenSSH Client.</text><text x="60" y="700">Saved projects, local drafts and credentials stay outside the installer payload.</text></g>
+  </g>
+</svg>

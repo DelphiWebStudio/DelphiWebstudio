@@ -1,8 +1,30 @@
 # Release package validation
 
-## Build 3 on November 20 2026
+## Build 4 on November 20 2026
 
-The current Win32 and Win64 installers contain **Delphi Web Studio Pro 1.0.0 build 3**, with Windows file/product version **1.0.0.3** and release tag **v1.0.0.3**. This release corrects text placement, dragging and context-menu visibility. Previous releases remain historical.
+The current installers contain **Delphi Web Studio Pro 1.0.0 build 4**, Windows file/product version **1.0.0.4**, release tag **v1.0.0.4**. This fixes the reproduced Add bullets failure without rewriting user content. Older release records below remain historical.
+
+| Edition | Installer | Bytes | SHA-256 |
+| --- | --- | ---: | --- |
+| Win32 | DelphiWebStudioPro-1.0.0.4-Win32-Setup.exe | 24,778,234 | 0bf1d00caf77fef33f317dd1ce7852d2a1e14bd9069195188c2de4068ba4f429 |
+| Win64 | DelphiWebStudioPro-1.0.0.4-Win64-Setup.exe | 25,278,077 | f0eb5342a0d37ce8bdfb992c81636b5591863a3387b8b7a5579115e6c050b93d |
+
+Both actual production executables passed **45 bullet/layout/persistence checks per architecture** with isolated synthetic profiles. A separate browser run passed **42 checks**. The tests retain paragraph and heading boundaries, blank lines, spacing, indents, fonts, colors, links, partial-selection boundaries, existing bullet/list markers, pending typing, Undo/Redo, project reopening and Preview. Responsive HTML export is checked through the shared current source renderer at desktop, tablet and phone widths. The same final executables also passed the earlier **53 placement/drag/full-menu checks per architecture**.
+
+The full regression suite passed **477 tests**, with two pre-existing optional integration checks skipped. Full lint and TypeScript passed, retaining one earlier non-failing Gemini cleanup warning. The frontend fetched by both native runs is index-D8Wudcad.js, SHA-256 c901f2baacc466017c55c61cd11e639bb1e867045bfafabb605727945218db39.
+
+Each installer has a matching SHA-256 sidecar under export/release-1.0.0.4. Both embedded archives passed CRC checks, and all **43 payload files per edition** matched the final files and retained Package Studio Pro authoring payload. All **14 guide files** match their reviewed hashes: **165 pages**, including 31 freshly inspected changed pages and 134 pages matching prior reviewed render hashes, with **172 real linked dotted TOC entries** and correct PDF page targets. Icon sizes 16, 24, 32, 48, 64, 128 and 256 pixels remain present; both Microsoft WebView2 loaders retain valid signatures.
+
+Installer runtime code outside its resource section matches the unchanged Package Studio Pro engine. Its manifest requests asInvoker, and package manifests use neutral publisher data, relative payload paths and empty signing/certificate paths. These checks do not claim a fresh-Windows VM installation or a new installer-engine lifecycle run. Complete private authoring projects and payloads remain under Package Studio Pro/MySetups/DelphiWebStudioPro-1.0.0.4; tools/package-release.ps1 reproduces them.
+
+Saved projects and the existing local website (**114 files**), the original draft profile (**2,616 files**) and the pre-existing README edit remained byte-identical to the verified pre-change ZIP. Payload text, guide XML and metadata passed privacy checks; projects, profiles, credentials and test outputs are excluded. No live Gemini request, contact submission, production SFTP operation, website publication/refresh or DNS change was made. Earlier operations may already have saved missing line breaks; the application correction cannot infer those breaks and does not guess changes to existing project text.
+
+The exact local package proof is export/release-1.0.0.4/package-verification.json.
+
+
+## Earlier build 3 on November 20 2026
+
+The build-3 Win32 and Win64 installers contained **Delphi Web Studio Pro 1.0.0 build 3**, with Windows file/product version **1.0.0.3** and release tag **v1.0.0.3**. This release corrects text placement, dragging and context-menu visibility. Previous releases remain historical.
 
 | Edition | Installer | Bytes | SHA-256 |
 | --- | --- | ---: | --- |
