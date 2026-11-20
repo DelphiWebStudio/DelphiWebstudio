@@ -78,9 +78,15 @@ export function RichText({ blockId, field, text, value, editable = false, multil
       if (node.tagName === 'BR') { output.push({ text: '\n', ...style }); return }
       const next = { ...style }
       const markdownTag = node !== element && (markdown || multiline) && (Object.hasOwn(markdownBlockClasses, node.localName) || node.tagName === 'DIV')
+      const blockSpan = node !== element && (markdown || multiline) && node.tagName === 'SPAN' && node.style.display === 'block'
       if (markdownTag) {
         next.tag = node.tagName === 'DIV' ? 'p' : node.localName as MarkdownTag
         next.line = ++line
+      } else if (blockSpan) {
+        delete next.tag
+        next.line = ++line
+        const computed = getComputedStyle(node)
+        next.align = ['left', 'center', 'right', 'justify'].includes(computed.textAlign) ? computed.textAlign as Run['align'] : computed.direction === 'rtl' ? 'right' : 'left'
       } else if (node.tagName === 'LI') {
         if (output.length && !output[output.length - 1].text.endsWith('\n')) output.push({ text: '\n' })
         if (!node.textContent?.trimStart().startsWith('• ')) output.push({ text: '• ', ...style })
@@ -108,7 +114,9 @@ export function RichText({ blockId, field, text, value, editable = false, multil
         next.underline ??= historyLabel === 'Gemini: edit selected text' ? getComputedStyle(node).textDecorationLine.includes('underline') : true
       }
       if (!markdownTag && (node.tagName === 'P' || node.tagName === 'DIV') && output.length && !output[output.length - 1].text.endsWith('\n')) output.push({ text: '\n' })
+      const before = output.length
       node.childNodes.forEach(child => collect(child, next))
+      if ((markdownTag || blockSpan || node.hasAttribute('data-rich-run')) && output.length === before) output.push({ text: '', ...next })
     }
     collect(element, {})
     const plain = output.map((item, index) => {
@@ -672,25 +680,46 @@ export function RichText({ blockId, field, text, value, editable = false, multil
         if (!root.current || !savedRange.current || !root.current.contains(savedRange.current.commonAncestorContainer)) return
         const range = savedRange.current
         if (range.collapsed) return
-        const fragment = range.extractContents()
-        const walker = document.createTreeWalker(fragment, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT)
-        let startOfLine = true
-        let node: Node | null
-        while ((node = walker.nextNode())) {
-          if (node instanceof HTMLElement && node.tagName === 'BR') { startOfLine = true; continue }
-          if (node instanceof HTMLElement && ['DIV', 'P', 'LI'].includes(node.tagName)) { startOfLine = true; continue }
-          if (node.nodeType !== Node.TEXT_NODE || !node.textContent) continue
-          const original = node.textContent
-          let updated = ''
-          for (let i = 0; i < original.length; i++) {
-            const character = original[i]
-            if (startOfLine && character !== '\n') { if (character !== '•') updated += '• '; startOfLine = false }
-            updated += character
-            if (character === '\n') startOfLine = true
+        const element = root.current
+        const prefix = document.createRange()
+        prefix.selectNodeContents(element); prefix.setEnd(range.startContainer, range.startOffset)
+        const selectionStart = prefix.toString().length
+        prefix.setEnd(range.endContainer, range.endOffset)
+        const selectionEnd = prefix.toString().length
+        const rows: Array<{ start: number; end: number; text: string; listed: boolean; point?: { node: Text; offset: number } }> = []
+        let row: typeof rows[number] | undefined, offset = 0
+        const finishRow = () => { if (row) rows.push(row); row = undefined }
+        const visit = (node: Node, listed = false) => {
+          if (node.nodeType === Node.TEXT_NODE) {
+            let localOffset = 0
+            for (const part of (node.textContent || '').split(/(\r\n|[\r\n\u2028\u2029])/)) {
+              if (/^(?:\r\n|[\r\n\u2028\u2029])$/.test(part)) finishRow()
+              else if (part) {
+                row ??= { start: offset, end: offset, text: '', listed }
+                const first = part.search(/\S/)
+                if (!row.point && first >= 0) row.point = { node: node as Text, offset: localOffset + first }
+                row.text += part; row.end = offset + part.length
+              }
+              offset += part.length; localOffset += part.length
+            }
+            return
           }
-          node.textContent = updated
+          if (!(node instanceof HTMLElement)) return
+          const block = node !== element && (['DIV', 'P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'BLOCKQUOTE', 'PRE'].includes(node.tagName) || node.style.display === 'block' || node.style.display === 'list-item')
+          if (block || node.tagName === 'BR') finishRow()
+          if (node.tagName === 'BR') return
+          node.childNodes.forEach(child => visit(child, listed || node.tagName === 'LI' || node.style.display === 'list-item'))
+          if (block) finishRow()
         }
-        range.insertNode(fragment); dirty.current = true; close()
+        visit(element); finishRow()
+        const targets = rows.filter(row => row.point && row.end > selectionStart && row.start < selectionEnd && !row.listed && !row.text.trimStart().startsWith('•'))
+        if (targets.length) {
+          // Save pending typing separately, then change only the original line starts.
+          save()
+          for (const row of targets.reverse()) row.point!.node.insertData(row.point!.offset, '• ')
+          dirty.current = true; save('Add bullets')
+        }
+        close()
       }}>• Bullets</button></div>}
       {!savedRange.current || savedRange.current.collapsed ? <p className="order-1 mb-2 text-xs">Select text to format it.</p> : <div className="order-1">
         {window.location.origin === 'https://webstudio.local' ? <label className="mb-3 block text-xs text-gray-700">Font<button type="button" aria-label="Choose Windows font" className="mt-1 w-full rounded border border-gray-400 p-2 text-left text-sm text-black" onMouseDown={event => event.preventDefault()} onClick={async () => {

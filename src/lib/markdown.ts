@@ -1,8 +1,12 @@
 import { createElement, type ReactNode } from 'react'
 
 export const markdownBlockClasses = {
+  h1: '',
   h2: 'text-xl font-semibold font-display mb-3 mt-5',
   h3: 'text-lg font-semibold font-display mb-2 mt-4',
+  h4: '',
+  h5: '',
+  h6: '',
   p: 'text-text-1 leading-relaxed mb-3',
   li: '',
 }

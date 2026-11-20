@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.0 build 4 - 2026-11-20
+
+- Corrected Add bullets so it retains existing paragraph boundaries, blank lines, spacing, indentation and inline formatting instead of extracting and rebuilding the selected content.
+- Retained existing bullet/list markers and left unselected text unchanged. Added focused conversion, Undo/Redo, project round-trip and responsive export regression coverage.
+- Updated the illustrated guides, both Windows builds and Package Studio Pro installer inputs to Windows file/product version 1.0.0.4.
+
+
 ## 1.0.0 build 3 - 2026-11-20
 
 - Unified the left-panel and canvas-menu Add text commands: choose the command, then click the destination section or panel. Invalid destinations retain placement mode instead of silently inserting at the top-left or after the footer.

@@ -1,6 +1,18 @@
 # Delphi Web Studio Pro release review
 
-## Build 3 review
+## Build 4 review
+
+Reviewed November 20, 2026. Application version **1.0.0 build 4**; Windows file/product version **1.0.0.4**; release tag **v1.0.0.4**.
+
+The original Add bullets failure was reproduced in a synthetic schedule before source changes. The command previously extracted and reinserted its selection, while serialization could discard empty paragraphs and CSS block-span boundaries. It now prefixes the original logical line starts in place, retains blank-paragraph formatting and preserves block-span identity. The closed heading map also retains the H1 and H4–H6 tags already accepted by source-formatting paste. Existing bullets/list markers are skipped; pending typing is saved separately so Undo can remove only the new bullets. No paragraph reconstruction or content recovery is guessed for a user's saved project.
+
+The focused browser regression passed **42 checks** covering paragraph boundaries, blank lines, custom spacing, indents, fonts, colors, links, partial selections, paragraph-end boundaries, existing lists, Undo/Redo, project reopening, Preview and responsive export. Additional cases cover BR/newline rows, CSS block spans, all accepted heading levels, truly empty paragraphs and pending typing. The final native acceptance and exact package validation records identify the tested executable/editor hashes. This release keeps the build-3 placement, visible Move controls and full menu.
+
+Both actual production executables passed **45 bullet/layout/persistence checks per architecture**, and each also passed the earlier **53 placement/drag/full-menu checks** against the final loaded frontend. Export-width checks use the shared source renderer with each tested configuration. The full regression suite passed **477 tests**, with two pre-existing optional checks skipped; full lint and TypeScript passed with the earlier non-failing Gemini cleanup warning. The tested editor bundle is index-D8Wudcad.js, SHA-256 c901f2baacc466017c55c61cd11e639bb1e867045bfafabb605727945218db39. These results do not claim a fresh-Windows installation or a new installer-engine lifecycle run.
+
+All seven illustrated DOCX/PDF guide pairs were refreshed with minimal preservation notes and build metadata. Their **165 pages** and **172 real linked dotted TOC entries** were checked; unchanged pages match the prior reviewed render hashes. Saved projects, the existing local website and the original draft profile are preserved against the verified pre-change ZIP. No website publication, production SFTP operation, live Gemini request or contact submission is part of this release.
+
+## Earlier build 3 review
 
 Reviewed November 20, 2026. Application version **1.0.0 build 3**; Windows file/product version **1.0.0.3**; release tag **v1.0.0.3**.
 
